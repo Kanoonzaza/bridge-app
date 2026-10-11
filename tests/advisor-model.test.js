@@ -36,3 +36,23 @@ test('stops at an illegal call and when the auction ends', () => {
   assert.deepEqual(buildAuction({ opener: 'me', seat: 1, ourCalls: ['1S', '1H'] }).calls, ['1S', 'P']);
   assert.deepEqual(buildAuction({ opener: 'me', seat: 1, ourCalls: ['1S', 'P'] }).calls, ['1S', 'P', 'P', 'P']);
 });
+
+test('competing opponents: their calls are entered after our opening', () => {
+  const a = buildAuction({ opener: 'partner', seat: 1, ourCalls: ['1H', '2C'], compete: true });
+  assert.deepEqual(a.calls, ['1H', '2C']);
+  assert.equal(nextSeat(a), 'S');
+  const b = buildAuction({ opener: 'me', seat: 1, ourCalls: ['1S', 'P', '2S', '3H'], compete: true });
+  assert.deepEqual(b.calls, ['1S', 'P', '2S', '3H']);
+  assert.equal(nextSeat(b), 'S');
+});
+
+test('an opponent opens: right-hand opponent in 1st seat, then I act', () => {
+  assert.equal(dealerFor('rho', 1), 'E');
+  assert.equal(dealerFor('lho', 1), 'W');
+  const a = buildAuction({ opener: 'rho', seat: 1, ourCalls: ['1H'] });
+  assert.deepEqual(a.calls, ['1H']);
+  assert.equal(nextSeat(a), 'S');
+  const b = buildAuction({ opener: 'lho', seat: 2, ourCalls: ['1N', 'P', 'P'] });
+  assert.deepEqual(b.calls, ['P', '1N', 'P', 'P']);
+  assert.equal(nextSeat(b), 'S');
+});

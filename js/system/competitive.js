@@ -275,3 +275,4 @@ entries.push(
 );
 
 export default entries;
+export { def, cheapest, above };

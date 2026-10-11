@@ -1,7 +1,7 @@
 import { cardCount } from '../cards.js';
 import { nextSeat, isComplete, seatAt } from '../auction.js';
 import { advise } from '../engine.js';
-import { buildAuction, ME, PARTNER } from '../advisor-model.js';
+import { buildAuction, enteredTurn, oppsEnter, isOpp, OPENER_SEAT as OPENER, PARTNER } from '../advisor-model.js';
 import { cleanAdvisor, acceptedCalls } from '../state.js';
 import { callLabel } from '../format.js';
 import { NOTES_URL } from '../config.js';
@@ -9,7 +9,8 @@ import { el, segmented, keepFocus } from './dom.js';
 import { handPicker } from './hand-picker.js';
 import { biddingBox } from './bidding-box.js';
 
-const WHO = { S: 'You', N: 'Partner', E: 'Opp', W: 'Opp' };
+const WHO = { S: 'You', N: 'Partner', E: 'Right', W: 'Left' };
+const OPP_NAME = { E: 'Right opponent', W: 'Left opponent' };
 const SEAT_NAMES = ['1st', '2nd', '3rd', '4th'];
 
 export function advisorView(root, store) {
@@ -31,11 +32,11 @@ export function advisorView(root, store) {
   function auctionStrip(a) {
     const items = a.calls.map((c, i) => {
       const seat = seatAt(a, i);
-      return el('span', { class: `call${seat === 'E' || seat === 'W' ? ' opp' : ''}` }, el('small', {}, WHO[seat]), callLabel(c));
+      return el('span', { class: `call${isOpp(seat) && c === 'P' ? ' opp' : ''}` }, el('small', {}, WHO[seat]), el('span', {}, callLabel(c)));
     });
     if (!isComplete(a)) items.push(el('span', { class: 'call next' }, el('small', {}, WHO[nextSeat(a)]), '?'));
     return el('div', {},
-      el('div', { class: 'label' }, 'Auction so far (opponents pass)'),
+      el('div', { class: 'label' }, oppsEnter(state) ? 'Auction so far' : 'Auction so far (opponents pass)'),
       el('div', { class: 'strip' }, ...items),
       state.ourCalls.length
         ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', 'data-key': 'act-undo', class: 'pill', onclick: () => update({ ourCalls: state.ourCalls.slice(0, -1) }) }, 'Undo'))
@@ -45,6 +46,7 @@ export function advisorView(root, store) {
   function answerCard(a) {
     if (isComplete(a)) return el('div', { class: 'panel muted' }, 'The auction is over. Tap Undo, or change who opens to start again.');
     if (nextSeat(a) === PARTNER) return el('div', { class: 'panel muted' }, "Partner's turn: tap partner's call on the bidding box.");
+    if (isOpp(nextSeat(a))) return el('div', { class: 'panel muted' }, `${OPP_NAME[nextSeat(a)]}'s turn: tap their call (Pass if they passed).`);
     const n = cardCount(state.hand);
     if (n !== 13) return el('div', { class: 'panel muted' }, `Pick exactly 13 cards (you have ${n}).`);
     const r = advise(state.hand, a);
@@ -76,14 +78,15 @@ export function advisorView(root, store) {
       save();
     }
     const a = buildAuction(state);
-    const ourTurn = !isComplete(a) && [ME, PARTNER].includes(nextSeat(a));
+    const ourTurn = !isComplete(a) && enteredTurn(state, a);
     keepFocus(rest, () => {
       top.replaceChildren(
-        segmented('Who opens?', [['me', "I'm opening"], ['partner', 'Partner opened']], state.opener, (v) => update({ opener: v, ourCalls: [] })),
+        segmented('Who opens?', [['me', "I'm opening"], ['partner', 'Partner'], ['lho', 'Left opp'], ['rho', 'Right opp']], state.opener, (v) => update({ opener: v, ourCalls: [] })),
+        isOpp(OPENER[state.opener]) ? null : segmented('Opponents', [[false, 'Always pass'], [true, 'Enter their calls']], state.compete, (v) => update({ compete: v, ourCalls: [] })),
         segmented('Seat of the opening bid', SEAT_NAMES.map((t, i) => [i + 1, t]), state.seat, (v) => update({ seat: v, ourCalls: [] })),
         auctionStrip(a));
       live.replaceChildren(answerCard(a));
-      bottom.replaceChildren(...(ourTurn ? [biddingBox(a, { onCall: (c) => update({ ourCalls: [...state.ourCalls, c] }) })] : []));
+      bottom.replaceChildren(...(ourTurn ? [biddingBox(a, { onCall: (c) => update({ ourCalls: [...state.ourCalls, c] }), doubles: oppsEnter(state) })] : []));
     });
   }
 

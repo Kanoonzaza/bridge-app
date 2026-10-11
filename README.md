@@ -6,6 +6,7 @@ Live: https://kanoonzaza.github.io/bridge-app/
 
 - Tests: `npm test` (Node 20+)
 - Rules live in `js/system/`; every entry links to a section of the published system notes.
+- Advisor: choose who opens (you, partner or an opponent) and whether the opponents always pass or you enter their calls.
 - For practice and study only; electronic aids are not allowed at the table.
 
 ## Release

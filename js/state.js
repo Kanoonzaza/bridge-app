@@ -24,9 +24,10 @@ export function cleanAdvisor(raw) {
   const r = isObj(raw) ? raw : {};
   return {
     hand: cleanHand(r.hand),
-    opener: r.opener === 'partner' ? 'partner' : 'me',
+    opener: ['partner', 'lho', 'rho'].includes(r.opener) ? r.opener : 'me',
     seat: Number.isInteger(r.seat) && r.seat >= 1 && r.seat <= 4 ? r.seat : 1,
     ourCalls: cleanCalls(r.ourCalls),
+    compete: r.compete === true,
   };
 }
 
@@ -45,10 +46,12 @@ export function cleanTab(raw, tabs) {
 
 // The longest prefix of our saved calls that the built auction actually used.
 // buildAuction stops at the first illegal call (or at the end of the auction) and ignores the rest.
-export function acceptedCalls({ opener, seat, ourCalls }) {
-  let built = buildAuction({ opener, seat, ourCalls: [] });
+// ourCalls holds every entered call: ours, and the opponents' when they compete.
+export function acceptedCalls(state) {
+  const { ourCalls } = state;
+  let built = buildAuction({ ...state, ourCalls: [] });
   for (let k = 1; k <= ourCalls.length; k++) {
-    const next = buildAuction({ opener, seat, ourCalls: ourCalls.slice(0, k) });
+    const next = buildAuction({ ...state, ourCalls: ourCalls.slice(0, k) });
     const n = built.calls.length;
     const used = next.calls.length > n
       && built.calls.every((c, i) => next.calls[i] === c)

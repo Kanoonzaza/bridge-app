@@ -7,6 +7,7 @@ import notrump from './notrump.js';
 import twos from './twos.js';
 import slam from './slam.js';
 import competitive from './competitive.js';
+import './compete-advice.js'; // attaches Advisor decisions to the competitive meanings
 
 const ALL = [...openings, ...respMajor, ...respMinor, ...rebids, ...respRebids, ...notrump, ...twos, ...slam, ...competitive];
 export default ALL;

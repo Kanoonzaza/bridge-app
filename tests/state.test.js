@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { cleanAdvisor, cleanDecoder, cleanTab, acceptedCalls } from '../js/state.js';
 import { emptyHand } from '../js/cards.js';
 
-const DEFAULT_ADVISOR = { hand: emptyHand(), opener: 'me', seat: 1, ourCalls: [] };
+const DEFAULT_ADVISOR = { hand: emptyHand(), opener: 'me', seat: 1, ourCalls: [], compete: false };
 
 test('cleanAdvisor gives defaults for junk input', () => {
   for (const junk of [null, undefined, 5, 'x', [], [1, 2], true]) assert.deepEqual(cleanAdvisor(junk), DEFAULT_ADVISOR);
 });
 
 test('cleanAdvisor keeps a valid state unchanged', () => {
-  const s = { hand: { S: 'AKQ', H: 'J98', D: 'T765', C: '432' }, opener: 'partner', seat: 3, ourCalls: ['1H', 'P', 'X', 'XX', '7N'] };
+  const s = { hand: { S: 'AKQ', H: 'J98', D: 'T765', C: '432' }, opener: 'partner', seat: 3, ourCalls: ['1H', 'P', 'X', 'XX', '7N'], compete: true };
   assert.deepEqual(cleanAdvisor(s), s);
 });
 
