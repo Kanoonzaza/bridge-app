@@ -19,6 +19,7 @@ const CASES = [
   [['1S', '2C'], 'AQT74 K3 862 J74', 3, '2S', 'Drury: light opening signs off'],
   [['1S', '2C'], 'AQT74 K83 Q5 J62', 1, '2S', '2/1: balanced but no diamond stopper, so 2♠'],
   [['1S', '2D'], 'KQ863 A72 K4 Q93', 1, '2N', '2/1: balanced'],
+  [['1S', '2C'], 'AKQ875 Q43 52 AQ', 1, '3S', '2/1: solid suit sets trumps'],
   [['1S', '2H'], 'AQ853 K84 Q74 J2', 1, '4H', 'fast arrival with a minimum'],
   [['1S', '2H'], 'AKJ74 K84 AQ4 J2', 1, '3H', 'slow raise with extras'],
   [['1C', '1H'], 'KQ74 5 A83 KJ853', 1, '1S', 'show spades at the 1-level'],

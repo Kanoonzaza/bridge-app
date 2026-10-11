@@ -344,7 +344,7 @@ export function afterTwoOverOne(e, o, r) {
     .sort((a, b) => (isMajor(b) - isMajor(a)) || RANK[a] - RANK[b])[0];
   if (side) return R(`2${side}`, [`${L[side]} ${NAME[side]}: describe the hand`, 'game is forced, so this shows shape, not extra strength']);
   if (L[r] >= 4) return R(`3${r}`, [`${L[r]}-card ${NAME[r]} support`]);
-  if (isMajor(o) && L[o] >= 6 && top3(e, o) >= 2 && /[JT]/.test(e.hand[o])) return R(`3${o}`, [`very good ${L[o]}-card ${NAME[o]}: sets trumps`]);
+  if (isMajor(o) && L[o] >= 6 && (top3(e, o) === 3 || (top3(e, o) === 2 && /[JT]/.test(e.hand[o])))) return R(`3${o}`, [`very good ${L[o]}-card ${NAME[o]}: sets trumps`]);
   return R(`2${o}`, [`${L[o]} ${NAME[o]}, nothing else to show`, 'any strength: game is forced'], { close: e.balanced ? 'Balanced, but an unbid suit has no stopper: rebid the suit rather than 2NT.' : null });
 }
 
