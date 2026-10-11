@@ -5,7 +5,7 @@ import { buildAuction, ME, PARTNER } from '../advisor-model.js';
 import { cleanAdvisor, acceptedCalls } from '../state.js';
 import { callLabel } from '../format.js';
 import { NOTES_URL } from '../config.js';
-import { el, segmented } from './dom.js';
+import { el, segmented, keepFocus } from './dom.js';
 import { handPicker } from './hand-picker.js';
 import { biddingBox } from './bidding-box.js';
 
@@ -15,7 +15,10 @@ const SEAT_NAMES = ['1st', '2nd', '3rd', '4th'];
 export function advisorView(root, store) {
   const state = cleanAdvisor(store.load('advisor', {}));
   const save = () => store.save('advisor', state);
-  const rest = el('div', { class: 'stack' });
+  const top = el('div', { class: 'stack' });
+  const live = el('div', { 'aria-live': 'polite' });
+  const bottom = el('div');
+  const rest = el('div', { class: 'stack' }, top, live, bottom);
   const picker = handPicker({ hand: state.hand, onChange: (h) => { state.hand = h; save(); render(); } });
   root.replaceChildren(picker.root, rest);
 
@@ -35,7 +38,7 @@ export function advisorView(root, store) {
       el('div', { class: 'label' }, 'Auction so far (opponents pass)'),
       el('div', { class: 'strip' }, ...items),
       state.ourCalls.length
-        ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', onclick: () => update({ ourCalls: state.ourCalls.slice(0, -1) }) }, 'Undo'))
+        ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', 'data-key': 'act-undo', class: 'pill', onclick: () => update({ ourCalls: state.ourCalls.slice(0, -1) }) }, 'Undo'))
         : null);
   }
 
@@ -48,12 +51,14 @@ export function advisorView(root, store) {
     if (r.notCovered) {
       return el('div', { class: 'panel' },
         el('div', { class: 'eyebrow' }, 'Not covered yet'),
-        el('p', {}, "The advisor doesn't have rules for this situation yet. These are the bids our system defines here:"),
         r.options.length
-          ? el('ul', { class: 'opts' }, ...r.options.map((o) => el('li', {}, el('b', {}, callLabel(o.call)), ' ', o.meaning)))
-          : el('p', { class: 'muted' }, 'No agreements entered for this situation yet.'));
+          ? [
+              el('p', {}, "The advisor doesn't have rules for this situation yet. These are the bids our system defines here:"),
+              el('ul', { class: 'opts' }, ...r.options.map((o) => el('li', {}, el('b', {}, callLabel(o.call)), ' ', o.meaning))),
+            ]
+          : el('p', {}, "The advisor doesn't cover this situation yet. More situations are coming in the next update."));
     }
-    return el('div', { class: 'panel answer', 'aria-live': 'polite' },
+    return el('div', { class: 'panel answer' },
       el('div', { class: 'eyebrow' }, 'Suggested bid'),
       el('div', { class: 'big' }, callLabel(r.call)),
       r.reasons.length ? el('p', {}, el('b', {}, 'Why: '), `${r.reasons.join('; ')}.`) : null,
@@ -72,12 +77,14 @@ export function advisorView(root, store) {
     }
     const a = buildAuction(state);
     const ourTurn = !isComplete(a) && [ME, PARTNER].includes(nextSeat(a));
-    rest.replaceChildren(
-      segmented('Who opens?', [['me', "I'm opening"], ['partner', 'Partner opened']], state.opener, (v) => update({ opener: v, ourCalls: [] })),
-      segmented('Seat of the opening bid', SEAT_NAMES.map((t, i) => [i + 1, t]), state.seat, (v) => update({ seat: v, ourCalls: [] })),
-      auctionStrip(a),
-      answerCard(a),
-      ourTurn ? biddingBox(a, { onCall: (c) => update({ ourCalls: [...state.ourCalls, c] }) }) : null);
+    keepFocus(rest, () => {
+      top.replaceChildren(
+        segmented('Who opens?', [['me', "I'm opening"], ['partner', 'Partner opened']], state.opener, (v) => update({ opener: v, ourCalls: [] })),
+        segmented('Seat of the opening bid', SEAT_NAMES.map((t, i) => [i + 1, t]), state.seat, (v) => update({ seat: v, ourCalls: [] })),
+        auctionStrip(a));
+      live.replaceChildren(answerCard(a));
+      bottom.replaceChildren(...(ourTurn ? [biddingBox(a, { onCall: (c) => update({ ourCalls: [...state.ourCalls, c] }) })] : []));
+    });
   }
 
   render();

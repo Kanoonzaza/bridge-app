@@ -6,6 +6,7 @@ export function biddingBox(auction, { onCall, doubles = false }) {
   const legal = new Set(legalCalls(auction));
   const button = (c, extra = '') => el('button', {
     type: 'button',
+    'data-key': `bid-${c}`,
     class: `bid${extra}`,
     disabled: !legal.has(c),
     onclick: () => onCall(c),
@@ -16,5 +17,5 @@ export function biddingBox(auction, { onCall, doubles = false }) {
     if (calls.some((c) => legal.has(c))) rows.push(el('div', { class: 'bb-row' }, ...calls.map((c) => button(c))));
   }
   const extras = ['P', ...(doubles ? ['X', 'XX'] : [])].map((c) => button(c, c === 'P' ? ' pass' : ''));
-  return el('div', { class: 'bbox', 'aria-label': 'Bidding box' }, el('div', { class: 'bb-extras' }, ...extras), ...rows);
+  return el('div', { class: 'bbox', role: 'group', 'aria-label': 'Bidding box' }, el('div', { class: 'bb-extras' }, ...extras), ...rows);
 }

@@ -31,12 +31,24 @@ export function el(tag, attrs = {}, ...kids) {
   return n;
 }
 
+// Re-render a container without losing keyboard focus: remember the focused
+// control's data-key, run render(), then focus the control with the same key.
+export function keepFocus(container, render) {
+  const active = document.activeElement;
+  const key = active && container.contains(active) ? active.dataset?.key : undefined;
+  render();
+  if (!key) return;
+  const esc = globalThis.CSS?.escape ? CSS.escape(key) : key.replace(/(["\\])/g, '\\$1');
+  container.querySelector(`[data-key="${esc}"]`)?.focus();
+}
+
 export function segmented(label, options, value, onPick) {
   return el('div', {},
     el('div', { class: 'label' }, label),
     el('div', { class: 'seg', role: 'group', 'aria-label': label },
       ...options.map(([v, text]) => el('button', {
         type: 'button',
+        'data-key': `pill-${label}-${v}`,
         class: `pill${v === value ? ' on' : ''}`,
         'aria-pressed': String(v === value),
         onclick: () => onPick(v),

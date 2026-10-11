@@ -6,14 +6,21 @@ export function registerUpdates() {
   const offer = (worker) => {
     waiting = worker;
     bar.hidden = false;
+    document.body.classList.add('has-update');
+  };
+  const watch = (w) => {
+    if (!w) return;
+    if (w.state === 'installed' && navigator.serviceWorker.controller) offer(w);
+    w.addEventListener('statechange', () => {
+      if (w.state === 'installed' && navigator.serviceWorker.controller) offer(w);
+    });
   };
   navigator.serviceWorker.register('sw.js').then((reg) => {
     if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
-    reg.addEventListener('updatefound', () => {
-      const w = reg.installing;
-      w?.addEventListener('statechange', () => {
-        if (w.state === 'installed' && navigator.serviceWorker.controller) offer(w);
-      });
+    watch(reg.installing);
+    reg.addEventListener('updatefound', () => watch(reg.installing));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update().catch(() => {});
     });
   }).catch(() => {});
   btn.addEventListener('click', () => waiting?.postMessage('skip'));
