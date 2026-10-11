@@ -71,3 +71,15 @@ test('candidates onlyPickable skips entries without pick before choosing', () =>
   assert.equal(candidates(sit, [dec, gen])[0].entry.meaning, 'decoder text');
   assert.equal(candidates(sit, [dec, gen], true)[0].entry.meaning, 'raise');
 });
+
+test('tail entries match the end of the auction and lose to exact patterns', async () => {
+  const { candidates } = await import('../js/engine.js');
+  const entries = [
+    { tail: true, after: ['4N'], call: '5C', meaning: 'tail', when: (key) => key.length >= 3 },
+    { after: ['1S', '2N', '4N'], call: '5C', meaning: 'exact' },
+  ];
+  const at = (key) => candidates({ key, ctx: {} }, entries).map((c) => c.entry.meaning);
+  assert.deepEqual(at(['1H', '3H', '4N']), ['tail']);
+  assert.deepEqual(at(['1S', '2N', '4N']), ['exact']);
+  assert.deepEqual(at(['1N', '4N']), []);
+});

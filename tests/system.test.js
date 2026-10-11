@@ -24,7 +24,7 @@ test('every entry is complete and links to a notes section', () => {
 test('no two entries define the same call in the same situation', () => {
   const seen = new Set();
   for (const e of ALL) {
-    const k = JSON.stringify([e.after, e.ctx ?? {}, e.call]);
+    const k = JSON.stringify([e.tail ?? false, e.after, e.ctx ?? {}, e.variant ?? null, e.call]);
     assert.ok(!seen.has(k), `duplicate ${k}`);
     seen.add(k);
   }

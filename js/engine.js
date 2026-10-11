@@ -79,11 +79,14 @@ export function candidates(situation, entries = ALL, onlyPickable = false) {
   const best = new Map();
   for (const entry of entries) {
     if (onlyPickable && !entry.pick) continue;
-    const env = matchPattern(entry.after, situation.key);
+    // A tail entry matches the end of the auction (e.g. any 4NT once a suit is agreed); exact patterns beat it.
+    if (entry.tail && situation.key.length < entry.after.length) continue;
+    const env = matchPattern(entry.after, entry.tail ? situation.key.slice(situation.key.length - entry.after.length) : situation.key);
     if (!env) continue;
     if (entry.ctx && !Object.entries(entry.ctx).every(([k, v]) => situation.ctx[k] === v)) continue;
+    if (entry.when && !entry.when(situation.key)) continue;
     const call = resolveCall(entry.call, env);
-    const cand = { call, entry, env, spec: specificity(entry.after), ctxN: ctxSize(entry) };
+    const cand = { call, entry, env, spec: specificity(entry.after) + (entry.tail ? 100 : 0), ctxN: ctxSize(entry) };
     const prev = best.get(call);
     if (!prev || moreSpecific(cand, prev)) best.set(call, cand);
   }
