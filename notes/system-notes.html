@@ -1,0 +1,2901 @@
+<title>Partnership System Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: card = masonry of panels; notes = sticky contents rail + reading column */
+:root{
+  --bg:#eef2ef; --surface:#ffffff; --ink:#18221d; --muted:#56655d; --rule:#d3ddd7;
+  --accent:#1d6a49; --red:#b3212e; --chip:#e4ece7; --head:#f5f8f6;
+  --t0:#1d6a49; --t1:#2b5c9a; --t2:#9a6512;
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1512; --surface:#151f1a; --ink:#e3ebe6; --muted:#97a79e; --rule:#2a3a32;
+  --accent:#62c493; --red:#f2737c; --chip:#1f2c26; --head:#1a2620;
+  --t0:#62c493; --t1:#7fb0ee; --t2:#e2ad55; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1512; --surface:#151f1a; --ink:#e3ebe6; --muted:#97a79e; --rule:#2a3a32;
+  --accent:#62c493; --red:#f2737c; --chip:#1f2c26; --head:#1a2620;
+  --t0:#62c493; --t1:#7fb0ee; --t2:#e2ad55; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);padding-inline:16px;padding-block:28px 64px}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(1.9rem,4.5vw,2.8rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.3rem;font-weight:700;display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}
+h3{font-size:1.05rem;font-weight:600;margin-top:1.4rem}
+p{margin:.55rem 0}
+ul,ol{margin:.5rem 0;padding-left:1.25rem}
+li{margin:.2rem 0}
+a{color:var(--accent)}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rs{color:var(--red)}
+.lede{color:var(--muted);font-size:1.02rem;margin-top:.6rem;max-width:62ch}
+.legend{font-size:.85rem;color:var(--muted);margin-top:.9rem;max-width:90ch}
+.eyebrow{font:500 .72rem/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:.7rem}
+.eyebrow .suits{letter-spacing:.35em}
+.tier{font:500 .68rem/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:.28rem .5rem;border-radius:999px;border:1px solid currentColor;white-space:nowrap;vertical-align:middle}
+.t0{color:var(--t0)} .t1{color:var(--t1)} .t2{color:var(--t2)}
+code{font:500 .86em var(--f-mono);background:var(--chip);padding:.08rem .35rem;border-radius:4px;white-space:nowrap}
+.tw{overflow-x:auto;margin:.7rem 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+th{font-family:var(--f-mono);font-weight:500;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;background:var(--head)}
+th,td{padding:.42rem .6rem;border-bottom:1px solid var(--rule);vertical-align:top}
+td:first-child{font-weight:600;white-space:nowrap}
+.xref{display:inline-block;margin-top:1rem;font-weight:600}
+/* card */
+.card-head{padding-bottom:1.4rem;border-bottom:2px solid var(--ink);margin-bottom:1.6rem}
+.panels{columns:2 32rem;column-gap:1.4rem}
+.panel{break-inside:avoid;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:1.1rem 1.2rem;margin:0 0 1.4rem;display:inline-block;width:100%}
+.panel h2{padding-bottom:.6rem;border-bottom:1px solid var(--rule);margin-bottom:.4rem}
+.panel p{font-size:.9rem}
+.panel.warn{border-color:var(--red)}
+.panel.warn h2 .tier{display:none}
+.panel table td:first-child{white-space:normal;min-width:6.5rem}
+/* notes */
+.layout{display:grid;grid-template-columns:15.5rem minmax(0,1fr);gap:2.5rem;align-items:start}
+.contents{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);max-height:calc(100vh - 32px);overflow:auto;font-size:.86rem;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:.9rem 1rem}
+.contents summary{font:500 .72rem var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);cursor:pointer}
+.contents ul{list-style:none;padding:0;margin:.5rem 0 0}
+.contents ul ul{padding-left:.8rem;margin:.1rem 0 .4rem;border-left:1px solid var(--rule)}
+.contents li{margin:.12rem 0}
+.contents a{color:var(--ink);text-decoration:none}
+.contents a:hover{color:var(--accent);text-decoration:underline}
+.contents .tier{display:none}
+article{max-width:46rem;min-width:0}
+article > h1{margin-bottom:.2rem}
+article h2{margin-top:2.8rem;padding-top:1.2rem;border-top:2px solid var(--ink)}
+article h2:first-of-type{margin-top:2rem}
+article p, article li{max-width:68ch}
+article em{color:var(--muted)}
+@media (max-width:860px){
+  .layout{grid-template-columns:minmax(0,1fr);gap:1.2rem}
+  .contents{position:static;max-height:none}
+}
+.home{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--surface);box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:10}
+.home:hover{filter:brightness(1.1)}
+.home svg{width:22px;height:22px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+<div class="wrap" id="top"><div class="layout"><details class="contents" id="toc" open><summary>Contents</summary><div class="toc">
+<ul>
+<li><a href="#how-to-use-these-notes">How to use these notes</a></li>
+<li><a href="#opening-bids-tier-0">Opening bids</a></li>
+<li><a href="#21-game-forcing-tier-0">2/1 Game Forcing</a></li>
+<li><a href="#forcing-1nt-response-tier-0">Forcing 1NT response</a></li>
+<li><a href="#raising-partners-major-tier-0">Raising partner's major</a></li>
+<li><a href="#responding-to-1-1-tier-0">Responding to 1♣ / 1<span class="rs">♦</span></a></li>
+<li><a href="#openers-rebids-tier-0">Opener's rebids</a></li>
+<li><a href="#reverses-tier-0">Reverses</a></li>
+<li><a href="#1nt-opening-and-responses-tier-0">1NT opening and responses</a></li>
+<li><a href="#weak-twos-and-ogust-tier-0">Weak twos and Ogust</a></li>
+<li><a href="#preempts-tier-0">Preempts</a></li>
+<li><a href="#competitive-bidding-tier-0">Competitive bidding</a></li>
+<li><a href="#defense-leads-and-signals-tier-0">Defense: leads and signals</a></li>
+<li><a href="#inverted-minor-raises-tier-1">Inverted minor raises</a></li>
+<li><a href="#xyz-tier-1">XYZ</a></li>
+<li><a href="#fourth-suit-forcing-tier-1">Fourth suit forcing</a></li>
+<li><a href="#drury-tier-1">Drury</a></li>
+<li><a href="#jordan-2nt-tier-1">Jordan 2NT</a></li>
+<li><a href="#dont-against-their-1nt-tier-1">DONT against their 1NT</a></li>
+<li><a href="#rkcb-1430-and-slam-tools-tier-1">RKCB 1430 and slam tools</a></li>
+<li><a href="#support-doubles-and-redoubles-tier-2">Support doubles and redoubles</a></li>
+<li><a href="#smolen-tier-2">Smolen</a></li>
+<li><a href="#lebensohl-tier-2">Lebensohl</a></li>
+<li><a href="#strong-2-opening-tier-2">Strong 2♣ opening</a></li>
+<li><a href="#danger-zones-the-most-common-mistakes">Danger zones: the most common mistakes</a></li>
+</ul>
+</div>
+</details><article><div class="eyebrow"><span class="suits">♠<span class="rs">♥</span><span class="rs">♦</span>♣</span> Contract bridge</div><h1 id="partnership-system-notes">Partnership System Notes</h1>
+<p class="lede">The full explanation behind our convention card: what each bid means, when it applies, what comes next, worked examples and the usual traps. Base system 2/1 Game Forcing, 1NT 15–17, revised 11 Oct 2026.</p><p><a class="xref" href="https://claude.ai/artifact/E899gpbkkmxzkihMgyTzC5" target="_blank" rel="noopener">← One-page Convention Card</a></p>
+
+<h2 id="how-to-use-these-notes">How to use these notes</h2>
+<p><strong>Tiers</strong> show how often each convention comes up. Learn them in order:</p>
+<ul>
+<li><span class="tier t0">Tier 0</span> <strong>Core system.</strong> Comes up every session; know it cold.</li>
+<li><span class="tier t1">Tier 1</span> <strong>Most sessions.</strong> Learn after Tier 0 feels automatic.</li>
+<li><span class="tier t2">Tier 2</span> <strong>Occasional but valuable.</strong> Learn last.</li>
+</ul>
+<p><strong>Notation.</strong> An auction is written left to right in turn order, with the opponents' calls in brackets: <code>1<span class="rs">♥</span>–(2♣)–X</code> means partner opened 1<span class="rs">♥</span>, right-hand opponent overcalled 2♣ and you doubled. A hand is written <code>♠KJ74 <span class="rs">♥</span>83 <span class="rs">♦</span>Q9752 ♣K6</code>.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Abbreviation</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M / m</td>
+<td>A major (<span class="rs">♥</span> ♠) / a minor (♣ <span class="rs">♦</span>)</td>
+</tr>
+<tr>
+<td>X / XX / P</td>
+<td>Double / redouble / pass</td>
+</tr>
+<tr>
+<td>HCP</td>
+<td>High-card points: A = 4, K = 3, Q = 2, J = 1</td>
+</tr>
+<tr>
+<td>GF</td>
+<td>Game forcing: neither partner may pass below game</td>
+</tr>
+<tr>
+<td>NF</td>
+<td>Non-forcing: partner may pass</td>
+</tr>
+<tr>
+<td>Opener / responder</td>
+<td>The player who opened / that player's partner</td>
+</tr>
+<tr>
+<td>Overcaller / advancer</td>
+<td>The opponent who bid first for their side / that player's partner</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="counting-your-hand">Counting your hand</h3>
+<ul>
+<li><strong>Opening hands</strong> use HCP. Add a point for a good 5-card suit if you are close.</li>
+<li><strong>Raising partner's suit</strong> uses <strong>dummy points</strong>: HCP plus shortness.</li>
+</ul>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Shortness</th>
+<th>With 4+ trumps</th>
+<th>With 3 trumps</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Void</td>
+<td>+5</td>
+<td>+3</td>
+</tr>
+<tr>
+<td>Singleton</td>
+<td>+3</td>
+<td>+2</td>
+</tr>
+<tr>
+<td>Doubleton</td>
+<td>+1</td>
+<td>+1</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>Honors in short suits</strong> lose value, so adjust before adding shortness:</li>
+</ul>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Short holding</th>
+<th>Count the honor as</th>
+<th>Then add shortness?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Singleton A</td>
+<td>4 (full)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Singleton K</td>
+<td>2 (1 less)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Singleton Q or J</td>
+<td>0</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Doubleton AK, AQ, KQ, Ax, Kx</td>
+<td>Full</td>
+<td>Yes (+1)</td>
+</tr>
+<tr>
+<td>Doubleton Qx, Jx, QJ</td>
+<td>1 less (Qx = 1, Jx = 0, QJ = 2)</td>
+<td>Yes (+1)</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>Only count dummy points with a fit</strong>, and never for shortness in partner's own suit.</li>
+<li><strong>Game needs about 25 points</strong> between you (26 for 3NT is safer), <strong>small slam about 33</strong>, <strong>grand slam about 37</strong>.</li>
+</ul>
+<h2 id="opening-bids-tier-0">Opening bids <span class="tier t0">Tier 0</span></h2>
+<h3 id="requirements-by-seat">Requirements by seat</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Seat</th>
+<th>Open a 1-level suit with</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1st and 2nd</td>
+<td>12+ HCP, or the <strong>Rule of 20</strong>: HCP + cards in your two longest suits ≥ 20</td>
+</tr>
+<tr>
+<td>3rd</td>
+<td>Can be light, about 10 HCP, with a good suit you want partner to lead. Drury protects you</td>
+</tr>
+<tr>
+<td>4th</td>
+<td>14+ HCP: always open. 9–13 HCP: open only with the <strong>Rule of 15</strong> (HCP + number of spades ≥ 15); otherwise pass the hand out. Never preempt</td>
+</tr>
+</tbody>
+</table></div>
+<p><em>Rule of 20 example:</em> <code>♠KQ1083 <span class="rs">♥</span>AJ974 <span class="rs">♦</span>5 ♣84</code> has 10 HCP + 5 + 5 = 20. Open 1♠ (the higher of two 5-card suits).</p>
+<p><em>Rule of 15 example (4th seat):</em> <code>♠KQ94 <span class="rs">♥</span>A82 <span class="rs">♦</span>Q73 ♣952</code> has 11 HCP + 4 spades = 15. Open 1♣. Without the spades, passing is safer because the opponents would win the fight for the part-score.</p>
+<h3 id="choosing-the-suit">Choosing the suit</h3>
+<ol>
+<li><strong>5-card major?</strong> Open it. With 5-5 in the majors, open 1♠.</li>
+<li><strong>Balanced with 15–17?</strong> Open 1NT, even with a 5-card major (<code>♠AK <span class="rs">♥</span>KJ862 <span class="rs">♦</span>Q74 ♣K93</code> = 16, open 1NT).</li>
+<li><strong>Otherwise open a minor:</strong>
+   - 1<span class="rs">♦</span> promises <strong>4+</strong> diamonds. The single exception is <code>4♠ 4<span class="rs">♥</span> 3<span class="rs">♦</span> 2♣</code>, which opens 1<span class="rs">♦</span> with three.
+   - 1♣ promises <strong>3+</strong> clubs. With 3-3 in the minors, open 1♣.
+   - 4-4 in the minors, open 1<span class="rs">♦</span>. 5-5 in the minors, open 1<span class="rs">♦</span>.</li>
+<li><strong>Two suits of different lengths:</strong> open the longer. With 6-5, open the 6-card suit and bid the other suit twice if the auction allows.</li>
+</ol>
+<h3 id="the-full-list">The full list</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Opening</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1♣</td>
+<td>3+ clubs, 12–21</td>
+</tr>
+<tr>
+<td>1<span class="rs">♦</span></td>
+<td>4+ diamonds (3 only with 4♠ 4<span class="rs">♥</span> 3<span class="rs">♦</span> 2♣), 12–21</td>
+</tr>
+<tr>
+<td>1<span class="rs">♥</span> / 1♠</td>
+<td>5+ cards, 12–21</td>
+</tr>
+<tr>
+<td>1NT</td>
+<td>15–17 balanced (4-3-3-3, 4-4-3-2, 5-3-3-2; an occasional 6-3-2-2 with a 6-card minor). Never with a singleton</td>
+</tr>
+<tr>
+<td>2♣</td>
+<td>Strong, artificial: 22+ balanced, or about 9 playing tricks</td>
+</tr>
+<tr>
+<td>2<span class="rs">♦</span> / 2<span class="rs">♥</span> / 2♠</td>
+<td>Weak two: 6-card suit, 5–10 HCP</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>20–21 balanced</td>
+</tr>
+<tr>
+<td>3♣ – 3♠</td>
+<td>Preempt: about 7 cards, weak</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>Gambling: solid 7+ card minor (AKQxxxx) and no A or K outside</td>
+</tr>
+<tr>
+<td>4♣ – 4♠</td>
+<td>Preempt: about 8 cards, weak</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="21-game-forcing-tier-0">2/1 Game Forcing <span class="tier t0">Tier 0</span></h2>
+<h3 id="the-idea-in-one-sentence">The idea in one sentence</h3>
+<p>When partner opens <strong>1<span class="rs">♦</span>, 1<span class="rs">♥</span> or 1♠</strong> and you answer with a <strong>new suit at the 2-level without jumping</strong>, you are promising an opening hand yourself (12+). From that moment <strong>both of you must keep bidding until you reach game</strong>.</p>
+<p>"2/1" (say "two over one") means a <strong>2</strong>-level bid over a <strong>1</strong>-level opening.</p>
+<h3 id="why-its-worth-learning">Why it's worth learning</h3>
+<p>Two opening hands together (12 + 12 = <strong>24+</strong>) are almost always worth game. 2/1 tells partner that on the <strong>first response</strong>, so for the rest of the auction:</p>
+<ul>
+<li><strong>No one has to jump to show strength.</strong> You can't be dropped below game, so you can bid slowly and naturally.</li>
+<li><strong>You get room to compare options.</strong> Spades or notrump? Game or slam? There are several bids left to find out.</li>
+<li><strong>Strength is shown by speed</strong> (see fast arrival below): slow means interested in more, a jump to game means "that's enough".</li>
+</ul>
+<p>In older Standard American, <code>1♠–2♣</code> was forcing for one round only. Responder with 13 had to keep inventing forcing bids or jump around, which used up space. 2/1 solves that with one agreement.</p>
+<h3 id="exactly-which-bids-are-21">Exactly which bids are 2/1?</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Auction</th>
+<th>2/1 game force?</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1♠–2♣, 1♠–2<span class="rs">♦</span>, 1♠–2<span class="rs">♥</span></td>
+<td><strong>Yes</strong></td>
+<td>New suit at the 2-level, no jump</td>
+</tr>
+<tr>
+<td>1<span class="rs">♥</span>–2♣, 1<span class="rs">♥</span>–2<span class="rs">♦</span></td>
+<td><strong>Yes</strong></td>
+<td>Same</td>
+</tr>
+<tr>
+<td>1<span class="rs">♦</span>–2♣</td>
+<td><strong>Yes</strong></td>
+<td>Same</td>
+</tr>
+<tr>
+<td>1<span class="rs">♥</span>–2♠</td>
+<td>No</td>
+<td>Jump (1♠ was available): weak jump shift</td>
+</tr>
+<tr>
+<td>1♣–2<span class="rs">♦</span></td>
+<td>No</td>
+<td>Jump (1<span class="rs">♦</span> was available): weak jump shift</td>
+</tr>
+<tr>
+<td>1♣–2♣, 1<span class="rs">♦</span>–2<span class="rs">♦</span></td>
+<td>No</td>
+<td>A raise: inverted minor</td>
+</tr>
+<tr>
+<td>1♠–2♠, 1<span class="rs">♥</span>–2<span class="rs">♥</span></td>
+<td>No</td>
+<td>A raise: 6–9</td>
+</tr>
+<tr>
+<td>1<span class="rs">♥</span>–1♠, 1<span class="rs">♦</span>–1<span class="rs">♥</span></td>
+<td>No</td>
+<td>1-level response: forcing one round, 6+</td>
+</tr>
+<tr>
+<td>1♠–1NT</td>
+<td>No</td>
+<td>Forcing 1NT, 6–12</td>
+</tr>
+<tr>
+<td>1♠–2NT</td>
+<td>No</td>
+<td>Jacoby 2NT (a different game force: 4+ trumps)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Not game forcing at the 1-level:</strong> <code>1<span class="rs">♥</span>–1♠</code> can be a 6-point hand, even though it's forcing for one round. If responder has 15 points with 4 spades, they still bid 1♠ and show the strength on their next bid.</p>
+<h3 id="what-responder-needs-for-a-21">What responder needs for a 2/1</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Bid</th>
+<th>Strength</th>
+<th>Length</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2♣</td>
+<td>12+</td>
+<td>4+ clubs usually. <strong>Can be 3</strong> with a balanced game-forcing hand and nothing else to bid</td>
+</tr>
+<tr>
+<td>2<span class="rs">♦</span></td>
+<td>12+</td>
+<td>4+ diamonds (usually 5)</td>
+</tr>
+<tr>
+<td>2<span class="rs">♥</span> over 1♠</td>
+<td>12+</td>
+<td><strong>5+ hearts</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Count it like an opening hand:</strong> if you would have opened this hand yourself, you have enough for a 2/1.</p>
+<h3 id="exactly-12-21-or-1nt">Exactly 12: 2/1 or 1NT?</h3>
+<p>1NT is 6–12 and 2/1 is 12+, so <strong>12 is a judgment call</strong>. 11 or less always bids 1NT; 13+ always makes a 2/1 (or a game-forcing raise). With exactly 12, look at the <strong>quality</strong> of the points:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Upgrade: treat as 13, bid 2/1</th>
+<th>Downgrade: treat as 11, bid 1NT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A good 5+ card suit (2 of the top 3 honors)</td>
+<td>Flat 4-3-3-3 shape</td>
+</tr>
+<tr>
+<td>Points in aces and kings</td>
+<td>Points in queens and jacks</td>
+</tr>
+<tr>
+<td>Tens and nines with your honors (KJ109)</td>
+<td>Honors in short suits (Qx, singleton K)</td>
+</tr>
+<tr>
+<td>3-card support for opener's major</td>
+<td>No fit and no good suit</td>
+</tr>
+<tr>
+<td>Two-suited shape (5-4, 5-5)</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>A good 12 makes a 2/1. A bad 12 bids 1NT and then invites.</strong></p>
+<p>Choosing 1NT with a bad 12 costs very little: your second bid invites game (2NT, or 3M with 3-card support). Opener accepts with 13+, so you still reach game. You only stop below game when opener is also minimum, and then 12 + 12 with poor cards is better played in a part-score.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>After 1♠, your hand</th>
+<th>HCP</th>
+<th>Verdict</th>
+<th>Bid</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>♠Q4 <span class="rs">♥</span>A5 <span class="rs">♦</span>KQJ1063 ♣974</code></td>
+<td>12</td>
+<td>Good: strong 6-card suit</td>
+<td><strong>2<span class="rs">♦</span></strong></td>
+</tr>
+<tr>
+<td><code>♠Q4 <span class="rs">♥</span>QJ5 <span class="rs">♦</span>QJ73 ♣KJ62</code></td>
+<td>12</td>
+<td>Bad: flat, all queens and jacks</td>
+<td><strong>1NT</strong>, then 2NT (invite)</td>
+</tr>
+<tr>
+<td><code>♠K73 <span class="rs">♥</span>A84 <span class="rs">♦</span>A962 ♣1074</code></td>
+<td>11 + 3 trumps</td>
+<td>Aces, but only 11</td>
+<td><strong>1NT</strong>, then 3♠ (limit raise)</td>
+</tr>
+<tr>
+<td><code>♠K73 <span class="rs">♥</span>A84 <span class="rs">♦</span>A962 ♣J74</code></td>
+<td>12 + 3 trumps</td>
+<td>Good: two aces and a fit</td>
+<td><strong>2<span class="rs">♦</span></strong> (2/1), support spades next</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="responders-plan-after-1-or-1">Responder's plan after 1♠ (or 1<span class="rs">♥</span>)</h3>
+<p>Work down this list and stop at the first line that fits:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Your hand</th>
+<th>Bid</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0–5</td>
+<td>Pass</td>
+</tr>
+<tr>
+<td>4+ spades</td>
+<td>The raise ladder: 2♠ (6–9), 3♠ (10–12), <strong>2NT Jacoby</strong> (13+), splinter, 4♠ (weak, shapely)</td>
+</tr>
+<tr>
+<td>3 spades, 6–9</td>
+<td>2♠</td>
+</tr>
+<tr>
+<td>3 spades, 10–12</td>
+<td><strong>1NT</strong>, then jump to 3♠ next time</td>
+</tr>
+<tr>
+<td>3 spades, 12+</td>
+<td><strong>2/1 in your best suit</strong>, then support spades on your next bid</td>
+</tr>
+<tr>
+<td>No fit, 6–11</td>
+<td><strong>1NT</strong> (forcing)</td>
+</tr>
+<tr>
+<td>No fit, 12+</td>
+<td><strong>2/1 in your longest suit</strong> (2<span class="rs">♥</span> needs 5; with only 4 hearts bid a minor first)</td>
+</tr>
+<tr>
+<td>Over 1<span class="rs">♥</span> with 4+ spades</td>
+<td><strong>1♠</strong> at any strength, then show strength next</td>
+</tr>
+</tbody>
+</table></div>
+<p><em>Two-suiter examples, after partner's 1♠:</em></p>
+<ul>
+<li><code>♠4 <span class="rs">♥</span>KQ97 <span class="rs">♦</span>A8 ♣KJ8642</code> (13). Bid <strong>2♣</strong>: your long suit first. Show hearts later if useful.</li>
+<li><code>♠Q4 <span class="rs">♥</span>AQ83 <span class="rs">♦</span>K105 ♣Q942</code> (13, balanced, 4 hearts). Bid <strong>2♣</strong>, not 2<span class="rs">♥</span> (2<span class="rs">♥</span> needs 5). Hearts can come later.</li>
+<li><code>♠K6 <span class="rs">♥</span>Q842 <span class="rs">♦</span>AJ5 ♣K107</code> (13, balanced). Bid <strong>2♣</strong> with only three clubs: 2<span class="rs">♥</span> needs 5 cards and 2<span class="rs">♦</span> needs 4.</li>
+</ul>
+<h3 id="openers-second-bid">Opener's second bid</h3>
+<p>After <code>1♠–2♣</code>, game is forced. Opener just <strong>describes the hand</strong>; there's no need to show strength yet.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Opener rebids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2<span class="rs">♦</span> / 2<span class="rs">♥</span></td>
+<td>Natural, 4+ cards in that suit</td>
+</tr>
+<tr>
+<td>2♠</td>
+<td>The "default" rebid: 5+ spades and nothing else to show. <strong>Any strength</strong></td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>Balanced (e.g. 5-3-3-2). Strength not stated yet: 12–14 or 18–19</td>
+</tr>
+<tr>
+<td>3♣</td>
+<td>4+ clubs, a real fit for responder</td>
+</tr>
+<tr>
+<td>3♠ (jump)</td>
+<td>Very good 6+ spades, e.g. AKQ1074. Sets spades as trumps</td>
+</tr>
+<tr>
+<td>Jump to game</td>
+<td>Not used here: describe first, decide later</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Opener with a minimum doesn't need to rush.</strong> Even with 12 points, rebid naturally. You can show "minimum" later by going straight to game (fast arrival).</p>
+<h3 id="responders-second-bid">Responder's second bid</h3>
+<p>Now responder describes more. After <code>1♠–2♣–2<span class="rs">♦</span></code>:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Responder bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2♠</td>
+<td><strong>3-card spade support.</strong> Slow, so it leaves room for slam</td>
+</tr>
+<tr>
+<td>4♠</td>
+<td>3-card spade support, <strong>minimum</strong>: fast arrival, no slam interest</td>
+</tr>
+<tr>
+<td>2<span class="rs">♥</span></td>
+<td>4 hearts, or a heart stopper question. Forcing</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>Balanced, stopper in hearts. Forcing</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>Balanced minimum, stoppers. No slam interest</td>
+</tr>
+<tr>
+<td>3♣</td>
+<td>6+ clubs</td>
+</tr>
+<tr>
+<td>3<span class="rs">♦</span></td>
+<td>4-card diamond support</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="fast-arrival-how-strength-is-shown">Fast arrival: how strength is shown</h3>
+<p>Once game is forced, <strong>jumping straight to game is the weakest bid</strong>. It says "I have nothing extra; stop here". Bidding <strong>slowly</strong>, below game, says "I have something extra; let's keep exploring".</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Auction</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>1♠–2<span class="rs">♥</span>–4<span class="rs">♥</span></code></td>
+<td>Opener: heart support, <strong>minimum</strong>. Responder usually passes</td>
+</tr>
+<tr>
+<td><code>1♠–2<span class="rs">♥</span>–3<span class="rs">♥</span></code></td>
+<td>Opener: heart support, <strong>extra values</strong>. Slam is possible</td>
+</tr>
+<tr>
+<td><code>1♠–2♣–2<span class="rs">♦</span>–4♠</code></td>
+<td>Responder: spade support, minimum</td>
+</tr>
+<tr>
+<td><code>1♠–2♣–2<span class="rs">♦</span>–2♠</code></td>
+<td>Responder: spade support, room to explore slam</td>
+</tr>
+</tbody>
+</table></div>
+<p>This is the reverse of what new players expect: the <strong>jump</strong> is weak, the <strong>slow</strong> bid is strong. It works because game is already guaranteed, so slow bidding can't get you dropped too low.</p>
+<h3 id="which-game">Which game?</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Game</th>
+<th>Points needed</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4<span class="rs">♥</span> / 4♠</td>
+<td>About 25 (less with a good fit and shape)</td>
+<td><strong>First choice</strong> with an 8-card major fit</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>About 25</td>
+<td>No major fit, all suits stopped</td>
+</tr>
+<tr>
+<td>5♣ / 5<span class="rs">♦</span></td>
+<td>About 28–29</td>
+<td>Only when 3NT and 4M both look wrong (a suit unstopped, no major fit)</td>
+</tr>
+<tr>
+<td>Slam</td>
+<td>About 33+</td>
+<td>Both hands have extras: use slow bidding, control bids, RKCB</td>
+</tr>
+</tbody>
+</table></div>
+<p>24 points is the floor. With a minimum opposite a minimum, 3NT or 4M sometimes goes down one. That's accepted, because the system finds many more games and slams than it loses.</p>
+<h3 id="worked-auctions">Worked auctions</h3>
+<p><strong>1. Two minimums: find the fit, stop in game</strong></p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Opener</th>
+<th>Responder</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>♠AQ1074 <span class="rs">♥</span>K83 <span class="rs">♦</span>Q5 ♣J62</code> (12)</td>
+<td><code>♠K85 <span class="rs">♥</span>A4 <span class="rs">♦</span>J73 ♣KQ1074</code> (13)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Bid</th>
+<th>By</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1♠</td>
+<td>Opener</td>
+<td>5+ spades</td>
+</tr>
+<tr>
+<td>2♣</td>
+<td>Responder</td>
+<td>2/1: 12+, 5 clubs. <strong>Game is now forced</strong></td>
+</tr>
+<tr>
+<td>2♠</td>
+<td>Opener</td>
+<td>Default rebid: 5 spades, nothing else to show</td>
+</tr>
+<tr>
+<td>4♠</td>
+<td>Responder</td>
+<td>3-card support, <strong>minimum</strong>: fast arrival</td>
+</tr>
+<tr>
+<td>Pass</td>
+<td>Opener</td>
+<td>Minimum too. 25 points, 8 spades: a normal game</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>2. No major fit: 3NT</strong></p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Opener</th>
+<th>Responder</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>♠KQ863 <span class="rs">♥</span>A72 <span class="rs">♦</span>K4 ♣Q93</code> (14)</td>
+<td><code>♠4 <span class="rs">♥</span>KJ5 <span class="rs">♦</span>AQ1083 ♣KJ74</code> (14)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Bid</th>
+<th>By</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1♠</td>
+<td>Opener</td>
+<td>5+ spades</td>
+</tr>
+<tr>
+<td>2<span class="rs">♦</span></td>
+<td>Responder</td>
+<td>2/1: 12+, 5 diamonds</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>Opener</td>
+<td>Balanced</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>Responder</td>
+<td>No spade fit, hearts and clubs stopped, no slam interest</td>
+</tr>
+<tr>
+<td>Pass</td>
+<td>Opener</td>
+<td>28 points, all suits stopped</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>3. Both have extras: slow bidding finds the slam</strong></p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Opener</th>
+<th>Responder</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>♠AKJ74 <span class="rs">♥</span>K5 <span class="rs">♦</span>AJ3 ♣Q62</code> (18)</td>
+<td><code>♠Q85 <span class="rs">♥</span>A4 <span class="rs">♦</span>KQ6 ♣AJ1074</code> (16)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Bid</th>
+<th>By</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1♠</td>
+<td>Opener</td>
+<td>5+ spades</td>
+</tr>
+<tr>
+<td>2♣</td>
+<td>Responder</td>
+<td>2/1, game forcing</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>Opener</td>
+<td>Balanced (strength not stated yet)</td>
+</tr>
+<tr>
+<td>3♠</td>
+<td>Responder</td>
+<td>3-card support, bid <strong>slowly</strong>: "I have extras"</td>
+</tr>
+<tr>
+<td>4NT</td>
+<td>Opener</td>
+<td>With 18 opposite extras, slam is likely: RKCB</td>
+</tr>
+<tr>
+<td>5♠</td>
+<td>Responder</td>
+<td>2 key cards + the ♠Q</td>
+</tr>
+<tr>
+<td>6♠</td>
+<td>Opener</td>
+<td>All 5 key cards and the queen are held. 34 points</td>
+</tr>
+</tbody>
+</table></div>
+<p>If responder had jumped to 4♠ at their second bid (minimum), opener with 18 would still have tried, but responder's slow 3♠ makes the slam easy to bid.</p>
+<h3 id="when-21-is-off">When 2/1 is off</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>A new 2-level suit means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Responder already passed</strong></td>
+<td>Natural, 5+ cards, about 10–11, <strong>non-forcing</strong>. Exception: P–1M–2♣ = <strong>Drury</strong></td>
+</tr>
+<tr>
+<td><strong>The opponents overcall</strong></td>
+<td>Natural, 5+ cards, 10+, <strong>forcing one round</strong> only</td>
+</tr>
+<tr>
+<td><strong>The opponents double</strong></td>
+<td>Natural, 5+ cards, <strong>weak</strong>, non-forcing</td>
+</tr>
+<tr>
+<td><strong>Over 1♣</strong></td>
+<td>1♣–2<span class="rs">♦</span> is a weak jump shift, not a 2/1</td>
+</tr>
+</tbody>
+</table></div>
+<p>A passed hand can't force to game: it has already told partner it doesn't have an opening hand.</p>
+<h3 id="if-the-opponents-bid-during-a-21-auction">If the opponents bid during a 2/1 auction</h3>
+<p>Game is still forced. You have one extra option: a <strong>penalty double</strong> of the opponents can replace bidding game, when defending will score more.</p>
+<h3 id="common-beginner-mistakes">Common beginner mistakes</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Mistake</th>
+<th>Correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bidding 2♣ with 10–11 "to show the clubs"</td>
+<td>2/1 needs <strong>12+</strong>. With 10–11, bid 1NT (forcing) and show your hand next time</td>
+</tr>
+<tr>
+<td>Passing below game after a 2/1</td>
+<td><strong>Never.</strong> Even with a bare minimum, keep bidding to game</td>
+</tr>
+<tr>
+<td>Jumping to show a good hand</td>
+<td>Not needed. Bid slowly; the jump to game shows the <strong>weak</strong> hand</td>
+</tr>
+<tr>
+<td>1♠–2<span class="rs">♥</span> with only 4 hearts</td>
+<td>2<span class="rs">♥</span> promises <strong>5</strong>. With 4 hearts, bid a minor first</td>
+</tr>
+<tr>
+<td>Treating 1<span class="rs">♥</span>–1♠ as game forcing</td>
+<td>A 1-level response is only forcing for <strong>one round</strong></td>
+</tr>
+<tr>
+<td>Making a 2/1 as a passed hand and expecting partner to keep bidding</td>
+<td>Passed-hand 2-level bids are <strong>non-forcing</strong> (and 2♣ is Drury)</td>
+</tr>
+<tr>
+<td>Forgetting 2/1 is off after an overcall</td>
+<td>In competition, a new suit is forcing <strong>one round</strong> only</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="forcing-1nt-response-tier-0">Forcing 1NT response <span class="tier t0">Tier 0</span></h2>
+<h3 id="what-it-is">What it is</h3>
+<p><code>1<span class="rs">♥</span>–1NT</code> and <code>1♠–1NT</code> show <strong>6–12 HCP</strong> and are <strong>forcing for one round</strong>: opener must bid again. It is the home for every hand that is too weak for a 2/1 game force and doesn't fit any other response.</p>
+<p>It is <strong>not forcing</strong> if responder is a passed hand or the opponents have interfered.</p>
+<h3 id="hands-that-respond-1nt">Hands that respond 1NT</h3>
+<p>The auction runs: <strong>opener</strong> 1♠ → <strong>responder</strong> 1NT (responder's 1st bid) → <strong>opener</strong> rebids (forced) → <strong>responder's 2nd bid</strong>. The 2nd bid is where responder shows which kind of 1NT hand it was.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Responder's hand</th>
+<th>Responder's 1st bid</th>
+<th>Responder's 2nd bid (after opener's rebid)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Weak balanced (6–10), no fit</td>
+<td>1NT</td>
+<td>Pass, or simple preference to opener's major</td>
+</tr>
+<tr>
+<td>Long suit, weak (6–9)</td>
+<td>1NT</td>
+<td>Bid the long suit: 6+ cards, non-forcing</td>
+</tr>
+<tr>
+<td>3-card support, 10–12</td>
+<td>1NT</td>
+<td><strong>Jump to 3M</strong> (3-card limit raise)</td>
+</tr>
+<tr>
+<td>Invitational balanced, 11–12</td>
+<td>1NT</td>
+<td>2NT</td>
+</tr>
+<tr>
+<td>Invitational long suit, 10–12</td>
+<td>1NT</td>
+<td>Jump in the suit (6+ cards)</td>
+</tr>
+<tr>
+<td>Over 1<span class="rs">♥</span>: 4+ spades</td>
+<td><strong>1♠</strong>, not 1NT</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<p><em>Full example:</em> <code>1♠–1NT–2♣–3♠</code>. Opener opens 1♠; responder bids 1NT; opener rebids 2♣ (forced to bid something); responder now jumps to 3♠, which reveals the 3-card limit raise.</p>
+<h3 id="openers-rebid-after-1m1nt">Opener's rebid after 1M–1NT</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Opener's hand</th>
+<th>Rebid</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Balanced minimum (5-3-3-2), 12–14</td>
+<td><strong>2 of the cheaper 3-card minor</strong>. With 3-3 in the minors, 2♣. So 2♣ may be only 3 cards</td>
+</tr>
+<tr>
+<td>4+ cards in a lower suit</td>
+<td>Bid it at the 2-level (1♠–1NT–2<span class="rs">♥</span> = 4+ hearts)</td>
+</tr>
+<tr>
+<td>6+ card suit, minimum</td>
+<td>2M</td>
+</tr>
+<tr>
+<td>6+ good suit, 16–18</td>
+<td>3M (invitational)</td>
+</tr>
+<tr>
+<td>Balanced 18–19</td>
+<td>2NT</td>
+</tr>
+<tr>
+<td>Higher new suit (1<span class="rs">♥</span>–1NT–2♠)</td>
+<td>Reverse: 16+, 4 spades, 5+ hearts</td>
+</tr>
+<tr>
+<td>19+ with a second suit</td>
+<td>Jump shift: game forcing</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="responders-second-bid_1">Responder's second bid</h3>
+<ul>
+<li><strong>Pass</strong> with a fit for opener's second suit and a minimum.</li>
+<li><strong>2M</strong> (preference) with 2-card support. You'd have raised directly with 3-card support and 6–9.</li>
+<li><strong>New suit at the 2-level</strong>: 6+ cards, weak, to play.</li>
+<li><strong>2NT</strong>: 11–12 balanced, invitational.</li>
+<li><strong>3M</strong>: 3-card limit raise.</li>
+<li><strong>Raise opener's second suit</strong>: 10–12 with 5+ support, invitational.</li>
+</ul>
+<h3 id="examples">Examples</h3>
+<ul>
+<li><code>♠4 <span class="rs">♥</span>KQ9853 <span class="rs">♦</span>862 ♣Q74</code> (7 HCP). Partner opens 1♠. Respond <strong>1NT</strong>; over opener's 2♣ or 2<span class="rs">♦</span>, bid <strong>2<span class="rs">♥</span></strong> (weak, long hearts).</li>
+<li><code>♠K74 <span class="rs">♥</span>A83 <span class="rs">♦</span>Q962 ♣J52</code> (10 HCP, 3 spades). Partner opens 1♠. Respond <strong>1NT</strong>, then jump to <strong>3♠</strong> next (3-card limit raise).</li>
+<li>Opener holds <code>♠AQ853 <span class="rs">♥</span>K4 <span class="rs">♦</span>Q74 ♣J62</code> (12). After 1♠–1NT, rebid <strong>2♣</strong>: the cheaper 3-card minor.</li>
+</ul>
+<h2 id="raising-partners-major-tier-0">Raising partner's major <span class="tier t0">Tier 0</span></h2>
+<h3 id="the-raise-ladder">The raise ladder</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Response to 1<span class="rs">♥</span> / 1♠</th>
+<th>Trumps</th>
+<th>Strength (dummy points)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2M</td>
+<td>3+</td>
+<td>6–9</td>
+</tr>
+<tr>
+<td>1NT, then 3M</td>
+<td>Exactly 3</td>
+<td>10–12 (limit raise)</td>
+</tr>
+<tr>
+<td>3M</td>
+<td>4+</td>
+<td>10–12 (limit raise)</td>
+</tr>
+<tr>
+<td>2NT (Jacoby)</td>
+<td>4+</td>
+<td>13+ (with 10+ HCP), game forcing</td>
+</tr>
+<tr>
+<td>Splinter (double jump in a new suit)</td>
+<td>4+</td>
+<td>10–14 HCP, singleton or void in the bid suit</td>
+</tr>
+<tr>
+<td>4M</td>
+<td>5+</td>
+<td>Weak, distributional (preemptive)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Edges.</strong> With 4 trumps and 13+ dummy points but fewer than 10 HCP, make the limit raise: too few high cards for Jacoby. A passed hand never uses Jacoby or a splinter: every raise of 10+ goes through <strong>Drury 2♣</strong>.</p>
+<p><strong>Raise with support before showing a new suit when weak.</strong> Over 1<span class="rs">♥</span> with 3 hearts, 4 spades and 7 points, raise to 2<span class="rs">♥</span>. The fit is what matters.</p>
+<p><em>Examples:</em></p>
+<ul>
+<li><code>♠84 <span class="rs">♥</span>K93 <span class="rs">♦</span>QJ74 ♣9862</code>: 6 HCP + 1 for the doubleton = 7. Over 1<span class="rs">♥</span>, bid <strong>2<span class="rs">♥</span></strong>.</li>
+<li><code>♠K5 <span class="rs">♥</span>Q1083 <span class="rs">♦</span>A764 ♣852</code>: 9 HCP + 1 = 10, 4 trumps. Over 1<span class="rs">♥</span>, bid <strong>3<span class="rs">♥</span></strong> (limit raise).</li>
+</ul>
+<h3 id="jacoby-2nt">Jacoby 2NT</h3>
+<p><strong>What it is:</strong> <code>1<span class="rs">♥</span>–2NT</code> or <code>1♠–2NT</code> shows <strong>4+ trumps and game values (13+ dummy points, 10+ HCP)</strong>. It sets trumps and forces to game. Opener then describes the hand:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Opener rebids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3 of a new suit</td>
+<td>Singleton or void in that suit</td>
+</tr>
+<tr>
+<td>4 of a new suit</td>
+<td>Good 5-card side suit (two of the top three honors)</td>
+</tr>
+<tr>
+<td>3M</td>
+<td>18+, no shortness (slam interest)</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>15–17, no shortness</td>
+</tr>
+<tr>
+<td>4M</td>
+<td>Minimum (12–14), no shortness. Responder usually passes</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Responder then:</strong> with a minimum and wasted values opposite opener's shortness (for example KQx opposite a singleton), sign off in 4M. With extras or well-placed values, make a control bid or use RKCB.</p>
+<p><em>Example:</em> Responder <code>♠K1074 <span class="rs">♥</span>A5 <span class="rs">♦</span>KQ83 ♣J62</code> (13) bids <strong>2NT</strong> over 1♠. Opener <code>♠AQ853 <span class="rs">♥</span>KQ2 <span class="rs">♦</span>J1074 ♣5</code> has a singleton club, so rebids <strong>3♣</strong>. Responder's ♣J is wasted, so they sign off in <strong>4♠</strong>.</p>
+<h3 id="splinter-bids">Splinter bids</h3>
+<p><strong>What it is:</strong> a <strong>double jump in a new suit</strong> shows:</p>
+<ul>
+<li>4+ card support for partner,</li>
+<li>a <strong>singleton or void</strong> in the suit you bid,</li>
+<li>game values: about <strong>10–14 HCP</strong>. Stronger hands start with Jacoby 2NT instead.</li>
+</ul>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>After 1<span class="rs">♥</span></th>
+<th>After 1♠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3♠, 4♣, 4<span class="rs">♦</span></td>
+<td>4♣, 4<span class="rs">♦</span> (4<span class="rs">♥</span> is natural, to play)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Purpose:</strong> opener can now judge slam by how well the hands fit. Honors opposite partner's shortness (KQx facing a singleton) are wasted. Aces and honors in the other suits are gold.</p>
+<ul>
+<li>Opener with wasted values in the short suit → sign off in 4M.</li>
+<li>Opener with no waste and extras → control bid or RKCB.</li>
+</ul>
+<p><strong>Don't splinter</strong> with a singleton ace or king: partner will count that honor as wasted.</p>
+<p><em>Example:</em> <code>♠KQ5 <span class="rs">♥</span>Q1074 <span class="rs">♦</span>A9863 ♣4</code> (11 HCP). Over 1<span class="rs">♥</span>, bid <strong>4♣</strong>. If partner holds <code>♣xxx</code>, slam is likely; if partner holds <code>♣KQx</code>, they'll stop in 4<span class="rs">♥</span>.</p>
+<p><strong>Opener can splinter too.</strong> After a 1-level response, opener's <strong>double jump in a new suit</strong> or <strong>jump reverse</strong> shows 4-card support, shortness in that suit and about 18+ points: <code>1♣–1<span class="rs">♥</span>–3♠</code>, <code>1<span class="rs">♦</span>–1♠–4♣</code>, <code>1<span class="rs">♦</span>–1♠–3<span class="rs">♥</span></code>.</p>
+<p><strong>Over a minor opening</strong>, responder's double jump in a major is a splinter for opener's minor (5+ support, game forcing, no 4-card major): <code>1<span class="rs">♦</span>–3♠</code>.</p>
+<h3 id="game-tries-after-1m2m">Game tries after 1M–2M</h3>
+<p>With about 15–17 points, opener can invite game:</p>
+<ul>
+<li><strong>New suit = help-suit game try.</strong> "I need help in this suit." Bid a side suit with two or three losers (e.g. K653).</li>
+<li>Responder <strong>accepts</strong> (bids 4M) with help in that suit: A, K, Q, a singleton or a doubleton. Responder also accepts with a maximum raise.</li>
+<li>Responder <strong>declines</strong> (bids 3M) with three or more small cards in it and a minimum.</li>
+<li><strong>3M = general invite.</strong> Responder accepts with a maximum.</li>
+<li><strong>4M</strong> = to play.</li>
+</ul>
+<p><em>Example:</em> Opener <code>♠AKJ74 <span class="rs">♥</span>A6 <span class="rs">♦</span>K653 ♣82</code> (15). After 1♠–2♠, bid <strong>3<span class="rs">♦</span></strong>. Responder holding <code><span class="rs">♦</span>Q4</code> accepts; holding <code><span class="rs">♦</span>972</code> declines.</p>
+<h2 id="responding-to-1-1-tier-0">Responding to 1♣ / 1<span class="rs">♦</span> <span class="tier t0">Tier 0</span></h2>
+<h3 id="showing-a-major">Showing a major</h3>
+<ul>
+<li><strong>4-4 in the majors:</strong> bid <strong>1<span class="rs">♥</span></strong> first (cheaper suit, "up the line"). Opener will show spades if they have them.</li>
+<li><strong>5-4 or longer:</strong> bid the <strong>longer</strong> major first. With 5-5, bid 1♠.</li>
+<li><strong>Over 1♣, skip diamonds (Walsh):</strong> with a 4-card major and <strong>fewer than 12 HCP</strong>, show the major even if your diamonds are longer. Bid 1<span class="rs">♦</span> first only with game-forcing values (12+), or when you have no 4-card major.</li>
+</ul>
+<p><em>Walsh example:</em> <code>♠KJ74 <span class="rs">♥</span>83 <span class="rs">♦</span>Q9752 ♣K6</code> (9). Over 1♣, respond <strong>1♠</strong>. If you bid 1<span class="rs">♦</span>, the opponents could raise hearts before you ever show spades.</p>
+<p><strong>Consequence:</strong> a 1♠ response over a minor <strong>denies 4 hearts</strong>, unless responder has 5+ spades (and so bid the longer suit first).</p>
+<h3 id="other-responses">Other responses</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Response</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1NT</td>
+<td>6–10, balanced, no 4-card major</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>11–12 balanced, no 4-card major, invitational</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>13–15 balanced, no 4-card major</td>
+</tr>
+<tr>
+<td>1<span class="rs">♦</span>–2♣</td>
+<td>2/1 game forcing, 12+, usually 5+ clubs</td>
+</tr>
+<tr>
+<td>2m (raise)</td>
+<td>Inverted minor: 10+, forcing (Tier 1)</td>
+</tr>
+<tr>
+<td>3m (raise)</td>
+<td>Weak, preemptive: 5–9, 5+ card support</td>
+</tr>
+<tr>
+<td>Single jump in a new suit (1♣–2<span class="rs">♦</span>, 1<span class="rs">♦</span>–2<span class="rs">♥</span>, 1♣–2♠)</td>
+<td>Weak jump shift: 6+ cards, 2–5 HCP</td>
+</tr>
+<tr>
+<td>Double jump in a major (1<span class="rs">♦</span>–3♠)</td>
+<td>Splinter for opener's minor</td>
+</tr>
+</tbody>
+</table></div>
+<p><em>Example:</em> <code>♠K73 <span class="rs">♥</span>Q82 <span class="rs">♦</span>A94 ♣Q1063</code> (11). Over 1♣, respond <strong>2NT</strong>.</p>
+<h3 id="weak-jump-shifts">Weak jump shifts</h3>
+<p><code>1<span class="rs">♦</span>–2<span class="rs">♥</span></code>: 6+ hearts, about 2–5 HCP. "My suit will play better than your 1<span class="rs">♦</span>." Opener usually passes. Weak jump shifts also apply in competition.</p>
+<p>Why weak? In 2/1, a strong responder just bids a new suit (forcing), so a jump isn't needed for strength. Using it for weak hands gets bad hands with a long suit out of 1NT or 1<span class="rs">♦</span>.</p>
+<h2 id="openers-rebids-tier-0">Opener's rebids <span class="tier t0">Tier 0</span></h2>
+<h3 id="after-a-1-level-response">After a 1-level response</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Rebid</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1NT</td>
+<td>12–14 balanced</td>
+</tr>
+<tr>
+<td>New suit at the 1-level</td>
+<td>Natural, 4+, 12–18 (e.g. 1♣–1<span class="rs">♥</span>–1♠ = 4 spades)</td>
+</tr>
+<tr>
+<td>Rebid own suit at the 2-level</td>
+<td>6+ cards, minimum (12–15)</td>
+</tr>
+<tr>
+<td>New lower suit at the 2-level (1<span class="rs">♥</span>–1♠–2♣)</td>
+<td>Natural, 4+, 12–18. Not a reverse</td>
+</tr>
+<tr>
+<td>Raise responder's major to 2</td>
+<td>4 trumps (occasionally 3 with a ruffing value), 12–15</td>
+</tr>
+<tr>
+<td>Jump raise to 3</td>
+<td>4 trumps, 16–18</td>
+</tr>
+<tr>
+<td>Raise to 4</td>
+<td>4 trumps, 19–20</td>
+</tr>
+<tr>
+<td>2NT (jump)</td>
+<td>18–19 balanced</td>
+</tr>
+<tr>
+<td>Jump rebid of own suit</td>
+<td>6+ good cards, 16–18, invitational</td>
+</tr>
+<tr>
+<td><strong>Reverse</strong></td>
+<td>16+, see below</td>
+</tr>
+<tr>
+<td>Jump shift (1<span class="rs">♦</span>–1♠–3♣)</td>
+<td>19+, game forcing</td>
+</tr>
+<tr>
+<td>Double jump / jump reverse</td>
+<td>Splinter (see Splinter bids)</td>
+</tr>
+</tbody>
+</table></div>
+<p>After <code>1m–1M–1NT</code> or any three 1-level bids, responder continues with <strong>XYZ</strong> (Tier 1).</p>
+<h2 id="reverses-tier-0">Reverses <span class="tier t0">Tier 0</span></h2>
+<h3 id="what-a-reverse-is">What a reverse is</h3>
+<p>Opener's <strong>second bid is a new suit at the 2-level that ranks higher than the first suit</strong>.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Auction</th>
+<th>Reverse?</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1<span class="rs">♦</span>–1♠–<strong>2<span class="rs">♥</span></strong></td>
+<td>Yes</td>
+<td>Hearts outrank diamonds</td>
+</tr>
+<tr>
+<td>1♣–1<span class="rs">♥</span>–<strong>2<span class="rs">♦</span></strong></td>
+<td>Yes</td>
+<td>Diamonds outrank clubs</td>
+</tr>
+<tr>
+<td>1♣–1♠–<strong>2<span class="rs">♥</span></strong></td>
+<td>Yes</td>
+<td>Hearts outrank clubs</td>
+</tr>
+<tr>
+<td>1<span class="rs">♥</span>–1NT–<strong>2♠</strong></td>
+<td>Yes</td>
+<td>Spades outrank hearts</td>
+</tr>
+<tr>
+<td>1<span class="rs">♥</span>–1♠–<strong>2♣</strong></td>
+<td>No</td>
+<td>Clubs are lower</td>
+</tr>
+<tr>
+<td>1<span class="rs">♦</span>–1♠–<strong>3♣</strong></td>
+<td>No</td>
+<td>That's a jump shift</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Why it shows strength:</strong> in 1<span class="rs">♦</span>–1♠–2<span class="rs">♥</span>, if responder prefers diamonds they must go to <strong>3<span class="rs">♦</span></strong>. Opener has pushed the auction a level higher, so opener must have a good hand.</p>
+<h3 id="the-preference-test">The preference test</h3>
+<p>To check whether your second suit is a reverse, ask: <strong>"If partner likes my first suit better, at what level do they have to say so?"</strong></p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Auction</th>
+<th>Partner's preference bid</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1<span class="rs">♦</span>–1♠–2♣</td>
+<td>2<span class="rs">♦</span> (still the 2-level)</td>
+<td>Normal rebid, 12–18</td>
+</tr>
+<tr>
+<td>1<span class="rs">♦</span>–1♠–2<span class="rs">♥</span></td>
+<td><strong>3<span class="rs">♦</span></strong> (forced up to the 3-level)</td>
+<td><strong>Reverse</strong>: needs 16+</td>
+</tr>
+<tr>
+<td>1♣–1♠–2<span class="rs">♦</span></td>
+<td><strong>3♣</strong></td>
+<td><strong>Reverse</strong>: needs 16+</td>
+</tr>
+<tr>
+<td>1<span class="rs">♥</span>–2♣–2♠</td>
+<td>3<span class="rs">♥</span></td>
+<td>Game is already forced, so the extra level is safe: <strong>shape only</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>With a minimum opener (12) and a weak responder (6), the side has only about 18 points. That's too few to be safe at the 3-level, so opener only forces partner up there with 16+. After a 2/1, both hands have 12+ and game is guaranteed, so the extra level costs nothing and no extra strength is needed.</p>
+<h3 id="what-it-promises">What it promises</h3>
+<ul>
+<li><strong>16+ points</strong>, no upper limit.</li>
+<li><strong>First suit longer than the second</strong> (5-4, 6-4, 6-5). With equal lengths you never reverse.</li>
+<li><strong>Forcing for one round.</strong></li>
+</ul>
+<h3 id="when-the-suits-are-the-same-length">When the suits are the same length</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Hand</th>
+<th>Opening</th>
+<th>Why no reverse is ever needed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5-5</td>
+<td>The higher suit</td>
+<td>The second suit is lower</td>
+</tr>
+<tr>
+<td>4-4 minors</td>
+<td>1<span class="rs">♦</span></td>
+<td>That's why 1♣ then 2<span class="rs">♦</span> promises longer clubs</td>
+</tr>
+<tr>
+<td>4<span class="rs">♥</span> + 4<span class="rs">♦</span>, unbalanced</td>
+<td>1<span class="rs">♦</span> (1<span class="rs">♥</span> needs 5)</td>
+<td>Rebid notrump or raise partner instead</td>
+</tr>
+<tr>
+<td>4-4, balanced 15–17</td>
+<td>1NT</td>
+<td>No rebid needed</td>
+</tr>
+</tbody>
+</table></div>
+<p><em>With 4<span class="rs">♥</span> 4<span class="rs">♦</span> after 1<span class="rs">♦</span>–1♠:</em> rebid <strong>1NT</strong> with 12–14 or <strong>2NT</strong> with 18–19, or raise spades with 4. If responder has hearts too (5♠ + 4<span class="rs">♥</span>), they'll show them next through XYZ.</p>
+<h3 id="too-weak-to-reverse-dont">Too weak to reverse? Don't</h3>
+<p><code>♠5 <span class="rs">♥</span>AQ74 <span class="rs">♦</span>KJ953 ♣K82</code> (13). After 1<span class="rs">♦</span>–1♠ you can't bid 2<span class="rs">♥</span>. Rebid <strong>1NT</strong>; a singleton in partner's suit is acceptable here. Hiding the hearts is better than lying about your strength.</p>
+<p><em>A real reverse:</em> <code>♠5 <span class="rs">♥</span>AQ74 <span class="rs">♦</span>AKJ83 ♣K62</code> (17). After 1<span class="rs">♦</span>–1♠, bid <strong>2<span class="rs">♥</span></strong>.</p>
+<h3 id="responder-after-a-reverse-lebensohl-2nt">Responder after a reverse (Lebensohl 2NT)</h3>
+<p>After <code>1<span class="rs">♦</span>–1♠–2<span class="rs">♥</span></code>:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Responder bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>2NT</strong></td>
+<td>Weak (about 5–7). Opener must bid <strong>3♣</strong>; responder then passes, or signs off (3<span class="rs">♦</span> = to play in diamonds, 3<span class="rs">♥</span> = to play in hearts with 4)</td>
+</tr>
+<tr>
+<td>2♠ (rebid own suit)</td>
+<td>5+ spades, forcing one round</td>
+</tr>
+<tr>
+<td>3<span class="rs">♦</span> (preference)</td>
+<td>Game forcing, diamond support</td>
+</tr>
+<tr>
+<td>3<span class="rs">♥</span> (raise)</td>
+<td>Game forcing, 4 hearts</td>
+</tr>
+<tr>
+<td>3♣ (4th suit)</td>
+<td>Game forcing, asks opener to describe further</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>Natural, to play, stopper in the unbid suit</td>
+</tr>
+</tbody>
+</table></div>
+<p>Opener bids something other than 3♣ over the 2NT relay only with a very strong hand (18+). That bid is natural and forcing to game.</p>
+<p><strong>After a 2/1 game-forcing response</strong> (1<span class="rs">♦</span>–2♣–2<span class="rs">♥</span>), the "reverse" just shows shape. Game is already forced, so it promises no extra points.</p>
+<p><strong>Responder can reverse too:</strong> <code>1♣–1<span class="rs">♥</span>–1NT–2♠</code> is game forcing. Most of these auctions go through XYZ's 2<span class="rs">♦</span> instead.</p>
+<h2 id="1nt-opening-and-responses-tier-0">1NT opening and responses <span class="tier t0">Tier 0</span></h2>
+<h3 id="the-response-table">The response table</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>After 1NT (15–17)</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pass</td>
+<td>0–7, balanced</td>
+</tr>
+<tr>
+<td>2♣</td>
+<td>Stayman: asks for a 4-card major</td>
+</tr>
+<tr>
+<td>2<span class="rs">♦</span></td>
+<td>Transfer: 5+ hearts</td>
+</tr>
+<tr>
+<td>2<span class="rs">♥</span></td>
+<td>Transfer: 5+ spades</td>
+</tr>
+<tr>
+<td>2♠</td>
+<td>Minor puppet: forces 3♣ (weak hand with a long minor)</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>8–9 balanced, invitational</td>
+</tr>
+<tr>
+<td>3♣ / 3<span class="rs">♦</span></td>
+<td>Good 6-card minor (2 of the top 3 honors), invites 3NT</td>
+</tr>
+<tr>
+<td>3<span class="rs">♥</span> / 3♠</td>
+<td>Not used</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>10–15, to play</td>
+</tr>
+<tr>
+<td>4♣</td>
+<td>Gerber: asks for aces</td>
+</tr>
+<tr>
+<td>4<span class="rs">♦</span> / 4<span class="rs">♥</span></td>
+<td>Texas: transfer to 4<span class="rs">♥</span> / 4♠, to play</td>
+</tr>
+<tr>
+<td>4NT</td>
+<td>16–17 balanced, quantitative: invites 6NT</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="stayman-2">Stayman (2♣)</h3>
+<p><strong>Opener replies:</strong> 2<span class="rs">♦</span> = no 4-card major · 2<span class="rs">♥</span> = 4 hearts (may also have 4 spades) · 2♠ = 4 spades, not 4 hearts.</p>
+<p><strong>Responder continues:</strong></p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Auction</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1NT–2♣–2<span class="rs">♦</span>–2<span class="rs">♥</span> / 2♠</td>
+<td>5 cards in the bid major + 4 in the other, invitational</td>
+</tr>
+<tr>
+<td>1NT–2♣–2<span class="rs">♦</span>–3<span class="rs">♥</span> / 3♠</td>
+<td>Smolen: 4 in the bid major + 5 in the other, GF (Tier 2)</td>
+</tr>
+<tr>
+<td>1NT–2♣–2<span class="rs">♦</span>–2NT</td>
+<td>8–9, invitational, a 4-card major but no fit</td>
+</tr>
+<tr>
+<td>1NT–2♣–2<span class="rs">♥</span>–2♠</td>
+<td>4 spades (not 4 hearts), invitational</td>
+</tr>
+<tr>
+<td>1NT–2♣–2<span class="rs">♥</span>–3<span class="rs">♥</span></td>
+<td>4 hearts, invitational</td>
+</tr>
+<tr>
+<td>1NT–2♣–2<span class="rs">♥</span>–3NT</td>
+<td>4 spades, game values. Opener with 4 spades corrects to 4♠</td>
+</tr>
+<tr>
+<td>Raise to game in a fit</td>
+<td>To play</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Opener after 1NT–2♣–2<span class="rs">♥</span>–2NT or –2♠:</strong> if opener also has 4 spades, they bid spades (at 3♠ with a minimum, 4♠ with a maximum after an invite).</p>
+<p><strong>Garbage Stayman.</strong> With a weak hand and <strong>4-4 in the majors plus long diamonds</strong> (short clubs), bid 2♣ and <strong>pass whatever opener replies</strong>. All three replies are safer than 1NT.</p>
+<p><em>Example:</em> <code>♠J863 <span class="rs">♥</span>Q752 <span class="rs">♦</span>97632 ♣—</code> (3 HCP). Bid <strong>2♣</strong>, then pass 2<span class="rs">♦</span>, 2<span class="rs">♥</span> or 2♠.</p>
+<p><em>Game example:</em> <code>♠KJ63 <span class="rs">♥</span>Q1074 <span class="rs">♦</span>K52 ♣Q4</code> (11). Bid <strong>2♣</strong>. Over 2<span class="rs">♦</span> bid <strong>3NT</strong>; over 2<span class="rs">♥</span> bid <strong>4<span class="rs">♥</span></strong>; over 2♠ bid <strong>4♠</strong>.</p>
+<h3 id="jacoby-transfers-2-2">Jacoby transfers (2<span class="rs">♦</span> / 2<span class="rs">♥</span>)</h3>
+<p><code>2<span class="rs">♦</span></code> asks opener to bid 2<span class="rs">♥</span>; <code>2<span class="rs">♥</span></code> asks opener to bid 2♠. The <strong>strong hand becomes declarer</strong>, so the opening lead comes up to it.</p>
+<p><strong>Opener's reply:</strong></p>
+<ul>
+<li>Normally accept: bid the next suit.</li>
+<li><strong>Super-accept</strong> with 4-card support and a maximum (17): jump to 3M.</li>
+</ul>
+<p><strong>Responder's second bid after the transfer (e.g. 1NT–2<span class="rs">♥</span>–2♠):</strong></p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Next bid</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pass</td>
+<td>Weak (0–7), 5+ spades</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>Exactly 5 spades, invitational (8–9)</td>
+</tr>
+<tr>
+<td>3♠</td>
+<td>6+ spades, invitational</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>Exactly 5 spades, game values: choose 3NT or 4♠</td>
+</tr>
+<tr>
+<td>4♠</td>
+<td>6+ spades, game, mild slam interest (use Texas to just sign off)</td>
+</tr>
+<tr>
+<td>New suit at the 3-level</td>
+<td>Natural, 4+ cards, game forcing</td>
+</tr>
+<tr>
+<td>4NT</td>
+<td>Quantitative with 5 spades (not RKCB)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>5-5 in the majors:</strong></p>
+<ul>
+<li>Weak → transfer to spades, pass.</li>
+<li>Invitational → 2<span class="rs">♦</span>, then 2♠.</li>
+<li>Game forcing → 2<span class="rs">♥</span>, then 3<span class="rs">♥</span>.</li>
+</ul>
+<p><em>Example:</em> <code>♠KQ1063 <span class="rs">♥</span>84 <span class="rs">♦</span>J72 ♣853</code> (6). Bid <strong>2<span class="rs">♥</span></strong>, then pass 2♠.</p>
+<h3 id="minor-puppet-2">Minor puppet (2♠)</h3>
+<p><code>1NT–2♠</code> forces opener to bid <strong>3♣</strong>. Responder then:</p>
+<ul>
+<li>passes with long clubs, or</li>
+<li>bids <strong>3<span class="rs">♦</span></strong> to play in diamonds.</li>
+</ul>
+<p>Both are weak hands. <em>Example:</em> <code>♠4 <span class="rs">♥</span>J82 <span class="rs">♦</span>Q987632 ♣73</code>: 2♠, then 3<span class="rs">♦</span>.</p>
+<h3 id="invitational-3-3">Invitational 3♣ / 3<span class="rs">♦</span></h3>
+<p><code>1NT–3<span class="rs">♦</span></code> shows a good 6-card suit (<code>AQJ953</code>, <code>KQ10xxx</code>) and invites 3NT: "if you can stop the other suits and have a fitting honor, my suit will run". Opener bids 3NT or passes.</p>
+<p><em>Example:</em> <code>♠84 <span class="rs">♥</span>73 <span class="rs">♦</span>AQJ953 ♣842</code>: bid <strong>3<span class="rs">♦</span></strong>.</p>
+<h3 id="texas-transfers-4-4">Texas transfers (4<span class="rs">♦</span> / 4<span class="rs">♥</span>)</h3>
+<p><code>1NT–4<span class="rs">♥</span></code> asks opener to bid 4♠ (and 4<span class="rs">♦</span> asks for 4<span class="rs">♥</span>). Use Texas with a <strong>6+ card major and game values but no slam interest</strong>: it signs off, with the strong hand as declarer.</p>
+<p><em>Example:</em> <code>♠KQJ8743 <span class="rs">♥</span>5 <span class="rs">♦</span>K62 ♣84</code>: bid <strong>4<span class="rs">♥</span></strong>, then pass 4♠.</p>
+<p><strong>Texas vs Jacoby with a 6-card major:</strong></p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Sequence</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1NT–4<span class="rs">♥</span>–4♠–pass</td>
+<td>Sign-off</td>
+</tr>
+<tr>
+<td>1NT–2<span class="rs">♥</span>–2♠–4♠</td>
+<td>Mild slam interest</td>
+</tr>
+<tr>
+<td>1NT–4<span class="rs">♥</span>–4♠–4NT</td>
+<td><strong>RKCB</strong> for spades</td>
+</tr>
+<tr>
+<td>1NT–2<span class="rs">♥</span>–2♠–4NT</td>
+<td><strong>Quantitative</strong> with 5 spades</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="gerber-4">Gerber (4♣)</h3>
+<p><code>4♣</code> directly over partner's <strong>1NT or 2NT</strong> (including 2♣–2<span class="rs">♦</span>–2NT) asks for aces:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Reply</th>
+<th>Aces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4<span class="rs">♦</span></td>
+<td>0 or 4</td>
+</tr>
+<tr>
+<td>4<span class="rs">♥</span></td>
+<td>1</td>
+</tr>
+<tr>
+<td>4♠</td>
+<td>2</td>
+</tr>
+<tr>
+<td>4NT</td>
+<td>3</td>
+</tr>
+</tbody>
+</table></div>
+<p>After the reply, <strong>5♣ asks for kings</strong> with the same steps. Any notrump bid by the asker is to play.</p>
+<p><strong>Gerber only applies directly over notrump.</strong> Everywhere else, 4♣ is natural or a splinter.</p>
+<h3 id="quantitative-4nt">Quantitative 4NT</h3>
+<p><code>1NT–4NT</code> = 16–17 balanced, no interest in a suit. Opener passes with 15, bids 6NT with 17, and judges with 16 (a good 5-card suit or tens and nines: bid on).</p>
+<h3 id="when-they-interfere-over-our-1nt">When they interfere over our 1NT</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Their action</th>
+<th>Our method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Double</td>
+<td><strong>Systems on</strong>: Stayman and transfers as usual. XX = we have the balance of strength, about 9+</td>
+</tr>
+<tr>
+<td>Artificial overcall (the bid doesn't show the suit named, e.g. 2♣ = both majors)</td>
+<td><strong>Stolen bid</strong>: X means what their bid would have meant for us (X of 2♣ = Stayman, X of 2<span class="rs">♦</span> = transfer to hearts). Everything else systems on</td>
+</tr>
+<tr>
+<td>Natural 2-level overcall</td>
+<td><strong>Lebensohl</strong> (Tier 2)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="2nt-opening-2021">2NT opening (20–21)</h3>
+<p>Same structure, one level higher:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>After 2NT</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3♣</td>
+<td>Stayman (Smolen applies after 3<span class="rs">♦</span>)</td>
+</tr>
+<tr>
+<td>3<span class="rs">♦</span> / 3<span class="rs">♥</span></td>
+<td>Transfer to <span class="rs">♥</span> / ♠</td>
+</tr>
+<tr>
+<td>3♠</td>
+<td>Both minors (5-4 or longer), slam interest</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>To play</td>
+</tr>
+<tr>
+<td>4♣</td>
+<td>Gerber</td>
+</tr>
+<tr>
+<td>4<span class="rs">♦</span> / 4<span class="rs">♥</span></td>
+<td>Texas</td>
+</tr>
+<tr>
+<td>4NT</td>
+<td>Quantitative</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="gambling-3nt">Gambling 3NT</h3>
+<p><strong>Opening 3NT</strong> shows a <strong>solid 7+ card minor</strong> (AKQxxxx or longer) and <strong>no ace or king outside</strong>. Partner:</p>
+<ul>
+<li>passes with stoppers in the other suits,</li>
+<li>bids <strong>4♣</strong> (pass-or-correct: opener passes with clubs, bids 4<span class="rs">♦</span> with diamonds) to run,</li>
+<li>bids <strong>5♣</strong> pass-or-correct to play game in the minor.</li>
+</ul>
+<h2 id="weak-twos-and-ogust-tier-0">Weak twos and Ogust <span class="tier t0">Tier 0</span></h2>
+<h3 id="opening-a-weak-two">Opening a weak two</h3>
+<ul>
+<li><strong>6-card suit</strong>, 5–10 HCP.</li>
+<li>2<span class="rs">♦</span>, 2<span class="rs">♥</span> and 2♠ are all weak.</li>
+<li>In 1st and 2nd seat: no 4-card side major and no void. Keep the suit decent (two honors).</li>
+<li>In 3rd seat you can be lighter or use a good 5-card suit. In 4th seat there's no reason to preempt: open normally or pass.</li>
+</ul>
+<p><em>Example:</em> <code>♠KQJ953 <span class="rs">♥</span>74 <span class="rs">♦</span>K82 ♣63</code> (9). Open <strong>2♠</strong>.</p>
+<h3 id="responses">Responses</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Response</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Raise (2♠–3♠)</td>
+<td>Preemptive, to play. Not invitational</td>
+</tr>
+<tr>
+<td>4M</td>
+<td>To play: either expecting to make, or a bigger preempt</td>
+</tr>
+<tr>
+<td>New suit</td>
+<td>Natural, 5+ cards, forcing one round</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td><strong>Ogust</strong>: asks about strength and suit quality</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>To play</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="ogust-replies">Ogust replies</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Reply</th>
+<th>Strength</th>
+<th>Suit quality</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3♣</td>
+<td>Minimum (5–7)</td>
+<td>Bad</td>
+</tr>
+<tr>
+<td>3<span class="rs">♦</span></td>
+<td>Minimum (5–7)</td>
+<td>Good</td>
+</tr>
+<tr>
+<td>3<span class="rs">♥</span></td>
+<td>Maximum (8–10)</td>
+<td>Bad</td>
+</tr>
+<tr>
+<td>3♠</td>
+<td>Maximum (8–10)</td>
+<td>Good</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>Solid suit (AKQxxx)</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Good suit</strong> = 2 of the top 3 honors (AK, AQ, KQ).</p>
+<p><strong>Memory hook:</strong> minor replies = minimum, major replies = maximum. Within each pair, the lower bid is the bad suit.</p>
+<p><em>Example:</em> Partner opens 2♠ holding <code>♠KQJ953 <span class="rs">♥</span>74 <span class="rs">♦</span>K82 ♣63</code> and you ask with <strong>2NT</strong> holding <code>♠A4 <span class="rs">♥</span>AK63 <span class="rs">♦</span>A975 ♣Q82</code>. Partner replies <strong>3♠</strong> (maximum, good suit): bid <strong>4♠</strong>. Over 3♣ (minimum, bad suit) you'd stop in 3♠.</p>
+<h2 id="preempts-tier-0">Preempts <span class="tier t0">Tier 0</span></h2>
+<ul>
+<li><strong>3-level opening</strong>: about 7 cards, weak (less than an opening hand). Not vulnerable you can be braver.</li>
+<li><strong>4-level opening</strong>: about 8 cards.</li>
+<li><strong>Responses</strong>: a new suit is forcing. A raise is to play. 3NT over a minor preempt is to play.</li>
+<li>In <strong>3rd seat</strong> be more aggressive; in <strong>4th seat</strong> don't preempt.</li>
+</ul>
+<h2 id="competitive-bidding-tier-0">Competitive bidding <span class="tier t0">Tier 0</span></h2>
+<h3 id="overcalls">Overcalls</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Overcall</th>
+<th>Requirements</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1-level suit</td>
+<td>5+ cards, 8–16 HCP</td>
+</tr>
+<tr>
+<td>2-level suit</td>
+<td>Good 5+ cards (usually 6), 11–16</td>
+</tr>
+<tr>
+<td>Jump overcall, e.g. (1♣)–2<span class="rs">♥</span></td>
+<td><strong>Weak</strong>: 6 cards, 5–10, like a weak two</td>
+</tr>
+<tr>
+<td>1NT (direct)</td>
+<td>15–18 balanced with a stopper in their suit. <strong>Systems on</strong> (Stayman, transfers)</td>
+</tr>
+<tr>
+<td>1NT in 4th seat (balancing)</td>
+<td>11–14 balanced</td>
+</tr>
+<tr>
+<td>Cue-bid of their suit</td>
+<td>Michaels</td>
+</tr>
+<tr>
+<td>Jump to 2NT</td>
+<td>Unusual 2NT</td>
+</tr>
+<tr>
+<td>Double</td>
+<td>Takeout</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="advancing-partners-overcall">Advancing partner's overcall</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Advancer bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>New suit</td>
+<td>Natural, 5+ cards, non-forcing</td>
+</tr>
+<tr>
+<td>Simple raise</td>
+<td>6–9, 3+ support</td>
+</tr>
+<tr>
+<td>Jump raise</td>
+<td>Preemptive: weak with 4+ support</td>
+</tr>
+<tr>
+<td><strong>Cue-bid of their suit</strong></td>
+<td><strong>10+ with support</strong>: limit raise or better</td>
+</tr>
+<tr>
+<td>1NT</td>
+<td>8–11 with a stopper</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>11–12 with a stopper</td>
+</tr>
+</tbody>
+</table></div>
+<p><em>Example:</em> <code>(1♣)–1<span class="rs">♥</span>–(P)–?</code> holding <code>♠K84 <span class="rs">♥</span>Q963 <span class="rs">♦</span>AJ2 ♣854</code> (10 HCP, 4 hearts). Bid <strong>2♣</strong>: a good heart raise. With <code>♠K84 <span class="rs">♥</span>Q963 <span class="rs">♦</span>972 ♣854</code> (5 HCP), just raise to 2<span class="rs">♥</span>.</p>
+<h3 id="takeout-doubles">Takeout doubles</h3>
+<p><strong>Requirements:</strong> shortness in their suit (ideally 0–2 cards), support for the unbid suits, about 12+ HCP. <strong>Any 17+ hand</strong> also starts with a double and bids again.</p>
+<p><strong>Advancing</strong> after <code>(1<span class="rs">♥</span>)–X–(P)</code>:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Advancer bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cheapest suit</td>
+<td>0–8</td>
+</tr>
+<tr>
+<td>Jump in a suit</td>
+<td>9–11, invitational</td>
+</tr>
+<tr>
+<td>Cue-bid of their suit</td>
+<td>12+, forcing</td>
+</tr>
+<tr>
+<td>1NT</td>
+<td>6–10 with a stopper</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>11–12 with a stopper</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>13+ with a stopper</td>
+</tr>
+<tr>
+<td>Pass</td>
+<td>Penalty: strong long trumps in their suit (rare)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>If RHO bids after the double</strong>, advancer is no longer forced; bidding shows about 6+.</p>
+<p><strong>Doubler bids again voluntarily</strong> = 17+ (a new suit shows a strong one-suited hand).</p>
+<h3 id="michaels-cue-bid">Michaels cue-bid</h3>
+<p>A cue-bid of the opener's suit at the 2-level shows a <strong>5-5 two-suiter</strong> (5-4 not vulnerable at your discretion):</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Auction</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(1♣)–2♣ or (1<span class="rs">♦</span>)–2<span class="rs">♦</span></td>
+<td>Both majors</td>
+</tr>
+<tr>
+<td>(1<span class="rs">♥</span>)–2<span class="rs">♥</span></td>
+<td>Spades + a minor</td>
+</tr>
+<tr>
+<td>(1♠)–2♠</td>
+<td>Hearts + a minor</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Strength:</strong> either weak (6–11) or very strong (16+), never in between. With a middle hand, overcall the higher suit and bid the other later.</p>
+<p><strong>Advancer</strong> bids the preferred suit at the cheapest level (jump = invitational). After a major-suit Michaels, <strong>2NT asks for the minor</strong>.</p>
+<h3 id="unusual-2nt">Unusual 2NT</h3>
+<p>A <strong>jump overcall of 2NT</strong> shows <strong>5-5 in the two lowest unbid suits</strong>:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Over</th>
+<th>2NT shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1<span class="rs">♥</span> or 1♠</td>
+<td>Clubs + diamonds</td>
+</tr>
+<tr>
+<td>1♣</td>
+<td>Diamonds + hearts</td>
+</tr>
+<tr>
+<td>1<span class="rs">♦</span></td>
+<td>Clubs + hearts</td>
+</tr>
+</tbody>
+</table></div>
+<p>Strength as for Michaels.</p>
+<h3 id="negative-doubles-through-3">Negative doubles (through 3♠)</h3>
+<p>When <strong>partner opens</strong> and <strong>RHO overcalls a suit (up to 3♠)</strong>, a double is for takeout and focuses on the unbid major(s).</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Auction</th>
+<th>Double shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1♣–(1<span class="rs">♦</span>)–X</td>
+<td>Both majors, at least 4-4 (bid 1<span class="rs">♥</span>/1♠ with only one major)</td>
+</tr>
+<tr>
+<td>1♣–(1<span class="rs">♥</span>)–X</td>
+<td>Exactly 4 spades (1♠ would show 5+)</td>
+</tr>
+<tr>
+<td>1<span class="rs">♦</span>–(1♠)–X</td>
+<td>4+ hearts, 6+ HCP (2<span class="rs">♥</span> would show 5+ hearts and 10+)</td>
+</tr>
+<tr>
+<td>1<span class="rs">♥</span>–(1♠)–X</td>
+<td>Both minors, or a hand with no good bid</td>
+</tr>
+<tr>
+<td>1<span class="rs">♦</span>–(2♣)–X</td>
+<td>Both majors, or one major without the strength to bid it at the 2-level</td>
+</tr>
+<tr>
+<td>1<span class="rs">♥</span>–(2<span class="rs">♦</span>)–X</td>
+<td>4 spades + clubs, or a hand without a good bid</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Minimum strength:</strong> 6+ at the 1-level, 8+ at the 2-level, 10+ at the 3-level.</p>
+<p><strong>Free bids in competition:</strong></p>
+<ul>
+<li>New suit at the 1-level: 4+ cards (but 1♠ after a 1<span class="rs">♥</span> overcall promises 5+), forcing.</li>
+<li>New suit at the 2-level: 5+ cards, 10+, forcing one round.</li>
+<li>With a penalty double of their overcall in mind: <strong>pass</strong>. Opener, short in their suit, reopens with a double, and you pass for penalty.</li>
+</ul>
+<p><strong>Opener after a negative double:</strong> bid the shown major at the cheapest level with a minimum and 4 cards, jump with 15–17, cue-bid their suit with a big hand, or pass for penalty with a trump stack.</p>
+<h3 id="when-they-overcall-our-opening">When they overcall our opening</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Responder bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simple raise</td>
+<td>6–9</td>
+</tr>
+<tr>
+<td>Jump raise</td>
+<td>Preemptive, 4+ trumps, weak</td>
+</tr>
+<tr>
+<td><strong>Cue-bid of their suit</strong></td>
+<td><strong>Limit raise or better</strong> in opener's suit (10+)</td>
+</tr>
+<tr>
+<td>Negative double</td>
+<td>See above</td>
+</tr>
+<tr>
+<td>New suit</td>
+<td>Forcing one round</td>
+</tr>
+</tbody>
+</table></div>
+<p><em>Example:</em> <code>1<span class="rs">♥</span>–(2♣)–?</code> holding <code>♠A73 <span class="rs">♥</span>K962 <span class="rs">♦</span>QJ4 ♣652</code> (10 HCP): bid <strong>3♣</strong> (good heart raise). With <code>♠73 <span class="rs">♥</span>K9862 <span class="rs">♦</span>Q84 ♣652</code> (5 HCP), bid <strong>3<span class="rs">♥</span></strong> (preemptive).</p>
+<p>Inverted minors and 2/1 are <strong>off</strong> after an overcall: <code>1<span class="rs">♦</span>–(1♠)–2<span class="rs">♦</span></code> is a normal weak raise, and the strong raise goes through the cue-bid 2♠.</p>
+<h3 id="when-they-double-our-opening">When they double our opening</h3>
+<p>After <code>1♠–(X)</code>:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Responder bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>XX</td>
+<td>10+ HCP, usually no fit (plans to double them or show a suit)</td>
+</tr>
+<tr>
+<td>New suit at the 1-level</td>
+<td>Natural, forcing</td>
+</tr>
+<tr>
+<td>New suit at the 2-level</td>
+<td>Natural, 5+ cards, <strong>weak, non-forcing</strong></td>
+</tr>
+<tr>
+<td>2♠</td>
+<td>Weak raise, 6–9</td>
+</tr>
+<tr>
+<td><strong>2NT (Jordan)</strong></td>
+<td>4+ trumps, limit raise or better (Tier 1)</td>
+</tr>
+<tr>
+<td>3♠</td>
+<td>Preemptive, 4+ trumps, weak</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="against-their-weak-twos-and-preempts">Against their weak twos and preempts</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Auction</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(2<span class="rs">♥</span>)–X</td>
+<td>Takeout: opening values, short in hearts</td>
+</tr>
+<tr>
+<td>(2<span class="rs">♥</span>)–2NT</td>
+<td>15–18 balanced with a heart stopper</td>
+</tr>
+<tr>
+<td>(2<span class="rs">♥</span>)–2♠ / 3♣ / 3<span class="rs">♦</span></td>
+<td>Natural, good 5+ suit, about 12+</td>
+</tr>
+<tr>
+<td>(2<span class="rs">♥</span>)–3<span class="rs">♥</span></td>
+<td>Asks partner for a heart stopper (for 3NT with a long running minor)</td>
+</tr>
+<tr>
+<td>(3♠)–X</td>
+<td>Takeout</td>
+</tr>
+<tr>
+<td>(3♠)–3NT</td>
+<td>To play</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Advancing a double of a weak two (Lebensohl):</strong> after <code>(2<span class="rs">♥</span>)–X–(P)</code>:</p>
+<ul>
+<li><strong>2NT</strong> = weak (0–7). Forces 3♣; advancer passes or signs off in a suit.</li>
+<li><strong>Direct 3-level suit bid</strong> = 8–11, constructive.</li>
+<li><strong>Cue-bid (3<span class="rs">♥</span>)</strong> = game forcing, asks for a 4-card spade suit or a stopper.</li>
+<li><strong>Game bid</strong> = to play.</li>
+</ul>
+<h3 id="penalty-or-takeout-the-general-rule">Penalty or takeout? The general rule</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Double is TAKEOUT when...</th>
+<th>Double is PENALTY when...</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Low-level suit bid, and we haven't found a fit yet</td>
+<td>We've already agreed a fit</td>
+</tr>
+<tr>
+<td>It's a negative, responsive, support or Lebensohl situation</td>
+<td>They bid notrump</td>
+</tr>
+<tr>
+<td></td>
+<td>They bid a game freely (not a sacrifice)</td>
+</tr>
+<tr>
+<td></td>
+<td>Partner's previous double already showed values (e.g. after a redouble)</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="defense-leads-and-signals-tier-0">Defense: leads and signals <span class="tier t0">Tier 0</span></h2>
+<h3 id="opening-leads-against-a-suit-contract">Opening leads against a suit contract</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Holding</th>
+<th>Lead</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A-K-x</td>
+<td><strong>Ace</strong></td>
+</tr>
+<tr>
+<td>K-Q-x, Q-J-10, J-10-9 (any sequence)</td>
+<td>Top card</td>
+</tr>
+<tr>
+<td>Long suit with an honor (K-J-6-3)</td>
+<td>4th best (the 3)</td>
+</tr>
+<tr>
+<td>Doubleton (8-4)</td>
+<td>Top card (the 8)</td>
+</tr>
+<tr>
+<td>Three small (9-6-2)</td>
+<td>Top card (the 9)</td>
+</tr>
+<tr>
+<td>Singleton</td>
+<td>Good choice if partner may have an entry to give you a ruff</td>
+</tr>
+<tr>
+<td>A-x-x (no king)</td>
+<td><strong>Never underlead</strong> at trick 1: lead the ace or another suit</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="opening-leads-against-notrump">Opening leads against notrump</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Holding</th>
+<th>Lead</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Long suit with an honor (K-J-7-5-2)</td>
+<td>4th best (the 5)</td>
+</tr>
+<tr>
+<td>Solid or broken sequence: K-Q-J, K-Q-10, Q-J-9</td>
+<td>Top card</td>
+</tr>
+<tr>
+<td>Interior sequence: K-J-10, Q-10-9, A-J-10</td>
+<td>Top of the inner sequence (J, 10, J)</td>
+</tr>
+<tr>
+<td>Four small (8-6-4-2)</td>
+<td>Second highest (the 6): "I have nothing here"</td>
+</tr>
+<tr>
+<td>Partner bid a suit</td>
+<td>Usually lead partner's suit</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="signals-standard">Signals (Standard)</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Signal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Partner leads a suit, you follow</td>
+<td><strong>Attitude</strong>: high = "continue", low = "switch"</td>
+</tr>
+<tr>
+<td>Declarer leads a suit</td>
+<td><strong>Count</strong>: high-low = even number, low-high = odd</td>
+</tr>
+<tr>
+<td>Partner leads a likely singleton / the switch is obvious</td>
+<td><strong>Suit preference</strong>: high card = the higher remaining suit, low = the lower</td>
+</tr>
+<tr>
+<td>Your first discard</td>
+<td><strong>Attitude</strong>: high = "I like this suit"</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="habits-that-save-tricks">Habits that save tricks</h3>
+<ul>
+<li><strong>Second hand low, third hand high.</strong></li>
+<li><strong>Cover an honor with an honor</strong> when it can promote a card for your side.</li>
+<li><strong>Count declarer's tricks</strong> and the points shown in the bidding; partner's count signal tells you how many cards declarer has.</li>
+<li><strong>Return partner's suit against notrump</strong> unless you have a clearly better plan.</li>
+</ul>
+<h2 id="inverted-minor-raises-tier-1">Inverted minor raises <span class="tier t1">Tier 1</span></h2>
+<h3 id="what-it-is_1">What it is</h3>
+<p>The meaning of a minor-suit raise is "inverted" from the old style: the <strong>simple raise is strong</strong> and the <strong>jump raise is weak</strong>.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Auction</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1♣–2♣ / 1<span class="rs">♦</span>–2<span class="rs">♦</span></td>
+<td>10+ HCP, forcing one round. 5+ clubs or 4+ diamonds. <strong>No 4-card major</strong></td>
+</tr>
+<tr>
+<td>1♣–3♣ / 1<span class="rs">♦</span>–3<span class="rs">♦</span></td>
+<td>Weak, preemptive: 5–9 HCP, 5+ card support</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="openers-rebid-after-1m2m">Opener's rebid after 1m–2m</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Opener bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2NT</td>
+<td>12–14 balanced. Non-forcing</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td>18–19 balanced</td>
+</tr>
+<tr>
+<td>New suit at the 2-level</td>
+<td>Stopper in that suit, natural, forcing. Heading for 3NT</td>
+</tr>
+<tr>
+<td>3m</td>
+<td>Minimum, unbalanced. Non-forcing</td>
+</tr>
+<tr>
+<td>Jump in a new suit</td>
+<td>Splinter: shortness, slam interest</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Responder then:</strong> with 10–12, may pass 2NT or 3m. With 13+, keep going to game.</p>
+<h3 id="when-its-off">When it's off</h3>
+<p><strong>In competition</strong> (after an overcall or a double), 1m–2m goes back to a normal weak raise (6–9). The strong raise goes through the cue-bid of their suit, or Jordan 2NT after a double.</p>
+<h3 id="example">Example</h3>
+<p>Responder <code>♠K4 <span class="rs">♥</span>A73 <span class="rs">♦</span>KJ1052 ♣Q62</code> (13, no 4-card major). Over 1<span class="rs">♦</span>, bid <strong>2<span class="rs">♦</span></strong>. Opener <code>♠AQ6 <span class="rs">♥</span>KJ4 <span class="rs">♦</span>Q874 ♣953</code> (12, balanced) bids <strong>2NT</strong>. Responder, with 13, bids <strong>3NT</strong>.</p>
+<h3 id="traps">Traps</h3>
+<ul>
+<li>Don't use 2m with a 4-card major. Show the major first.</li>
+<li>If the opponents bid, the old meaning returns: 2m is weak.</li>
+</ul>
+<h2 id="xyz-tier-1">XYZ <span class="tier t1">Tier 1</span></h2>
+<h3 id="when-it-applies">When it applies</h3>
+<p>Whenever <strong>the first three bids are all at the 1-level</strong>, or opener rebids <strong>1NT</strong>:</p>
+<ul>
+<li><code>1♣–1<span class="rs">♥</span>–1♠</code></li>
+<li><code>1<span class="rs">♦</span>–1♠–1NT</code></li>
+<li><code>1♣–1<span class="rs">♦</span>–1<span class="rs">♥</span></code></li>
+</ul>
+<p>It replaces New Minor Forcing and checkback. It's <strong>off in competition</strong>.</p>
+<h3 id="responders-next-bid">Responder's next bid</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Responder bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>2♣</strong></td>
+<td>Relay: opener <strong>must</strong> bid 2<span class="rs">♦</span>. Responder then passes (weak with diamonds) or makes an <strong>invitational</strong> bid</td>
+</tr>
+<tr>
+<td><strong>2<span class="rs">♦</span></strong></td>
+<td>Artificial, <strong>game forcing</strong></td>
+</tr>
+<tr>
+<td>2 of a new lower-ranking suit (e.g. 1<span class="rs">♦</span>–1♠–1NT–2<span class="rs">♥</span>)</td>
+<td>Weak, natural, to play (5♠ + 4<span class="rs">♥</span>)</td>
+</tr>
+<tr>
+<td>2 of own suit (e.g. 1<span class="rs">♦</span>–1♠–1NT–2♠)</td>
+<td>Weak, 6+ cards, to play</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>Puppet to 3♣, to play in clubs (or 3<span class="rs">♦</span> after it)</td>
+</tr>
+<tr>
+<td>Jump to 3 of a suit</td>
+<td>Game forcing, good 6+ suit</td>
+</tr>
+<tr>
+<td>3NT / 4M</td>
+<td>To play</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="after-the-2-relay-invitational-hands">After the 2♣ relay (invitational hands)</h3>
+<p><code>1<span class="rs">♦</span>–1♠–1NT–2♣–2<span class="rs">♦</span>–?</code></p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Responder bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pass</td>
+<td>Weak with diamonds</td>
+</tr>
+<tr>
+<td>2<span class="rs">♥</span></td>
+<td>5♠ + 4<span class="rs">♥</span>, invitational</td>
+</tr>
+<tr>
+<td>2♠</td>
+<td>6+ spades, invitational</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>Balanced, invitational (opener can bid 3♠/4♠ with 3-card support)</td>
+</tr>
+<tr>
+<td>3<span class="rs">♦</span></td>
+<td>Diamond support, invitational</td>
+</tr>
+</tbody>
+</table></div>
+<p>Opener accepts with a maximum (13–14) and declines with a minimum.</p>
+<h3 id="after-the-2-game-force">After the 2<span class="rs">♦</span> game force</h3>
+<p>Opener describes the hand in this order of priority:</p>
+<ol>
+<li><strong>3-card support for responder's major</strong>: bid 2 of it.</li>
+<li><strong>An unbid 4-card major</strong>: bid it.</li>
+<li><strong>Stopper in the unbid suit</strong>: 2NT.</li>
+<li>Otherwise rebid your long suit.</li>
+</ol>
+<h3 id="examples_1">Examples</h3>
+<ul>
+<li><code>♠Q8743 <span class="rs">♥</span>K952 <span class="rs">♦</span>4 ♣J73</code> (6). <code>1<span class="rs">♦</span>–1♠–1NT–?</code> Bid <strong>2<span class="rs">♥</span></strong>: weak with 5♠ + 4<span class="rs">♥</span>. Opener passes or corrects to 2♠.</li>
+<li><code>♠AJ743 <span class="rs">♥</span>K952 <span class="rs">♦</span>4 ♣Q73</code> (10). <code>1<span class="rs">♦</span>–1♠–1NT–?</code> Bid <strong>2♣</strong>, then over 2<span class="rs">♦</span> bid <strong>2<span class="rs">♥</span></strong>: invitational, 5♠ + 4<span class="rs">♥</span>.</li>
+<li><code>♠AQ74 <span class="rs">♥</span>K6 <span class="rs">♦</span>J5 ♣KJ1063</code> (14). <code>1<span class="rs">♦</span>–1♠–1NT–?</code> Bid <strong>2<span class="rs">♦</span></strong>: game forcing. You'll find out whether spades or notrump is right.</li>
+</ul>
+<h3 id="traps_1">Traps</h3>
+<ul>
+<li>Over 2♣, opener has <strong>no choice</strong>: bid 2<span class="rs">♦</span>.</li>
+<li>XYZ is only for three <strong>1-level</strong> bids (or a 1NT rebid). After <code>1<span class="rs">♦</span>–1♠–2♣</code> use <strong>fourth suit forcing</strong> instead.</li>
+</ul>
+<h2 id="fourth-suit-forcing-tier-1">Fourth suit forcing <span class="tier t1">Tier 1</span></h2>
+<h3 id="what-it-is_2">What it is</h3>
+<p>When three suits have been bid by our side, <strong>responder bidding the fourth suit at the 2-level or higher is artificial and game forcing</strong>. It says: "I have game values but don't know where to play. Tell me more."</p>
+<p><code>1<span class="rs">♦</span>–1♠–2♣–2<span class="rs">♥</span></code>: 2<span class="rs">♥</span> is fourth suit forcing. It does not promise hearts.</p>
+<p>(At the 1-level, e.g. <code>1♣–1<span class="rs">♦</span>–1<span class="rs">♥</span>–1♠</code>, the fourth suit is natural; XYZ covers those auctions.)</p>
+<h3 id="openers-reply-in-order-of-priority">Opener's reply, in order of priority</h3>
+<ol>
+<li><strong>3-card support for responder's first suit</strong>: raise it.</li>
+<li><strong>Stopper in the fourth suit</strong>: bid notrump (2NT; minimum or maximum is clarified later).</li>
+<li><strong>Extra length in a suit already bid</strong>: rebid it.</li>
+<li><strong>4 cards in the fourth suit</strong>: raise it.</li>
+</ol>
+<h3 id="example_1">Example</h3>
+<p>Responder <code>♠AQ753 <span class="rs">♥</span>843 <span class="rs">♦</span>K5 ♣A62</code> (13). <code>1<span class="rs">♦</span>–1♠–2♣–?</code> There's no heart stopper for 3NT and no fit yet, so bid <strong>2<span class="rs">♥</span></strong>. If opener bids 2NT (heart stopper), raise to <strong>3NT</strong>. If opener bids 2♠ (3-card support), bid <strong>4♠</strong>.</p>
+<h2 id="drury-tier-1">Drury <span class="tier t1">Tier 1</span></h2>
+<h3 id="what-it-is_3">What it is</h3>
+<p>A <strong>passed-hand</strong> responder's <strong>2♣</strong> over partner's 1<span class="rs">♥</span>/1♠ shows <strong>3+ card support and 10–11 points</strong> (a limit raise). It lets opener stop at the 2-level after a light 3rd- or 4th-seat opening.</p>
+<p><code>P–1♠–2♣</code> = Drury (not clubs).</p>
+<h3 id="openers-rebid">Opener's rebid</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Opener bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2M</td>
+<td>Light opening, no game interest. Responder passes</td>
+</tr>
+<tr>
+<td>4M</td>
+<td>Full opening, to play</td>
+</tr>
+<tr>
+<td>Any other bid</td>
+<td>Full opening values, natural game try</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="when-it-applies_1">When it applies</h3>
+<ul>
+<li><strong>On</strong> when RHO passes, and <strong>on after a double</strong> (<code>P–1♠–(X)–2♣</code>). Over the double, Jordan 2NT shows the 4-card limit raise and 2♣ the 3-card one.</li>
+<li><strong>Off after an overcall</strong>: use the cue-bid raise instead.</li>
+</ul>
+<h3 id="example_2">Example</h3>
+<p>You passed, partner opened 1♠ in 3rd seat. You hold <code>♠KJ5 <span class="rs">♥</span>Q842 <span class="rs">♦</span>A73 ♣965</code> (10). Bid <strong>2♣</strong>. Partner, with a light <code>♠AQ1074 <span class="rs">♥</span>K3 <span class="rs">♦</span>862 ♣J74</code> (10), signs off in <strong>2♠</strong>.</p>
+<h2 id="jordan-2nt-tier-1">Jordan 2NT <span class="tier t1">Tier 1</span></h2>
+<h3 id="what-it-is_4">What it is</h3>
+<p>After partner's opening and RHO's <strong>takeout double</strong>, <strong>2NT shows a limit raise or better</strong> with 4+ card support (5+ for a minor).</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Responder bids after 1<span class="rs">♥</span>–(X)</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2<span class="rs">♥</span></td>
+<td>Weak raise, 6–9</td>
+</tr>
+<tr>
+<td><strong>2NT</strong></td>
+<td>4+ trumps, 10+</td>
+</tr>
+<tr>
+<td>3<span class="rs">♥</span></td>
+<td>Preemptive: 4+ trumps, weak</td>
+</tr>
+<tr>
+<td>XX, then raise</td>
+<td>3-card limit raise</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Opener:</strong> 3<span class="rs">♥</span> = minimum, stop · 4<span class="rs">♥</span> = accept game · new suit = slam interest.</p>
+<h3 id="example_3">Example</h3>
+<p><code>♠84 <span class="rs">♥</span>KJ73 <span class="rs">♦</span>A962 ♣Q53</code> (10). <code>1<span class="rs">♥</span>–(X)–?</code> Bid <strong>2NT</strong>.</p>
+<h2 id="dont-against-their-1nt-tier-1">DONT against their 1NT <span class="tier t1">Tier 1</span></h2>
+<h3 id="what-it-is_5">What it is</h3>
+<p>DONT ("Disturb Opponents' No Trump") gets into the auction cheaply against an opponent's 1NT opening, mostly with <strong>two-suited hands</strong>. We use it <strong>against every 1NT</strong>, strong or weak, in direct and balancing seat.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Our call over (1NT)</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>X</td>
+<td><strong>One long suit</strong> (6+). Partner bids 2♣; you pass with clubs or bid your suit</td>
+</tr>
+<tr>
+<td>2♣</td>
+<td>Clubs + a higher suit (5-4 or longer)</td>
+</tr>
+<tr>
+<td>2<span class="rs">♦</span></td>
+<td>Diamonds + a major</td>
+</tr>
+<tr>
+<td>2<span class="rs">♥</span></td>
+<td>Hearts + spades</td>
+</tr>
+<tr>
+<td>2♠</td>
+<td>Spades only (6+ usually)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Strength:</strong> a good playing hand, roughly 8–15 HCP. A balanced 15+ hand just passes and defends.</p>
+<h3 id="advancing-partners-dont-bid">Advancing (partner's DONT bid)</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>After partner's</th>
+<th>Advancer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>X</td>
+<td>Bids <strong>2♣</strong> (forced, unless you have a long suit of your own to play)</td>
+</tr>
+<tr>
+<td>2♣</td>
+<td>Pass with clubs support, or <strong>2<span class="rs">♦</span> = "show me your other suit"</strong></td>
+</tr>
+<tr>
+<td>2<span class="rs">♦</span></td>
+<td>Pass with diamonds, or <strong>2<span class="rs">♥</span> = pass-or-correct</strong> (pass with hearts, partner bids 2♠ with spades)</td>
+</tr>
+<tr>
+<td>2<span class="rs">♥</span></td>
+<td>Pass with hearts, or 2♠ with spades</td>
+</tr>
+<tr>
+<td>2♠</td>
+<td>Pass, or raise with a fit</td>
+</tr>
+</tbody>
+</table></div>
+<p>In general: <strong>with support for the suit shown, pass. Otherwise bid the next step up</strong> to find the second suit.</p>
+<h3 id="examples_2">Examples</h3>
+<ul>
+<li><code>♠KQ1074 <span class="rs">♥</span>AJ863 <span class="rs">♦</span>5 ♣84</code>: over (1NT), bid <strong>2<span class="rs">♥</span></strong> (both majors).</li>
+<li><code>♠4 <span class="rs">♥</span>KQJ1073 <span class="rs">♦</span>A84 ♣953</code>: <strong>X</strong>. Over partner's 2♣, bid <strong>2<span class="rs">♥</span></strong>.</li>
+<li><code>♠KQ84 <span class="rs">♥</span>5 <span class="rs">♦</span>63 ♣AJ10862</code>: <strong>2♣</strong> (clubs + a higher suit).</li>
+</ul>
+<h2 id="rkcb-1430-and-slam-tools-tier-1">RKCB 1430 and slam tools <span class="tier t1">Tier 1</span></h2>
+<h3 id="roman-key-card-blackwood-4nt">Roman Key Card Blackwood (4NT)</h3>
+<p>There are <strong>five key cards</strong>: the four aces and the <strong>king of trumps</strong>. 4NT asks how many partner holds:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Reply</th>
+<th>Key cards</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5♣</td>
+<td>1 or 4</td>
+</tr>
+<tr>
+<td>5<span class="rs">♦</span></td>
+<td>0 or 3</td>
+</tr>
+<tr>
+<td>5<span class="rs">♥</span></td>
+<td>2, <strong>without</strong> the trump queen</td>
+</tr>
+<tr>
+<td>5♠</td>
+<td>2, <strong>with</strong> the trump queen</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Memory hook: "1430"</strong> = the 5♣ reply is <strong>1 or 4</strong>, the 5<span class="rs">♦</span> reply is 0 or 3. The bidding context always tells you which.</p>
+<h3 id="when-4nt-is-rkcb">When 4NT is RKCB</h3>
+<ul>
+<li><strong>A suit has been agreed</strong> (directly, or through Jacoby 2NT, a splinter or Texas). The trump suit is the agreed suit.</li>
+<li>If no suit is agreed, the <strong>last suit bid naturally</strong> is trump.</li>
+<li><strong>After notrump bidding with no agreed suit</strong> (e.g. 1NT–4NT), 4NT is <strong>quantitative</strong>, not RKCB.</li>
+</ul>
+<h3 id="follow-ups">Follow-ups</h3>
+<ul>
+<li><strong>Queen ask:</strong> after a 5♣ or 5<span class="rs">♦</span> reply, the <strong>next step that isn't the trump suit</strong> asks for the trump queen. Responder with no queen bids the trump suit at the cheapest level; with the queen, bids anything else (6 of the trump suit is simplest).</li>
+<li><strong>5NT</strong> asks for kings and <strong>promises all five key cards and the trump queen</strong>. Replies by number, not counting the trump king: 6♣ = 0, 6<span class="rs">♦</span> = 1, 6<span class="rs">♥</span> = 2, 6♠ = 3.</li>
+<li><strong>Sign-off:</strong> 5 of the trump suit.</li>
+<li><strong>Decide:</strong> missing 2 key cards → stop at the 5-level. Missing 1 → small slam. Missing none plus the queen → think about a grand slam.</li>
+</ul>
+<h3 id="when-they-interfere">When they interfere</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>They...</th>
+<th>Our replies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Overcall 4NT</td>
+<td><strong>X</strong> = 0 or 3 · <strong>Pass</strong> = 1 or 4 · next step = 2 without Q · second step = 2 with Q</td>
+</tr>
+<tr>
+<td>Double 4NT</td>
+<td><strong>XX</strong> = 0 or 3 · <strong>Pass</strong> = 1 or 4 · next step = 2 without Q · second step = 2 with Q</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="voids">Voids</h3>
+<p>We <strong>don't show voids</strong> in RKCB replies. Count only your key cards. With a void and slam interest, use control bids instead of Blackwood.</p>
+<h3 id="control-bids-cue-bids">Control bids (cue-bids)</h3>
+<p>Once a suit is agreed and game is forced, <strong>bidding a new suit at the 4-level (or 3-level) shows a first- or second-round control</strong> there: ace, king, void or singleton.</p>
+<ul>
+<li>Bid the <strong>cheapest</strong> control first, going up the line.</li>
+<li><strong>Skipping a suit denies a control</strong> in it.</li>
+<li>Returning to 4 of the trump suit = no extra interest.</li>
+</ul>
+<p><strong>Use control bids instead of RKCB</strong> when you have a void, or when two quick losers in one suit could beat the slam.</p>
+<h3 id="example_4">Example</h3>
+<p><code>1<span class="rs">♥</span>–2NT</code> (Jacoby) <code>–3♣</code> (club shortness) <code>–4NT</code> (RKCB, hearts) <code>–5♠</code> (2 key cards + <span class="rs">♥</span>Q) <code>–6<span class="rs">♥</span></code>.</p>
+<h2 id="support-doubles-and-redoubles-tier-2">Support doubles and redoubles <span class="tier t2">Tier 2</span></h2>
+<h3 id="what-it-is_6">What it is</h3>
+<p>After <code>1m–(P)–1M</code> (or 1<span class="rs">♥</span>–1♠), if <strong>RHO interferes</strong> at a level up to 2 of responder's suit:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Opener's call</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>X</strong> (after an overcall)</td>
+<td><strong>Exactly 3-card support</strong> for responder's major</td>
+</tr>
+<tr>
+<td><strong>XX</strong> (after a double)</td>
+<td><strong>Exactly 3-card support</strong></td>
+</tr>
+<tr>
+<td>Raise</td>
+<td><strong>4-card support</strong></td>
+</tr>
+<tr>
+<td>Other bids</td>
+<td>Natural, denying 3-card support</td>
+</tr>
+</tbody>
+</table></div>
+<p>It shows the length of support only. It promises no extra strength.</p>
+<p><strong>Limit:</strong> on through 2 of responder's suit (2<span class="rs">♥</span> when responder bid hearts, 2♠ for spades).</p>
+<h3 id="example_5">Example</h3>
+<p><code>1<span class="rs">♦</span>–(P)–1<span class="rs">♥</span>–(1♠)–?</code> Opener holds <code>♠84 <span class="rs">♥</span>K73 <span class="rs">♦</span>AQ953 ♣K62</code> (12). Bid <strong>X</strong> (exactly 3 hearts). With 4 hearts, bid 2<span class="rs">♥</span>.</p>
+<h3 id="what-responder-does-next">What responder does next</h3>
+<p>Responder treats the support double like a raise: with a 5-card suit, you know of an 8-card fit. With a 4-card suit, the fit is only 7 cards, so look elsewhere or play notrump.</p>
+<h3 id="trap">Trap</h3>
+<p>Opener <strong>can't make a penalty double</strong> of the overcall. With a trump stack in their suit, pass and hope partner reopens with a double.</p>
+<h2 id="smolen-tier-2">Smolen <span class="tier t2">Tier 2</span></h2>
+<h3 id="what-it-is_7">What it is</h3>
+<p>After <code>1NT–2♣–2<span class="rs">♦</span></code> (no 4-card major), responder with <strong>5-4 in the majors and game values</strong> jumps in the <strong>4-card major</strong>:</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Responder bids</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3<span class="rs">♥</span></td>
+<td>4 hearts + <strong>5 spades</strong>, game forcing</td>
+</tr>
+<tr>
+<td>3♠</td>
+<td>4 spades + <strong>5 hearts</strong>, game forcing</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Opener:</strong> with 3-card support for the 5-card major, bid game in it (4♠ after 3<span class="rs">♥</span>, 4<span class="rs">♥</span> after 3♠). Otherwise bid 3NT.</p>
+<p><strong>Why:</strong> the strong 1NT hand ends up as declarer in the major fit.</p>
+<h3 id="example_6">Example</h3>
+<p><code>♠KQ1063 <span class="rs">♥</span>A984 <span class="rs">♦</span>85 ♣Q4</code> (11). <code>1NT–2♣–2<span class="rs">♦</span>–?</code> Bid <strong>3<span class="rs">♥</span></strong>. Opener with <code>♠J72</code> bids <strong>4♠</strong>; with <code>♠72</code> bids <strong>3NT</strong>.</p>
+<h3 id="related-bids">Related bids</h3>
+<ul>
+<li><strong>Weak</strong> 5-4: transfer to the 5-card major and pass.</li>
+<li><strong>Invitational</strong> 5-4: <code>1NT–2♣–2<span class="rs">♦</span>–2<span class="rs">♥</span>/2♠</code> (5 cards in the bid major).</li>
+<li><strong>6-4</strong>: transfer to the 6-card major and bid game (Texas with no slam interest).</li>
+</ul>
+<h2 id="lebensohl-tier-2">Lebensohl <span class="tier t2">Tier 2</span></h2>
+<h3 id="what-it-is_8">What it is</h3>
+<p>Lebensohl uses <strong>2NT as a relay to 3♣</strong> so you can sign off cheaply at the 3-level, while direct 3-level bids show strength. We use the same relay in three places.</p>
+<h3 id="1-after-our-1nt-and-a-natural-2-level-overcall">1. After our 1NT and a natural 2-level overcall</h3>
+<p><code>1NT–(2<span class="rs">♥</span>)–?</code></p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Responder bids</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2♠</td>
+<td>Natural, 5+ spades, to play (competitive)</td>
+</tr>
+<tr>
+<td><strong>2NT</strong></td>
+<td><strong>Relay</strong>: opener must bid 3♣</td>
+</tr>
+<tr>
+<td>…then pass</td>
+<td>To play in clubs</td>
+</tr>
+<tr>
+<td>…then 3<span class="rs">♦</span> (a suit below theirs)</td>
+<td>To play</td>
+</tr>
+<tr>
+<td>…then 3♠ (a suit above theirs)</td>
+<td><strong>Invitational</strong>, 5+ spades</td>
+</tr>
+<tr>
+<td>Direct 3♣ / 3<span class="rs">♦</span> / 3♠</td>
+<td><strong>Game forcing</strong>, 5+ cards</td>
+</tr>
+<tr>
+<td>Direct 3<span class="rs">♥</span> (cue-bid)</td>
+<td>Stayman for spades, <strong>no</strong> heart stopper</td>
+</tr>
+<tr>
+<td>2NT, then 3<span class="rs">♥</span></td>
+<td>Stayman for spades, <strong>with</strong> a heart stopper</td>
+</tr>
+<tr>
+<td>Direct 3NT</td>
+<td>To play, <strong>no</strong> heart stopper</td>
+</tr>
+<tr>
+<td>2NT, then 3NT</td>
+<td>To play, <strong>with</strong> a heart stopper</td>
+</tr>
+<tr>
+<td>X</td>
+<td>Penalty</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Memory hook: "Fast denies, slow shows."</strong> Going straight to 3NT or the cue-bid denies a stopper. Going through 2NT first shows one.</p>
+<h3 id="2-after-a-reverse">2. After a reverse</h3>
+<p><code>1<span class="rs">♦</span>–1♠–2<span class="rs">♥</span>–2NT</code>: responder is weak and forces 3♣, then passes or signs off. See <strong>Reverses</strong>.</p>
+<h3 id="3-after-partner-doubles-their-weak-two">3. After partner doubles their weak two</h3>
+<p><code>(2<span class="rs">♥</span>)–X–(P)–2NT</code>: advancer is weak (0–7) and forces 3♣, then passes or signs off. A direct 3-level bid shows 8–11. See <strong>Against their weak twos and preempts</strong>.</p>
+<h3 id="trap_1">Trap</h3>
+<p>The 2NT relay is <strong>forcing</strong>. The opener (or doubler) must bid 3♣ even with a good hand, except after a reverse with 18+.</p>
+<h2 id="strong-2-opening-tier-2">Strong 2♣ opening <span class="tier t2">Tier 2</span></h2>
+<h3 id="opening-2">Opening 2♣</h3>
+<p>22+ balanced, or an unbalanced hand with about <strong>9 playing tricks</strong> and a strong suit. Artificial: says nothing about clubs.</p>
+<h3 id="responses_1">Responses</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Response</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>2<span class="rs">♦</span></strong></td>
+<td><strong>Waiting</strong>: any hand without a positive. Says nothing about diamonds</td>
+</tr>
+<tr>
+<td>2<span class="rs">♥</span> / 2♠ / 3♣ / 3<span class="rs">♦</span></td>
+<td><strong>Positive</strong>: good 5+ suit (2 of the top 3 honors), 8+ HCP</td>
+</tr>
+<tr>
+<td>2NT</td>
+<td>Positive: 8+ balanced, no good suit</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="openers-rebid-after-22">Opener's rebid after 2♣–2<span class="rs">♦</span></h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Rebid</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2NT</td>
+<td><strong>22–24 balanced</strong>. Systems on (3♣ Stayman, transfers, Smolen, Gerber, Texas)</td>
+</tr>
+<tr>
+<td>3NT</td>
+<td><strong>25–27 balanced</strong>. Systems on</td>
+</tr>
+<tr>
+<td>2<span class="rs">♥</span> / 2♠ / 3♣ / 3<span class="rs">♦</span></td>
+<td>Natural, 5+ cards, game forcing (unless responder makes a second negative)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="second-negative">Second negative</h3>
+<p>After <code>2♣–2<span class="rs">♦</span>–2<span class="rs">♥</span></code> (or 2♠, 3<span class="rs">♦</span>), <strong>3♣ = second negative</strong>: 0–3 HCP, "I have nothing". If opener rebid 3♣, the second negative is <strong>3<span class="rs">♦</span></strong>. After a second negative, opener's rebid of the suit can be passed.</p>
+<h3 id="game-forcing">Game forcing?</h3>
+<p>After 2♣, the auction is <strong>forcing to game</strong>, except:</p>
+<ul>
+<li>after the 2NT rebid (22–24), which responder may pass with 0–2;</li>
+<li>after a second negative.</li>
+</ul>
+<h3 id="if-they-interfere-over-2">If they interfere over 2♣</h3>
+<p>Pass = weak (0–3) · X = some values (4+) · a bid = natural positive.</p>
+<h3 id="example_7">Example</h3>
+<p><code>♠AKQ1073 <span class="rs">♥</span>AK4 <span class="rs">♦</span>A5 ♣K2</code> (23 HCP, about 10 tricks). Open <strong>2♣</strong>. After 2<span class="rs">♦</span>, bid <strong>2♠</strong> (game forcing).</p>
+<h2 id="danger-zones-the-most-common-mistakes">Danger zones: the most common mistakes</h2>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Mistake</th>
+<th>The rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Treating every 4♣ as Gerber</td>
+<td><strong>4♣ is Gerber only directly over partner's 1NT or 2NT</strong> (including 2♣–2<span class="rs">♦</span>–2NT). Anywhere else it's natural or a splinter</td>
+</tr>
+<tr>
+<td>Treating every 4NT as Blackwood</td>
+<td><strong>4NT is RKCB only when a suit is agreed.</strong> After notrump bidding with no agreed suit, it's quantitative</td>
+</tr>
+<tr>
+<td>Reversing with a minimum</td>
+<td>A reverse needs <strong>16+</strong> and a longer first suit. Otherwise rebid 1NT or your suit</td>
+</tr>
+<tr>
+<td>Expecting extras from a reverse after 2/1</td>
+<td>After a 2/1 response, a "reverse" shows <strong>shape only</strong></td>
+</tr>
+<tr>
+<td>Looking for 4 hearts after 1m–1♠</td>
+<td>1♠ over a minor <strong>denies 4 hearts</strong> unless spades are 5+</td>
+</tr>
+<tr>
+<td>Playing inverted minors or 2/1 in competition</td>
+<td>Both are <strong>off</strong> after an overcall or double</td>
+</tr>
+<tr>
+<td>Treating P–1♠–2♣ as a game force</td>
+<td>A passed hand can't force to game; it's <strong>Drury</strong></td>
+</tr>
+<tr>
+<td>Passing a forcing 1NT</td>
+<td>1M–1NT is <strong>forcing</strong>: opener must bid again (unless responder passed earlier)</td>
+</tr>
+<tr>
+<td>Bidding on after a 2♣ relay in XYZ</td>
+<td>Opener <strong>must</strong> bid 2<span class="rs">♦</span></td>
+</tr>
+<tr>
+<td>Forgetting the Lebensohl relay is forcing</td>
+<td>After 2NT, partner must bid 3♣</td>
+</tr>
+</tbody>
+</table></div></article></div></div><script>(function(){var d=document.getElementById('toc');function f(){if(window.innerWidth<=860){d.open=false}else{d.open=true}}f();d.addEventListener('click',function(e){if(e.target.tagName==='A'&&window.innerWidth<=860){d.open=false}});})();</script>
+<a class="home" href="#top" title="Back to top" aria-label="Back to top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/></svg></a>
