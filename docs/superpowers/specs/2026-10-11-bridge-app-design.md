@@ -32,7 +32,7 @@ Two tabs in stage 1: **Advisor** and **Decoder**. (Mockup approved in conversati
 ### 3.1 Advisor
 
 1. **Hand picker**: four rows (♠ ♥ ♦ ♣) of 13 tappable cards (A K Q J 10 9 8 7 6 5 4 3 2). Live counter "n/13 cards · x HCP". Buttons: **Random hand**, **Clear**.
-2. **Start**: toggle *I'm opening* / *Partner opened*. Switch **"Someone passed first"** with the choice *I passed* / *Partner passed* (drives Drury and the passed-hand rules).
+2. **Start**: toggle *I'm opening* / *Partner opened*, and **Seat of the opening bid**: 1st / 2nd / 3rd / 4th. The seat tells the app who passed before the opening (in 3rd/4th seat the non-opener of our side passed, which drives Drury and the passed-hand rules) and applies the seat rules (light 3rd seat, Rule of 15 in 4th).
 3. **Auction**: a strip showing our side's calls so far (opponents' passes inserted automatically and shown faintly) and a **bidding box**: levels 1–7 × ♣ ♦ ♥ ♠ NT, plus Pass. Illegal calls (not higher than the last bid) are greyed and cannot be tapped. An **Undo** button removes the last call.
 4. **Answer card** (appears when it is the user's turn and the hand has 13 cards):
    - **Suggested bid**, large.
