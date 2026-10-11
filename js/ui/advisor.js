@@ -1,7 +1,8 @@
-import { emptyHand, cardCount } from '../cards.js';
+import { cardCount } from '../cards.js';
 import { nextSeat, isComplete, seatAt } from '../auction.js';
 import { advise } from '../engine.js';
 import { buildAuction, ME, PARTNER } from '../advisor-model.js';
+import { cleanAdvisor, acceptedCalls } from '../state.js';
 import { callLabel } from '../format.js';
 import { NOTES_URL } from '../config.js';
 import { el, segmented } from './dom.js';
@@ -12,7 +13,7 @@ const WHO = { S: 'You', N: 'Partner', E: 'Opp', W: 'Opp' };
 const SEAT_NAMES = ['1st', '2nd', '3rd', '4th'];
 
 export function advisorView(root, store) {
-  const state = store.load('advisor', { hand: emptyHand(), opener: 'me', seat: 1, ourCalls: [] });
+  const state = cleanAdvisor(store.load('advisor', {}));
   const save = () => store.save('advisor', state);
   const rest = el('div', { class: 'stack' });
   const picker = handPicker({ hand: state.hand, onChange: (h) => { state.hand = h; save(); render(); } });
@@ -63,6 +64,12 @@ export function advisorView(root, store) {
   }
 
   function render() {
+    // Drop saved calls the built auction did not use, so Undo always removes a visible call.
+    const kept = acceptedCalls(state);
+    if (kept.length !== state.ourCalls.length) {
+      state.ourCalls = kept;
+      save();
+    }
     const a = buildAuction(state);
     const ourTurn = !isComplete(a) && [ME, PARTNER].includes(nextSeat(a));
     rest.replaceChildren(

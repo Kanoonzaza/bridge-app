@@ -13,14 +13,14 @@
 <body>
 <header class="top">
   <h1>Bridge Coach</h1>
-  <nav class="tabs" role="tablist">
-    <button role="tab" data-tab="advisor" aria-selected="true">Advisor</button>
-    <button role="tab" data-tab="decoder" aria-selected="false">Decoder</button>
+  <nav class="tabs" role="tablist" aria-label="Bridge Coach">
+    <button role="tab" id="tab-advisor" data-tab="advisor" aria-controls="advisor" aria-selected="true">Advisor</button>
+    <button role="tab" id="tab-decoder" data-tab="decoder" aria-controls="decoder" aria-selected="false" tabindex="-1">Decoder</button>
   </nav>
 </header>
 <main>
-  <section id="advisor"></section>
-  <section id="decoder" hidden></section>
+  <section id="advisor" role="tabpanel" aria-labelledby="tab-advisor"></section>
+  <section id="decoder" role="tabpanel" aria-labelledby="tab-decoder" hidden></section>
 </main>
 <div id="update-bar" class="update" hidden>
   <span>New version ready</span>

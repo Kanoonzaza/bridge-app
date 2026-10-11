@@ -14,6 +14,7 @@ const FILES = [
   'js/engine.js',
   'js/advisor-model.js',
   'js/store.js',
+  'js/state.js',
   'js/system/index.js',
   'js/system/openings.js',
   'js/ui/dom.js',

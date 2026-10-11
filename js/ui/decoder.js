@@ -4,6 +4,7 @@ import { callLabel } from '../format.js';
 import { NOTES_URL } from '../config.js';
 import { el, segmented } from './dom.js';
 import { biddingBox } from './bidding-box.js';
+import { cleanDecoder } from '../state.js';
 
 const WHO = { S: 'You', N: 'Partner', E: 'Right opp', W: 'Left opp' };
 
@@ -20,7 +21,7 @@ function rowView(r) {
 }
 
 export function decoderView(root, store) {
-  const state = store.load('decoder', { dealer: 'S', calls: [] });
+  const state = cleanDecoder(store.load('decoder', {}));
 
   function update(patch) {
     Object.assign(state, patch);
