@@ -1,4 +1,4 @@
-const CACHE = 'bc-v1';
+const CACHE = 'bc-3b80ba9c';
 const FILES = [
   './',
   'index.html',
@@ -27,7 +27,7 @@ const FILES = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)));
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((u) => new Request(u, { cache: 'reload' })))));
 });
 
 self.addEventListener('activate', (event) => {
