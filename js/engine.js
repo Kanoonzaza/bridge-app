@@ -1,4 +1,5 @@
-import { SYMBOL } from './cards.js';
+import { SYMBOL, SUITS, evaluate } from './cards.js';
+import { legalCalls, seatAt, situationAt, partnerOf, isComplete } from './auction.js';
 import ALL from './system/index.js';
 
 const PLACE = { M: ['H', 'S'], m: ['C', 'D'], x: ['C', 'D', 'H', 'S'] };
@@ -72,4 +73,93 @@ export function candidates(situation, entries = ALL) {
     if (!prev || spec < prev.spec) best.set(call, { call, entry, env, spec });
   }
   return [...best.values()];
+}
+
+export function explain(auction, entries = ALL) {
+  return auction.calls.map((call, i) => {
+    const c = candidates(situationAt(auction, i), entries).find((x) => x.call === call);
+    return {
+      i,
+      seat: seatAt(auction, i),
+      call,
+      meaning: c ? fill(c.entry.meaning, c.env) : null,
+      shows: c ? resolveShows(c.entry.shows, c.env) : null,
+      entry: c ? c.entry : null,
+    };
+  });
+}
+
+export function summarize(rows, seat) {
+  const acc = { known: false, hcp: [0, 37], len: { S: [0, 13], H: [0, 13], D: [0, 13], C: [0, 13] }, balanced: false, force: 'none' };
+  for (const r of rows) {
+    if (r.seat !== seat || !r.shows) continue;
+    acc.known = true;
+    if (r.shows.hcp) acc.hcp = [Math.max(acc.hcp[0], r.shows.hcp[0]), Math.min(acc.hcp[1], r.shows.hcp[1])];
+    for (const [s, [lo, hi]] of Object.entries(r.shows.len || {})) {
+      acc.len[s] = [Math.max(acc.len[s][0], lo), Math.min(acc.len[s][1], hi)];
+    }
+    if (r.shows.balanced) acc.balanced = true;
+    acc.force = r.shows.force || 'none';
+  }
+  return acc;
+}
+
+export function describeShown(acc) {
+  if (!acc.known) return [];
+  const out = [];
+  const [lo, hi] = acc.hcp;
+  out.push(hi >= 37 ? `${lo}+ HCP` : lo === hi ? `${lo} HCP` : `${lo}–${hi} HCP`);
+  for (const s of SUITS) {
+    const [a, b] = acc.len[s];
+    if (a === 0 && b === 13) continue;
+    out.push(b === 13 ? `${a}+${SYMBOL[s]}` : a === b ? `${a}${SYMBOL[s]}` : `${a}–${b}${SYMBOL[s]}`);
+  }
+  if (acc.balanced) out.push('Balanced');
+  if (acc.force === 'round') out.push('Forcing one round');
+  if (acc.force === 'game') out.push('Game forcing');
+  return out;
+}
+
+export function nextOptions(auction, entries = ALL) {
+  if (isComplete(auction)) return [];
+  const byCall = new Map(candidates(situationAt(auction, auction.calls.length), entries).map((c) => [c.call, c]));
+  return legalCalls(auction)
+    .filter((call) => byCall.has(call))
+    .map((call) => {
+      const c = byCall.get(call);
+      return { call, meaning: fill(c.entry.meaning, c.env), notes: c.entry.notes };
+    });
+}
+
+function prepare(hand, auction, entries) {
+  const s = situationAt(auction, auction.calls.length);
+  const legal = new Set(legalCalls(auction));
+  const rows = explain(auction, entries);
+  const base = { ...s, partner: summarize(rows, partnerOf(s.actor)), me: summarize(rows, s.actor) };
+  const list = candidates(s, entries)
+    .filter((c) => c.entry.pick && legal.has(c.call))
+    .sort((a, b) => a.entry.priority - b.entry.priority);
+  return { e: evaluate(hand), base, list };
+}
+
+export function advise(hand, auction, entries = ALL) {
+  const { e, base, list } = prepare(hand, auction, entries);
+  for (const c of list) {
+    const st = { ...base, bind: c.env };
+    if (!c.entry.pick(e, st)) continue;
+    return {
+      call: c.call,
+      meaning: fill(c.entry.meaning, c.env),
+      reasons: c.entry.why ? c.entry.why(e, st) : [],
+      plan: c.entry.plan ? c.entry.plan(e, st) : null,
+      close: c.entry.close ? c.entry.close(e, st) : null,
+      notes: c.entry.notes,
+    };
+  }
+  return { notCovered: true, options: nextOptions(auction, entries) };
+}
+
+export function matchingEntries(hand, auction, entries = ALL) {
+  const { e, base, list } = prepare(hand, auction, entries);
+  return list.filter((c) => c.entry.pick(e, { ...base, bind: c.env })).map((c) => ({ call: c.call, priority: c.entry.priority }));
 }
