@@ -69,7 +69,7 @@ export function respondWeakTwo(e, x) {
     if (h >= 16 && SUITS.filter((s) => s !== x).every((s) => stopped(e, s))) return R('3N', [`${h} HCP, other suits stopped`]);
     return R('2N', [`${h} HCP: ask with Ogust`]);
   }
-  if (major && fit >= 4 && h <= 14) return R(`4${x}`, [`${fit} ${NAME[x]}: bigger preempt (or a make)`]);
+  if (major && fit >= 4 && h <= 14) return R(`4${x}`, [`${fit} ${NAME[x]}`, h >= 12 ? `${h} HCP: game should make` : 'a bigger preempt: take away their bidding room']);
   if (fit >= 3 && h <= 14) return R(`3${x}`, [`${fit} ${NAME[x]}: preemptive raise`]);
   return R('P', [`${h} HCP, no fit: pass`]);
 }
