@@ -59,18 +59,33 @@ export function resolveShows(shows = {}, env = {}) {
   return out;
 }
 
-const placeholderCount = (after) => after.filter((t) => /[MmxOn]\)?$/.test(t)).length;
+// Lower = more specific: literal token 0, M/m/O/n 1, x 2.
+function specificity(after) {
+  let score = 0;
+  for (const t of after) {
+    const p = t.startsWith('(') ? t.slice(1, -1) : t;
+    if (p.length !== 2) continue;
+    if (p[1] === 'x') score += 2;
+    else if ('MmOn'.includes(p[1])) score += 1;
+  }
+  return score;
+}
 
-export function candidates(situation, entries = ALL) {
+const ctxSize = (entry) => (entry.ctx ? Object.keys(entry.ctx).length : 0);
+
+const moreSpecific = (a, b) => a.spec < b.spec || (a.spec === b.spec && a.ctxN > b.ctxN);
+
+export function candidates(situation, entries = ALL, onlyPickable = false) {
   const best = new Map();
   for (const entry of entries) {
+    if (onlyPickable && !entry.pick) continue;
     const env = matchPattern(entry.after, situation.key);
     if (!env) continue;
     if (entry.ctx && !Object.entries(entry.ctx).every(([k, v]) => situation.ctx[k] === v)) continue;
     const call = resolveCall(entry.call, env);
-    const spec = placeholderCount(entry.after);
+    const cand = { call, entry, env, spec: specificity(entry.after), ctxN: ctxSize(entry) };
     const prev = best.get(call);
-    if (!prev || spec < prev.spec) best.set(call, { call, entry, env, spec });
+    if (!prev || moreSpecific(cand, prev)) best.set(call, cand);
   }
   return [...best.values()];
 }
@@ -108,10 +123,15 @@ export function describeShown(acc) {
   if (!acc.known) return [];
   const out = [];
   const [lo, hi] = acc.hcp;
-  out.push(hi >= 37 ? `${lo}+ HCP` : lo === hi ? `${lo} HCP` : `${lo}–${hi} HCP`);
+  if (lo > hi) out.push('Conflicting HCP');
+  else if (!(lo === 0 && hi === 37)) out.push(hi >= 37 ? `${lo}+ HCP` : lo === hi ? `${lo} HCP` : `${lo}–${hi} HCP`);
   for (const s of SUITS) {
     const [a, b] = acc.len[s];
     if (a === 0 && b === 13) continue;
+    if (a > b) {
+      out.push(`Conflicting ${SYMBOL[s]} length`);
+      continue;
+    }
     out.push(b === 13 ? `${a}+${SYMBOL[s]}` : a === b ? `${a}${SYMBOL[s]}` : `${a}–${b}${SYMBOL[s]}`);
   }
   if (acc.balanced) out.push('Balanced');
@@ -136,9 +156,9 @@ function prepare(hand, auction, entries) {
   const legal = new Set(legalCalls(auction));
   const rows = explain(auction, entries);
   const base = { ...s, partner: summarize(rows, partnerOf(s.actor)), me: summarize(rows, s.actor) };
-  const list = candidates(s, entries)
-    .filter((c) => c.entry.pick && legal.has(c.call))
-    .sort((a, b) => a.entry.priority - b.entry.priority);
+  const list = candidates(s, entries, true)
+    .filter((c) => legal.has(c.call))
+    .sort((a, b) => (a.entry.priority ?? 50) - (b.entry.priority ?? 50));
   return { e: evaluate(hand), base, list };
 }
 

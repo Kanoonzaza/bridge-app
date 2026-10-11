@@ -44,3 +44,30 @@ test('candidates keeps the most specific entry per call and checks ctx', () => {
   const sit = { key: ['1S'], ctx: { responderPassed: true } };
   assert.deepEqual(candidates(sit, entries).map((c) => [c.call, c.entry.meaning]), [['2S', 'spade raise']]);
 });
+
+test('candidates prefers literal over M over x regardless of list order', () => {
+  const a = { after: ['1M', '2M'], call: '3M', meaning: 'M-specific' };
+  const b = { after: ['1M', '2x'], call: '3M', meaning: 'x-generic' };
+  const sit = { key: ['1H', '2H'], ctx: {} };
+  assert.equal(candidates(sit, [a, b])[0].entry.meaning, 'M-specific');
+  assert.equal(candidates(sit, [b, a])[0].entry.meaning, 'M-specific');
+  const lit = { after: ['1H', '2H'], call: '3H', meaning: 'literal' };
+  assert.equal(candidates(sit, [a, lit])[0].entry.meaning, 'literal');
+  assert.equal(candidates(sit, [lit, a])[0].entry.meaning, 'literal');
+});
+
+test('candidates breaks ties by number of ctx keys', () => {
+  const plain = { after: ['1S'], call: '2S', meaning: 'plain' };
+  const withCtx = { after: ['1S'], call: '2S', meaning: 'ctx', ctx: { responderPassed: false } };
+  const sit = { key: ['1S'], ctx: { responderPassed: false } };
+  assert.equal(candidates(sit, [plain, withCtx])[0].entry.meaning, 'ctx');
+  assert.equal(candidates(sit, [withCtx, plain])[0].entry.meaning, 'ctx');
+});
+
+test('candidates onlyPickable skips entries without pick before choosing', () => {
+  const dec = { after: ['1H'], call: '2H', meaning: 'decoder text' };
+  const gen = { after: ['1M'], call: '2M', meaning: 'raise', pick: () => true, priority: 1 };
+  const sit = { key: ['1H'], ctx: {} };
+  assert.equal(candidates(sit, [dec, gen])[0].entry.meaning, 'decoder text');
+  assert.equal(candidates(sit, [dec, gen], true)[0].entry.meaning, 'raise');
+});

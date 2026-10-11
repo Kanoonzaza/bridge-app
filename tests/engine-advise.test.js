@@ -62,3 +62,32 @@ test('matchingEntries lists every entry whose pick accepts the hand', () => {
   const m = matchingEntries(parseHand('AKJ74 K5 AJ3 Q62'), { dealer: 'S', calls: [] }, FIX);
   assert.deepEqual(m.map((x) => x.call).sort(), ['1S', 'P']);
 });
+
+test('advise falls back to a pickable generic entry; explain keeps decoder text', () => {
+  const entries = [
+    { after: ['1H'], call: '2H', meaning: 'decoder text' },
+    { after: ['1M'], call: '2M', meaning: 'raise', pick: () => true, priority: 1, notes: 'n' },
+  ];
+  const auction = { dealer: 'N', calls: ['1H', 'P'] };
+  const r = advise(parseHand('K83 Q742 J5 9863'), auction, entries);
+  assert.equal(r.call, '2H');
+  assert.equal(r.meaning, 'raise');
+  assert.equal(explain({ dealer: 'N', calls: ['1H', 'P', '2H'] }, entries)[2].meaning, 'decoder text');
+  assert.equal(nextOptions(auction, entries).find((o) => o.call === '2H').meaning, 'decoder text');
+});
+
+test('advise treats a missing priority as 50', () => {
+  const entries = [
+    { after: [], call: '1C', meaning: 'late', pick: () => true, priority: 60 },
+    { after: [], call: '1D', meaning: 'default', pick: () => true },
+    { after: [], call: '1H', meaning: 'early', pick: () => false, priority: 10 },
+  ];
+  assert.equal(advise(parseHand('K83 Q742 J5 9863'), { dealer: 'S', calls: [] }, entries).call, '1D');
+});
+
+test('describeShown omits untouched HCP and reports conflicts', () => {
+  const full = { S: [0, 13], H: [0, 13], D: [0, 13], C: [0, 13] };
+  assert.deepEqual(describeShown({ known: true, hcp: [0, 37], len: { ...full, S: [5, 13] }, balanced: false, force: 'none' }), ['5+♠']);
+  assert.deepEqual(describeShown({ known: true, hcp: [15, 10], len: full, balanced: false, force: 'none' }), ['Conflicting HCP']);
+  assert.deepEqual(describeShown({ known: true, hcp: [12, 21], len: { ...full, S: [6, 4] }, balanced: false, force: 'none' }), ['12–21 HCP', 'Conflicting ♠ length']);
+});
