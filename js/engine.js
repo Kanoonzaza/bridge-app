@@ -1,5 +1,5 @@
 import { SYMBOL, SUITS, evaluate } from './cards.js';
-import { legalCalls, seatAt, situationAt, partnerOf, isComplete } from './auction.js';
+import { legalCalls, seatAt, situationAt, partnerOf, isComplete, sideOf } from './auction.js';
 import ALL from './system/index.js';
 
 const PLACE = { M: ['H', 'S'], m: ['C', 'D'], x: ['C', 'D', 'H', 'S'] };
@@ -75,9 +75,29 @@ const ctxSize = (entry) => (entry.ctx ? Object.keys(entry.ctx).length : 0);
 
 const moreSpecific = (a, b) => a.spec < b.spec || (a.spec === b.spec && a.ctxN > b.ctxN);
 
+// Entries grouped by pattern length (tail entries apart), so a lookup scans only the patterns that can match.
+const INDEX = new WeakMap();
+function indexOf(entries) {
+  let idx = INDEX.get(entries);
+  if (!idx) {
+    idx = { byLen: new Map(), tails: [] };
+    for (const entry of entries) {
+      if (entry.tail) idx.tails.push(entry);
+      else {
+        const n = entry.after.length;
+        if (!idx.byLen.has(n)) idx.byLen.set(n, []);
+        idx.byLen.get(n).push(entry);
+      }
+    }
+    INDEX.set(entries, idx);
+  }
+  return idx;
+}
+
 export function candidates(situation, entries = ALL, onlyPickable = false) {
   const best = new Map();
-  for (const entry of entries) {
+  const idx = indexOf(entries);
+  for (const entry of [...(idx.byLen.get(situation.key.length) ?? []), ...idx.tails]) {
     if (onlyPickable && !entry.pick) continue;
     // A tail entry matches the end of the auction (e.g. any 4NT once a suit is agreed); exact patterns beat it.
     if (entry.tail && situation.key.length < entry.after.length) continue;
@@ -179,7 +199,62 @@ export function advise(hand, auction, entries = ALL) {
       notes: c.entry.notes,
     };
   }
-  return { notCovered: true, options: nextOptions(auction, entries) };
+  return fallback(hand, auction, entries) ?? { notCovered: true, options: nextOptions(auction, entries) };
+}
+
+// When no rule covers a contested auction:
+// - we opened: bid as if the opponents had passed, when that call is still legal;
+// - they opened: pass with a modest hand.
+const GAME = /^(3N|4[HS]|5[CDHS]|[67][CDHSN])$/;
+const pass = (why) => ({ call: 'P', meaning: 'Pass.', reasons: why, plan: null, close: null, notes: 'opening-bids-tier-0', fallback: 'pass' });
+
+function fallback(hand, auction, entries) {
+  const n = auction.calls.length;
+  const s = situationAt(auction, n);
+  const e = evaluate(hand);
+  const last = s.key.at(-1) ?? '';
+  // Partner placed the contract at game or higher and the opponents passed.
+  if (GAME.test(last) && e.hcp <= 19 && legalCalls(auction).includes('P')) return pass(['partner placed the contract: pass']);
+  if (!s.ctx.competitive) return null;
+  // We opened, partner has only passed, and the opponents compete: rebid a 6-card suit cheaply, or pass.
+  const ours = s.key.filter((t) => !t.startsWith('('));
+  if (s.ctx.opened === 'us' && s.ctx.role === 'opener' && ours.slice(1).every((t) => t === 'P')) {
+    const o = ours[0][1];
+    const call = ['C', 'D', 'H', 'S'].includes(o) ? legalCalls(auction).find((c) => c[1] === o && /^[1-7]/.test(c)) : null;
+    if (call && e.len[o] >= 6 && Number(call[0]) <= 2 && e.hcp >= 11) {
+      return { call, meaning: `6+ ${o === 'S' ? 'spades' : o === 'H' ? 'hearts' : o === 'D' ? 'diamonds' : 'clubs'}: competing for the part-score.`, reasons: [`${e.len[o]}-card suit`, 'partner is weak: compete at the 2-level'], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'compete' };
+    }
+    if (e.hcp <= 16) return pass([`${e.hcp} HCP and partner passed: let them play`]);
+  }
+  // We opened, I (responder) have only passed so far, and they compete: raise to the 2-level with support, or pass.
+  if (s.ctx.opened === 'us' && s.ctx.role === 'responder' && ours.slice(1).every((t) => t === 'P') && ours.length > 1) {
+    const o = ours[0][1];
+    const call = ['C', 'D', 'H', 'S'].includes(o) ? legalCalls(auction).find((c) => c[1] === o && /^[1-7]/.test(c)) : null;
+    if (call && Number(call[0]) <= 2 && e.len[o] >= (o === 'H' || o === 'S' ? 3 : 4) && e.hcp >= 5) {
+      return { call, meaning: 'Competitive raise.', reasons: [`${e.len[o]}-card support`, 'compete for the part-score'], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'compete' };
+    }
+    if (e.hcp <= 10) return pass([`${e.hcp} HCP: nothing to add`]);
+  }
+  if (s.ctx.opened === 'us') {
+    const side = sideOf(s.actor);
+    const calls = auction.calls.map((c, i) => (sideOf(seatAt(auction, i)) !== side && c !== 'P' ? 'P' : c));
+    const quiet = { dealer: auction.dealer, calls };
+    if (situationAt(quiet, n).ctx.competitive) return null;
+    const r = advise(hand, quiet, entries);
+    if (r.notCovered || !legalCalls(auction).includes(r.call)) return null;
+    return { ...r, reasons: [...r.reasons, "the opponents' bids took none of our room: bid as if they had passed"], fallback: 'quiet' };
+  }
+  if (s.ctx.opened === 'them' && e.hcp <= 14) return pass([`${e.hcp} HCP and no clear action: pass`]);
+  // A strong hand that has already acted (or must act) against their opening: show the long suit, else double again.
+  if (s.ctx.opened === 'them' && e.hcp >= 17) {
+    const theirs = new Set(s.key.filter((t) => t.startsWith('(') && /\d/.test(t)).map((t) => t[2]));
+    const legal = legalCalls(auction);
+    const suit = ['S', 'H', 'D', 'C'].filter((x) => !theirs.has(x) && e.len[x] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
+    const bid = suit && legal.find((c) => c[1] === suit && /^[1-4]/.test(c));
+    if (bid) return { call: bid, meaning: `Natural: 5+ ${({ S: 'spades', H: 'hearts', D: 'diamonds', C: 'clubs' })[suit]}, a strong hand.`, reasons: [`${e.hcp} HCP and ${e.len[suit]} cards: bid again voluntarily (17+)`], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'strong' };
+    if (legal.includes('X')) return { call: 'X', meaning: 'Takeout double: a strong hand.', reasons: [`${e.hcp} HCP: double again`], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'strong' };
+  }
+  return null;
 }
 
 export function matchingEntries(hand, auction, entries = ALL) {

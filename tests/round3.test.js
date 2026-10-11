@@ -1,0 +1,57 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { parseHand, randomHand } from '../js/cards.js';
+import { advise, matchingEntries } from '../js/engine.js';
+import { buildAuction } from '../js/advisor-model.js';
+import { SITUATIONS } from '../js/system/round3.js';
+import { mulberry32 } from './helpers.js';
+
+const auctionFor = (calls) => buildAuction({ opener: calls.length % 2 ? 'partner' : 'me', seat: 1, ourCalls: calls });
+const ask = (calls, hand) => advise(parseHand(hand), auctionFor(calls));
+const askFull = (dealer, calls, hand) => advise(parseHand(hand), { dealer, calls });
+
+const CASES = [
+  [['1D', '1S', '2S'], 'KQ74 A83 Q94 J62', '3S', 'invite opposite a minimum raise'],
+  [['1D', '1S', '2S'], 'KQ74 A83 K94 J62', '4S', 'game opposite a minimum raise'],
+  [['1D', '1H', '2D'], 'K4 AJ83 Q94 J862', '3D', 'invite with diamond support'],
+  [['1D', '1H', '2D'], 'K4 J983 54 Q8762', 'P', 'minimum: pass'],
+  [['1C', '1S', '2N'], 'KJ874 83 Q94 862', '3S', '5 spades: let opener choose'],
+  [['1S', '2S', '3D'], 'K74 983 Q4 K8762', '4S', 'help-suit try: diamond help'],
+  [['1S', '2S', '3D'], 'K74 Q83 974 J862', '3S', 'help-suit try: no help'],
+  [['1H', '2N', '3C'], 'K74 AJ83 KQ94 62', '4H', 'Jacoby: minimum sign-off'],
+  [['1S', '2C', '2S'], 'Q74 A83 K4 KJ862', '4S', '2/1: fast arrival with 3 spades'],
+  [['1N', '2H', '2S', '3N'], 'AK4 KQ8 Q942 J62', '4S', 'opener picks the 5-3 spade fit'],
+  [['1N', '2C', '2D', '3H'], 'AK4 KQ8 Q942 J62', '4S', 'Smolen: 3 spades'],
+  [['1D', '1S', '1N', '2C'], 'A4 KQ8 Q9842 J62', '2D', 'XYZ relay is forced'],
+  [['1D', '1S', '1N', '2C', '2D'], 'AJ743 K952 4 Q73', '2H', 'XYZ: the planned invitation'],
+];
+for (const [calls, hand, want, why] of CASES) {
+  test(`${calls.join('–')}: ${hand} → ${want} (${why})`, () => assert.equal(ask(calls, hand).call, want));
+}
+
+test('fallbacks: game placed, partner silent, quiet opponents, defending', () => {
+  assert.equal(ask(['1D', '1H', '2N', '3N'], 'K4 AQ8 KQ94 AJ62').call, 'P');
+  assert.equal(askFull('S', ['1S', 'P', 'P', 'X'], 'KQJ974 A83 Q4 62').call, '2S');
+  assert.equal(askFull('S', ['1S', 'P', 'P', 'X'], 'KQ974 A83 Q4 652').call, 'P');
+  const quiet = askFull('N', ['1C', '1D', '1H', 'P', '1S', 'P'], 'K4 AQ83 Q94 J862');
+  assert.equal(quiet.fallback, 'quiet');
+  assert.equal(askFull('W', ['1D', 'P', '1S'], '874 Q83 J94 Q862').call, 'P');
+});
+
+test('negative double: accept the jump with 9+', () => {
+  assert.equal(askFull('E', ['P', '1S', '2D', 'X', 'P', '3H', 'P'], '5 K853 K62 A8753').call, '4H');
+});
+
+test('round 3 sweep', () => {
+  const rng = mulberry32(61);
+  for (const sit of SITUATIONS) {
+    const auction = auctionFor(sit.after);
+    assert.equal(auction.calls.filter((c) => c !== 'P').join(' '), sit.after.join(' '), `auction for ${sit.after}`);
+    for (let i = 0; i < 60; i++) {
+      const hand = randomHand(rng);
+      const r = advise(hand, auction);
+      assert.ok(r.call in sit.calls, `${sit.after}: ${r.call} for ${JSON.stringify(hand)}`);
+      assert.equal(matchingEntries(hand, auction).length, 1, `${sit.after}: matches`);
+    }
+  }
+});

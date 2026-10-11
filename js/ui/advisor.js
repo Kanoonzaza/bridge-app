@@ -61,7 +61,7 @@ export function advisorView(root, store) {
           : el('p', {}, "The advisor doesn't cover this situation yet. More situations are coming in the next update."));
     }
     return el('div', { class: 'panel answer' },
-      el('div', { class: 'eyebrow' }, 'Suggested bid'),
+      el('div', { class: 'eyebrow' }, r.fallback ? 'Suggested bid (general rule)' : 'Suggested bid'),
       el('div', { class: 'big' }, callLabel(r.call)),
       r.reasons.length ? el('p', {}, el('b', {}, 'Why: '), `${r.reasons.join('; ')}.`) : null,
       el('p', {}, el('b', {}, 'Tells partner: '), r.meaning),

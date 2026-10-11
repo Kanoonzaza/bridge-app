@@ -6,8 +6,9 @@ import respRebids from './resp-rebids.js';
 import notrump from './notrump.js';
 import twos from './twos.js';
 import slam from './slam.js';
+import round3 from './round3.js';
 import competitive from './competitive.js';
 import './compete-advice.js'; // attaches Advisor decisions to the competitive meanings
 
-const ALL = [...openings, ...respMajor, ...respMinor, ...rebids, ...respRebids, ...notrump, ...twos, ...slam, ...competitive];
+const ALL = [...openings, ...respMajor, ...respMinor, ...rebids, ...respRebids, ...notrump, ...twos, ...slam, ...round3, ...competitive];
 export default ALL;

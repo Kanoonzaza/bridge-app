@@ -1,4 +1,4 @@
-const CACHE = 'bc-0ebc5637';
+const CACHE = 'bc-2780c3c2';
 const FILES = [
   './',
   'index.html',
@@ -24,6 +24,7 @@ const FILES = [
   'js/system/notrump.js',
   'js/system/twos.js',
   'js/system/slam.js',
+  'js/system/round3.js',
   'js/system/competitive.js',
   'js/system/compete-advice.js',
   'js/ui/dom.js',

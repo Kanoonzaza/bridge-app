@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "stamp": "node tools/stamp-sw.mjs"
+    "stamp": "node tools/stamp-sw.mjs",
+    "coverage": "node tools/coverage.mjs"
   }
 }

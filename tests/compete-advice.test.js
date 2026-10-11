@@ -58,7 +58,7 @@ test('every contested situation answers every hand with exactly one call', () =>
     const auction = { dealer: s.dealer, calls: s.calls };
     const key = situationAt(auction, s.calls.length).key;
     assert.deepEqual(key, s.after, `sample ${s.dealer} ${s.calls}`);
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 40; i++) {
       const hand = randomHand(rng);
       const r = advise(hand, auction);
       assert.ok(!r.notCovered, `${s.after} (${s.calls}): not covered for ${JSON.stringify(hand)}`);

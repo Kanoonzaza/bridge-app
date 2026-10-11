@@ -416,4 +416,133 @@ advise(['1N', '(X)'], (e) => {
   return e.hcp >= 9 ? R('XX', [`${e.hcp} HCP: we have the balance of strength`]) : R('P', [`${e.hcp} HCP: pass`]);
 }, [{ dealer: 'N', calls: ['1N', 'X'] }]);
 
+
+// ---------- We opened 1o; they bid Michaels (2o), Unusual 2NT or 1NT ----------
+export function overTheirConvention(e, o, their) {
+  const h = e.hcp;
+  const L = e.len;
+  const fitNeed = isMajor(o) ? 3 : o === 'D' ? 4 : 5;
+  const lv = their === '1N' ? 2 : 3;
+  if (their === '1N' && h >= 9) return R('X', [`${h} HCP: penalty double of their 1NT`]);
+  if (L[o] >= fitNeed) {
+    const dp = isMajor(o) ? dummyPoints(e, o) : h;
+    if (isMajor(o) && dp >= 13 && lv === 3) return R(`4${o}`, [`${L[o]} ${nm(o)}, ${dp} points: game`]);
+    if (dp >= 6) return R(`${lv}${o}`, [`${L[o]} ${nm(o)}: compete`]);
+  }
+  if (their !== '1N' && h >= 10) return R('X', [`${h} HCP: values, interest in penalizing them`]);
+  const own = SUITS4.filter((t) => t !== o && L[t] >= 5 && h >= (their === '1N' ? 5 : 8));
+  if (own.length) {
+    const t = longestOf(e, own);
+    return R(`${cheapest(their, t)}${t}`, [`${L[t]} ${nm(t)}: natural`]);
+  }
+  return R('P', [`${h} HCP: pass`]);
+}
+for (const o of SUITS4) {
+  for (const their of [`2${o}`, '2N', '1N']) {
+    const k = [`1${o}`, `(${their})`];
+    def(k, 'X', their === '1N' ? 'Penalty: 9+ HCP.' : 'Values (10+): interest in penalizing them.', { hcp: [their === '1N' ? 9 : 10, 37] });
+    def(k, 'P', 'Pass.');
+    const lv = their === '1N' ? 2 : 3;
+    def(k, `${lv}${o}`, `Competitive raise of ${nm(o)}.`, { len: { [o]: [3, 13] } });
+    if (isMajor(o) && lv === 3) def(k, `4${o}`, `Game in ${nm(o)}.`, { len: { [o]: [3, 13] } });
+    for (const t of SUITS4.filter((x) => x !== o)) def(k, `${cheapest(their, t)}${t}`, `Natural: 5+ ${nm(t)}.`, { len: { [t]: [5, 13] } });
+    advise(k, (e) => overTheirConvention(e, o, their), [{ dealer: 'N', calls: [`1${o}`, their] }]);
+  }
+}
+
+
+// ---------- Responder after opener answers the negative double ----------
+export function afterNegXAnswer(e, o, ov, z) {
+  const y = ov[1];
+  const h = e.hcp;
+  const zs = z[1];
+  if (isMajor(zs) && zs !== o && e.len[zs] >= 4) {
+    const jumped = Number(z[0]) > cheapest(ov, zs);
+    if ((h >= 13 || (jumped && h >= 9)) && Number(z[0]) < 4) return R(`4${zs}`, [`4 ${nm(zs)}: a fit`, jumped ? `${h} HCP opposite 15–17: game` : `${h} HCP: game`]);
+    if (h >= 11 && Number(z[0]) < 3) return R(`3${zs}`, [`4 ${nm(zs)}: a fit`, `${h} HCP: invite`]);
+    return R('P', [`${h} HCP: no game`]);
+  }
+  if (h >= 13 && above('3N', z)) return R('3N', [`${h} HCP: game`]);
+  if (h >= 11 && stopper(e, y) && above('2N', z)) return R('2N', [`${h} HCP, ${nm(y)} stopped: invite`]);
+  return R('P', [`${h} HCP: no game`]);
+}
+for (const o of SUITS4) {
+  for (const y of SUITS4.filter((t) => t !== o)) {
+    for (let lv = cheapest(`1${o}`, y); lv <= 3; lv++) {
+      const ov = `${lv}${y}`;
+      const negKey = JSON.stringify([`1${o}`, `(${ov})`, 'X']);
+      const answers = entries.filter((en) => !en.tail && JSON.stringify(en.after) === negKey && en.call !== 'P' && !en.call.startsWith('X')).map((en) => en.call);
+      for (const z of answers) {
+        const k = [`1${o}`, `(${ov})`, 'X', z];
+        def(k, 'P', 'No game.');
+        if (above('2N', z)) def(k, '2N', `Invitational, ${nm(y)} stopped.`, { hcp: [11, 12] });
+        if (above('3N', z)) def(k, '3N', 'To play.', { hcp: [13, 37] });
+        if (isMajor(z[1]) && z[1] !== o) {
+          if (Number(z[0]) < 3) def(k, `3${z[1]}`, `4 ${nm(z[1])}: invitational raise.`, { hcp: [11, 12] });
+          if (Number(z[0]) < 4) def(k, `4${z[1]}`, `4 ${nm(z[1])}: game.`, { hcp: [13, 37] });
+        }
+        advise(k, (e) => afterNegXAnswer(e, o, ov, z), [{ dealer: 'N', calls: [`1${o}`, ov, 'X', 'P', z, 'P'] }]);
+      }
+    }
+  }
+}
+
+// ---------- They opened and responded: our first action ----------
+export function overTheirResponse(e, x, resp) {
+  const h = e.hcp;
+  const L = e.len;
+  const theirs = [x, resp[1]].filter((s) => s !== 'N');
+  const unbid = SUITS4.filter((s) => !theirs.includes(s));
+  const own = unbid.filter((s) => L[s] >= 5 && (top3(e, s) >= 2 || L[s] >= 6)).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a])[0];
+  if (own) {
+    const lv = cheapest(resp, own);
+    if ((lv === 1 && h >= 9) || (lv === 2 && h >= 11)) return R(`${lv}${own}`, [`${L[own]} good ${nm(own)}, ${h} HCP`]);
+  }
+  if (h >= 12 && unbid.every((s) => L[s] >= 4) && theirs.every((s) => L[s] <= 2)) return R('X', [`${h} HCP, 4+ in both unbid suits: takeout`]);
+  return R('P', [`${h} HCP: they have the values; pass`]);
+}
+for (const x of SUITS4) {
+  const resps = [...SUITS4.filter((s) => RANK[s] > RANK[x]).map((s) => `1${s}`), '1N', `2${x}`];
+  for (const resp of resps) {
+    const k = [`(1${x})`, 'P', `(${resp})`];
+    const theirs = [x, resp[1]].filter((s) => s !== 'N');
+    const unbid = SUITS4.filter((s) => !theirs.includes(s));
+    def(k, 'P', 'Pass.');
+    def(k, 'X', `Takeout: the unbid suits (${unbid.map(nm).join(' and ')}), 12+.`, { hcp: [12, 37] });
+    for (const s of unbid) def(k, `${cheapest(resp, s)}${s}`, `Natural: good 5+ ${nm(s)}.`, { len: { [s]: [5, 13] } });
+    advise(k, (e) => overTheirResponse(e, x, resp), [{ dealer: 'W', calls: [`1${x}`, 'P', resp] }]);
+  }
+}
+
+
+// ---------- Responder after opener's support double / redouble ----------
+export function afterSupportDouble(e, r) {
+  const h = e.hcp;
+  const L = e.len;
+  if (L[r] >= 5) {
+    if (h >= 13) return R(`4${r}`, [`${L[r]} ${nm(r)} opposite 3: an 8-card fit`, `${h} HCP: game`]);
+    if (h >= 10) return R(`3${r}`, [`${L[r]} ${nm(r)}: an 8-card fit`, `${h} HCP: invite`]);
+    return R(`2${r}`, [`${L[r]} ${nm(r)}: an 8-card fit`, 'weak: compete']);
+  }
+  if (h >= 13) return R('3N', [`${h} HCP, only a 7-card fit: notrump`]);
+  return R('P', [`${h} HCP, only 4 ${nm(r)}: no clear action`]);
+}
+for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']]) {
+  const overs = ['X'];
+  for (const t of SUITS4.filter((u) => u !== r)) {
+    const lv = cheapest(`1${r}`, t);
+    if (!above(`${lv}${t}`, `2${r}`)) overs.push(`${lv}${t}`);
+  }
+  for (const ov of overs) {
+    const sup = ov === 'X' ? 'XX' : 'X';
+    const k = [`1${o}`, `1${r}`, `(${ov})`, sup];
+    def(k, 'P', 'Pass.', {}, SUPPORT);
+    if (ov !== `2${r}` && (ov === 'X' || !above(ov, `2${r}`))) def(k, `2${r}`, `5+ ${nm(r)}, weak: compete in the 8-card fit.`, {}, SUPPORT);
+    def(k, `3${r}`, `5+ ${nm(r)}, invitational.`, {}, SUPPORT);
+    def(k, `4${r}`, `5+ ${nm(r)}, game.`, {}, SUPPORT);
+    def(k, '3N', 'To play.', {}, SUPPORT);
+    advise(k, (e) => afterSupportDouble(e, r), [{ dealer: 'N', calls: [`1${o}`, 'P', `1${r}`, ov, sup, 'P'] }]);
+  }
+}
+
 export { SAMPLES };

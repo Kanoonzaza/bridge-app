@@ -207,7 +207,7 @@ function forcingNTSituation(M, rb) {
       }
     }
   }
-  return { after: [`1${M}`, '1N', rb], ctx: { responderPassed: false }, calls, decide: (e) => afterForcingNT(e, M, rb) };
+  return { after: [`1${M}`, '1N', rb], calls, decide: (e) => afterForcingNT(e, M, rb) };
 }
 
 const SITUATIONS = [
