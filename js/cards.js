@@ -10,20 +10,38 @@ export function emptyHand() {
   return { S: '', H: '', D: '', C: '' };
 }
 
+const SYMBOL_SUIT = { '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C' };
+const FOUR_GROUPS = 'A hand needs four suit groups (spades hearts diamonds clubs)';
+const isDash = (g) => /^[-—–]$/.test(g);
+
 export function parseHand(text) {
-  const groups = String(text).replace(/10/g, 'T').replace(/[♠♥♦♣]/g, ' ').trim().toUpperCase().split(/\s+/);
-  if (groups.length !== 4) throw new Error('A hand needs four suit groups (spades hearts diamonds clubs)');
+  const t = String(text).replace(/\uFE0F/g, '').replace(/10/g, 'T').trim().toUpperCase();
+  const raw = {};
+  if (/[♠♥♦♣]/.test(t)) {
+    const parts = t.split(/([♠♥♦♣])/); // [before, sym, group, sym, group, ...]
+    if (parts[0].trim() !== '') throw new Error(FOUR_GROUPS);
+    for (let i = 1; i < parts.length; i += 2) {
+      const suit = SYMBOL_SUIT[parts[i]];
+      if (suit in raw) throw new Error(FOUR_GROUPS);
+      raw[suit] = parts[i + 1].replace(/\s+/g, '');
+    }
+    if (Object.keys(raw).length !== 4) throw new Error(FOUR_GROUPS);
+  } else {
+    const groups = t.split(/\s+/);
+    if (groups.length !== 4) throw new Error(FOUR_GROUPS);
+    SUITS.forEach((s, i) => { raw[s] = groups[i]; });
+  }
   const hand = emptyHand();
   const seen = new Set();
-  SUITS.forEach((s, i) => {
-    const g = groups[i].replace(/[-—–]/g, '');
+  for (const s of SUITS) {
+    const g = isDash(raw[s]) ? '' : raw[s];
     for (const r of g) {
       if (!RANKS.includes(r)) throw new Error(`Unknown card "${r}"`);
       if (seen.has(s + r)) throw new Error(`Duplicate card ${SYMBOL[s]}${r}`);
       seen.add(s + r);
     }
     hand[s] = sortRanks(g);
-  });
+  }
   return hand;
 }
 
@@ -36,6 +54,8 @@ export function cardCount(hand) {
 }
 
 export function toggleCard(hand, suit, rank) {
+  if (!SUITS.includes(suit)) throw new Error(`Unknown suit "${suit}"`);
+  if (typeof rank !== "string" || rank.length !== 1 || !RANKS.includes(rank)) throw new Error(`Unknown card "${rank}"`);
   const next = { ...hand };
   next[suit] = hand[suit].includes(rank) ? hand[suit].replace(rank, '') : sortRanks(hand[suit] + rank);
   return next;

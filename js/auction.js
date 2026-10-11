@@ -67,6 +67,7 @@ export function situationAt(auction, n) {
   const openerSeat = first >= 0 ? seatAt(auction, first) : null;
   let role = 'opening';
   if (openerSeat) role = openerSeat === actor ? 'opener' : partnerOf(openerSeat) === actor ? 'responder' : 'defender';
+  // seat: position (1-4) of the opening bid once there is one, else of the call about to be made; responderPassed: the opening side's responder passed before the opening.
   const ctx = {
     seat: first >= 0 ? first + 1 : n + 1,
     opened: openerSeat ? (sideOf(openerSeat) === side ? 'us' : 'them') : null,

@@ -46,3 +46,32 @@ test('random hands have 13 distinct cards', () => {
     assert.equal(new Set(all).size, 13);
   }
 });
+
+test('symbol form assigns groups by symbol, in any order', () => {
+  assert.deepEqual(parseHand('♥KJ862 ♠AK ♦Q74 ♣K93'), { S: 'AK', H: 'KJ862', D: 'Q74', C: 'K93' });
+});
+
+test('symbol form needs each symbol exactly once and nothing before the first', () => {
+  assert.throws(() => parseHand('♠AK ♥KJ862 ♦Q74'), /four suit groups/);
+  assert.throws(() => parseHand('♠AK ♠KJ862 ♦Q74 ♣K93'), /four suit groups/);
+  assert.throws(() => parseHand('AK ♠AK ♥KJ862 ♦Q74 ♣K93'), /four suit groups/);
+});
+
+test('empty group in symbol form is a void; dash still works', () => {
+  assert.equal(parseHand('♠AK ♥ ♦Q74 ♣K93').H, '');
+  assert.equal(parseHand('♠AK ♥— ♦Q74 ♣K93').H, '');
+});
+
+test('emoji variation selector is ignored', () => {
+  assert.equal(parseHand('♠AK ♥️KJ862 ♦Q74 ♣K93').H, 'KJ862');
+});
+
+test('a dash is a void only as the whole group', () => {
+  assert.throws(() => parseHand('A-K 83 Q4 J953'), /Unknown card/);
+  assert.equal(parseHand('J863 Q752 97632 –').C, '');
+});
+
+test('toggleCard validates suit and rank', () => {
+  assert.throws(() => toggleCard(emptyHand(), 'X', 'A'), Error);
+  assert.throws(() => toggleCard(emptyHand(), 'S', '1'), Error);
+});
