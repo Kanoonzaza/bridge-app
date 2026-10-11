@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d6a49">
+<title>Bridge Coach</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="top">
+  <h1>Bridge Coach</h1>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="advisor" aria-selected="true">Advisor</button>
+    <button role="tab" data-tab="decoder" aria-selected="false">Decoder</button>
+  </nav>
+</header>
+<main>
+  <section id="advisor"></section>
+  <section id="decoder" hidden></section>
+</main>
+<div id="update-bar" class="update" hidden>
+  <span>New version ready</span>
+  <button id="update-btn" type="button">Tap to update</button>
+</div>
+<script type="module" src="js/ui/app.js"></script>
+</body>
+</html>
