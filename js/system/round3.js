@@ -32,11 +32,11 @@ const sit = (after, calls, decide, notes = REBID) => SITUATIONS.push({
 // ---------- Responder after opener raises the major: 1x–1M–2M / 3M / 4M ----------
 for (const [x, M] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']]) {
   const pts = (e) => e.hcp + Math.max(0, e.len[M] - 4);
-  sit([`1${x}`, `1${M}`, `2${M}`], [['P', 'No game.'], [`3${M}`, 'Invitational (11–12).'], [`4${M}`, 'Game.']],
-    (e) => (pts(e) >= 13 ? R(`4${M}`, [`${pts(e)} points opposite 12–15: game`]) : pts(e) >= 11 ? R(`3${M}`, [`${pts(e)} points: invite`]) : R('P', [`${pts(e)} points: no game`])));
-  sit([`1${x}`, `1${M}`, `3${M}`], [['P', 'Decline.'], [`4${M}`, 'Accept.']],
-    (e) => (pts(e) >= 8 ? R(`4${M}`, [`${pts(e)} points opposite 16–18: game`]) : R('P', [`${pts(e)} points: decline`])));
-  sit([`1${x}`, `1${M}`, `4${M}`], [['P', 'To play.']], () => R('P', ['opener bid game']));
+  sit([`1${x}`, `1${M}`, `2${M}`], [['P', 'No game.'], [`3${M}`, 'Invitational (11–12).'], [`4${M}`, 'Game.'], ['4N', 'RKCB: slam interest.', SLAM]],
+    (e) => (pts(e) >= 20 ? R('4N', [`${pts(e)} points opposite 12–15: slam`]) : pts(e) >= 13 ? R(`4${M}`, [`${pts(e)} points opposite 12–15: game`]) : pts(e) >= 11 ? R(`3${M}`, [`${pts(e)} points: invite`]) : R('P', [`${pts(e)} points: no game`])));
+  sit([`1${x}`, `1${M}`, `3${M}`], [['P', 'Decline.'], [`4${M}`, 'Accept.'], ['4N', 'RKCB: slam interest.', SLAM]],
+    (e) => (pts(e) >= 16 ? R('4N', [`${pts(e)} points opposite 16–18: slam`]) : pts(e) >= 8 ? R(`4${M}`, [`${pts(e)} points opposite 16–18: game`]) : R('P', [`${pts(e)} points: decline`])));
+  sit([`1${x}`, `1${M}`, `4${M}`], [['P', 'To play.'], ['4N', 'RKCB: slam interest.', SLAM]], (e) => (pts(e) >= 13 ? R('4N', [`${pts(e)} points opposite 19–20: slam`]) : R('P', ['opener bid game'])));
 }
 
 // ---------- Responder after opener's own-suit rebid, 2NT, jump rebid or 3NT ----------
@@ -62,10 +62,12 @@ for (const [x, y] of [['C', 'D'], ['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S']
     if (yOK && L[y] >= 6 && L[x] <= 1) return R(`2${y}`, [`${L[y]} ${nm(y)}, weak: to play`]);
     return R('P', [`${h} HCP opposite a minimum: no game`]);
   });
-  const nt = [['P', 'No game (0–5).'], ['3N', 'To play.']];
+  const nt = [['P', 'No game (0–5).'], ['3N', 'To play.'], ['4N', 'Quantitative: invites 6NT.'], ['6N', 'To play.']];
   if (isMajor(y)) nt.push([`3${y}`, `5 ${nm(y)}: opener chooses 3NT or 4${SYMBOL[y]}.`], [`4${y}`, `6+ ${nm(y)}: to play.`]);
   sit([`1${x}`, `1${y}`, '2N'], nt, (e) => {
     if (e.hcp < 6) return R('P', [`${e.hcp} HCP opposite 18–19: no game`]);
+    if (e.hcp >= 15) return R('6N', [`${e.hcp} HCP opposite 18–19: small slam`]);
+    if (e.hcp >= 13) return R('4N', [`${e.hcp} HCP opposite 18–19: invite 6NT`]);
     if (isMajor(y) && e.len[y] >= 6) return R(`4${y}`, [`${e.len[y]} ${nm(y)}: game`]);
     if (isMajor(y) && e.len[y] === 5) return R(`3${y}`, [`5 ${nm(y)}: let opener choose`]);
     return R('3N', [`${e.hcp} HCP opposite 18–19: game`]);
@@ -354,6 +356,18 @@ for (const [o, r, z] of [['D', 'H', 'C'], ['D', 'S', 'C'], ['H', 'S', 'C'], ['H'
       if (isMajor(r) && e.len[r] >= 5 && has(`4${r}`)) return R(`4${r}`, [`${e.len[r]} ${nm(r)}`]);
       return has('3N') ? R('3N', ['game']) : R(`5${o}`, ['game in the minor']);
     }, FSF);
+  }
+}
+
+
+// ---------- Opener answers a quantitative 4NT ----------
+for (const [x, y] of [['C', 'D'], ['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']]) {
+  sit([`1${x}`, `1${y}`, '2N', '4N'], [['P', '18: decline.'], ['6N', '19: accept.']], (e) => (e.hcp >= 19 ? R('6N', [`${e.hcp} HCP: maximum`]) : R('P', [`${e.hcp} HCP: minimum`])), REBID);
+}
+for (const [pre, min] of [[['1N', '2C'], 15], [['2N', '3C'], 20]]) {
+  const lv = Number(pre[1][0]);
+  for (const rep of ['D', 'H', 'S']) {
+    sit([...pre, `${lv}${rep}`, '4N'], [['P', 'Minimum: decline.'], ['6N', 'Maximum: accept.']], (e) => (e.hcp >= min + 2 || (e.hcp === min + 1 && e.pattern[0] >= 5) ? R('6N', [`${e.hcp} HCP: accept`]) : R('P', [`${e.hcp} HCP: decline`])), NT);
   }
 }
 

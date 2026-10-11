@@ -48,6 +48,7 @@ export function afterTheirOvercall(e, o, ov) {
   if (L[o] >= fitNeed && !majorFirst) {
     const dp = isMajor(o) ? dummyPoints(e, o) : h;
     const why = [`${L[o]} ${nm(o)}`, `${dp} ${isMajor(o) ? 'dummy points' : 'HCP'}`];
+    if (dp >= 13 && isMajor(o) && lv >= 3 && r <= 4) return R(`${r}${o}`, [...why, 'game values: bid game directly']);
     if (dp >= 10) return R(`${lv + 1}${y}`, [...why, 'a limit raise or better goes through the cue-bid'], { plan: dp >= 13 ? 'You have game values: bid game next even if opener signs off.' : 'If opener signs off in 3 of the suit, pass.' });
     if (h <= 7 && r + 1 <= 4 && (L[o] >= fitNeed + 2 || (L[o] >= fitNeed + 1 && shortness(e, o)))) return R(`${r + 1}${o}`, [...why, 'weak with extra trumps: jump to take their room']);
     if (dp >= 6 && r <= 3) return R(`${r}${o}`, [...why, 'raise: support comes first']);
@@ -456,6 +457,13 @@ export function afterNegXAnswer(e, o, ov, z) {
   const y = ov[1];
   const h = e.hcp;
   const zs = z[1];
+  if (zs === y) {
+    // Opener's cue-bid (18+) is forcing: show the major, else notrump with a stopper, else support opener.
+    const u = MAJORS.filter((s) => s !== o && s !== y && e.len[s] >= 4).sort((a, b) => e.len[b] - e.len[a])[0];
+    if (u) return R(`${cheapest(z, u)}${u}`, [`opener has a big hand: show your ${nm(u)}`]);
+    if (stopper(e, y) && above('3N', z)) return R('3N', [`${nm(y)} stopped`]);
+    return R(`${cheapest(z, o)}${o}`, [`support ${nm(o)}`]);
+  }
   if (isMajor(zs) && zs !== o && e.len[zs] >= 4) {
     const jumped = Number(z[0]) > cheapest(ov, zs);
     if ((h >= 13 || (jumped && h >= 9)) && Number(z[0]) < 4) return R(`4${zs}`, [`4 ${nm(zs)}: a fit`, jumped ? `${h} HCP opposite 15–17: game` : `${h} HCP: game`]);
@@ -474,6 +482,11 @@ for (const o of SUITS4) {
       const answers = entries.filter((en) => !en.tail && JSON.stringify(en.after) === negKey && en.call !== 'P' && !en.call.startsWith('X')).map((en) => en.call);
       for (const z of answers) {
         const k = [`1${o}`, `(${ov})`, 'X', z];
+        if (z[1] === y) {
+          for (const u of MAJORS.filter((s) => s !== o && s !== y)) def(k, `${cheapest(z, u)}${u}`, `4+ ${nm(u)}, as promised.`);
+          if (above('3N', z)) def(k, '3N', `To play, ${nm(y)} stopped.`);
+          def(k, `${cheapest(z, o)}${o}`, `${nm(o)} support.`);
+        }
         def(k, 'P', 'No game.');
         if (above('2N', z)) def(k, '2N', `Invitational, ${nm(y)} stopped.`, { hcp: [11, 12] });
         if (above('3N', z)) def(k, '3N', 'To play.', { hcp: [13, 37] });

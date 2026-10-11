@@ -1,6 +1,7 @@
 import { SYMBOL, SUITS, evaluate } from './cards.js';
 import { legalCalls, seatAt, situationAt, partnerOf, isComplete, sideOf } from './auction.js';
 import ALL from './system/index.js';
+import { judge } from './judgment.js';
 
 const PLACE = { M: ['H', 'S'], m: ['C', 'D'], x: ['C', 'D', 'H', 'S'] };
 
@@ -199,7 +200,7 @@ export function advise(hand, auction, entries = ALL) {
       notes: c.entry.notes,
     };
   }
-  return fallback(hand, auction, entries) ?? { notCovered: true, options: nextOptions(auction, entries) };
+  return (entries === ALL ? fallback(hand, auction, entries) : null) ?? { notCovered: true, options: nextOptions(auction, entries) };
 }
 
 // When no rule covers a contested auction:
@@ -208,6 +209,18 @@ export function advise(hand, auction, entries = ALL) {
 const GAME = /^(3N|4[HS]|5[CDHS]|[67][CDHSN])$/;
 const pass = (why) => ({ call: 'P', meaning: 'Pass.', reasons: why, plan: null, close: null, notes: 'opening-bids-tier-0', fallback: 'pass' });
 
+// Two meanings agree when they show the same suits at about the same length and strength.
+function sameShape(a, b) {
+  if (!a) return true; // no agreement in competition: assume the natural meaning
+  if (!b) return false;
+  const la = a.len ?? {};
+  const lb = b.len ?? {};
+  const keys = new Set([...Object.keys(la), ...Object.keys(lb)]);
+  for (const k of keys) if (!la[k] || !lb[k] || Math.abs(la[k][0] - lb[k][0]) > 1) return false;
+  if ((a.force ?? 'none') !== (b.force ?? 'none')) return false;
+  return Math.abs((a.hcp?.[0] ?? 6) - (b.hcp?.[0] ?? 6)) <= 4;
+}
+
 function fallback(hand, auction, entries) {
   const n = auction.calls.length;
   const s = situationAt(auction, n);
@@ -215,7 +228,12 @@ function fallback(hand, auction, entries) {
   const last = s.key.at(-1) ?? '';
   // Partner placed the contract at game or higher and the opponents passed.
   if (GAME.test(last) && e.hcp <= 19 && legalCalls(auction).includes('P')) return pass(['partner placed the contract: pass']);
-  if (!s.ctx.competitive) return null;
+  const judged = () => {
+    const rows = explain(auction, entries);
+    const j = judge(e, auction, rows, (seat) => summarize(rows, seat), s.key);
+    return j && { call: j.call, meaning: j.call === 'P' ? 'Pass.' : 'Natural (general judgment).', reasons: j.why, plan: null, close: null, notes: s.ctx.competitive ? 'competitive-bidding-tier-0' : '21-game-forcing-tier-0', fallback: 'judgment' };
+  };
+  if (!s.ctx.competitive) return judged();
   // We opened, partner has only passed, and the opponents compete: rebid a 6-card suit cheaply, or pass.
   const ours = s.key.filter((t) => !t.startsWith('('));
   if (s.ctx.opened === 'us' && s.ctx.role === 'opener' && ours.slice(1).every((t) => t === 'P')) {
@@ -239,22 +257,31 @@ function fallback(hand, auction, entries) {
     const side = sideOf(s.actor);
     const calls = auction.calls.map((c, i) => (sideOf(seatAt(auction, i)) !== side && c !== 'P' ? 'P' : c));
     const quiet = { dealer: auction.dealer, calls };
-    if (situationAt(quiet, n).ctx.competitive) return null;
-    const r = advise(hand, quiet, entries);
-    if (r.notCovered || !legalCalls(auction).includes(r.call)) return null;
-    return { ...r, reasons: [...r.reasons, "the opponents' bids took none of our room: bid as if they had passed"], fallback: 'quiet' };
+    const r = situationAt(quiet, n).ctx.competitive ? null : advise(hand, quiet, entries);
+    // Only when every call our side made means the same without their interference.
+    const real = explain(auction, entries);
+    const calm = explain(quiet, entries);
+    const same = real.every((row, i) => sideOf(row.seat) !== side || row.call === 'P' || sameShape(row.shows, calm[i].shows));
+    const lastBid = auction.calls.map((c, i) => [c, i]).filter(([c]) => /^[1-7]/.test(c)).at(-1);
+    const theyOutbid = lastBid && sideOf(seatAt(auction, lastBid[1])) !== side;
+    if (same && r && !r.notCovered && !r.fallback && !(theyOutbid && r.call === 'P') && legalCalls(auction).includes(r.call)) {
+      return { ...r, reasons: [...r.reasons, "the opponents' bids took none of our room: bid as if they had passed"], fallback: 'quiet' };
+    }
   }
+  const j = judged();
+  if (j) return j;
   if (s.ctx.opened === 'them' && e.hcp <= 14) return pass([`${e.hcp} HCP and no clear action: pass`]);
-  // A strong hand that has already acted (or must act) against their opening: show the long suit, else double again.
-  if (s.ctx.opened === 'them' && e.hcp >= 17) {
+  // Last resort in a contested auction: a strong hand shows a 5-card suit or doubles; otherwise pass.
+  const iBid = auction.calls.some((c, i) => seatAt(auction, i) === s.actor && /^[1-7]/.test(c) && i >= auction.calls.findIndex((x) => /^[1-7]/.test(x)) && sideOf(seatAt(auction, auction.calls.findIndex((x) => /^[1-7]/.test(x)))) !== sideOf(s.actor));
+  if (e.hcp >= 15 && !iBid) {
     const theirs = new Set(s.key.filter((t) => t.startsWith('(') && /\d/.test(t)).map((t) => t[2]));
     const legal = legalCalls(auction);
     const suit = ['S', 'H', 'D', 'C'].filter((x) => !theirs.has(x) && e.len[x] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
     const bid = suit && legal.find((c) => c[1] === suit && /^[1-4]/.test(c));
     if (bid) return { call: bid, meaning: `Natural: 5+ ${({ S: 'spades', H: 'hearts', D: 'diamonds', C: 'clubs' })[suit]}, a strong hand.`, reasons: [`${e.hcp} HCP and ${e.len[suit]} cards: bid again voluntarily (17+)`], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'strong' };
-    if (legal.includes('X')) return { call: 'X', meaning: 'Takeout double: a strong hand.', reasons: [`${e.hcp} HCP: double again`], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'strong' };
+    if (legal.includes('X') && e.hcp >= 17) return { call: 'X', meaning: 'Double: a strong hand.', reasons: [`${e.hcp} HCP: double to show strength`], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'strong' };
   }
-  return null;
+  return pass([`${e.hcp} HCP: no clear action, so pass`]);
 }
 
 export function matchingEntries(hand, auction, entries = ALL) {

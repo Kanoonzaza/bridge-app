@@ -46,7 +46,7 @@ function openerSuitTable(x) {
   const neg = SECOND_NEG[x];
   const rows = [
     [neg, 'Second negative: 0–3 HCP.', { hcp: [0, 3] }],
-    [raiseCall(x), `3+ ${NAME[x]}: support.`, { len: { [x]: [3, 13] } }],
+    [raiseCall(x), `3+ ${NAME[x]}: support (4+ HCP).`, { hcp: [4, 37], len: { [x]: [3, 13] } }],
     [x === 'H' || x === 'S' ? '2N' : '3N', 'Values, no fit, no good suit.', { hcp: [4, 37] }],
   ];
   for (const s of SUITS.filter((t) => t !== x)) {
@@ -157,6 +157,39 @@ const GAMBLING = table(NT, [
 ]);
 const gamblingCorrect = (lv) => (e) => (e.len.D > e.len.C ? R(`${lv}D`, ['the long suit is diamonds']) : R('P', ['the long suit is clubs']));
 
+
+// ---------- 2♣ opener after a positive response ----------
+const isMaj = (s) => s === 'H' || s === 'S';
+const levelOver = (pos, s) => (Number(pos[0]) + (RANK[s] > RANK[pos[1] === 'N' ? 'S' : pos[1]] && pos[1] !== 'N' ? 0 : 1));
+export function afterPositive(e, pos) {
+  if (pos === '2N') {
+    if (e.balanced) return e.hcp >= 25 ? R('6N', [`${e.hcp} HCP opposite 8+: slam`]) : R('3N', [`${e.hcp} HCP, balanced`]);
+    const s = SUITS.filter((t) => e.len[t] >= 5).sort((a, b) => e.len[b] - e.len[a] || RANK[b] - RANK[a])[0];
+    return s ? R(`3${s}`, [`${e.len[s]} ${NAME[s]}: natural`]) : R('3N', [`${e.hcp} HCP`]);
+  }
+  const x = pos[1];
+  if (e.len[x] >= (isMaj(x) ? 3 : 4)) return R(isMaj(x) ? `3${x}` : `4${x}`, [`${e.len[x]} ${NAME[x]}: set trumps`, 'game is forced: raise slowly to explore slam']);
+  if (e.balanced) return R(isMaj(x) ? '2N' : '3N', [`${e.hcp} HCP, balanced, no fit`]);
+  const s = SUITS.filter((t) => t !== x && e.len[t] >= 5).sort((a, b) => e.len[b] - e.len[a] || RANK[b] - RANK[a])[0] ?? x;
+  return R(`${levelOver(pos, s)}${s}`, [`${e.len[s]} ${NAME[s]}: natural`]);
+}
+function positiveTable(pos) {
+  const rows = [];
+  if (pos === '2N') {
+    rows.push(['3N', 'Balanced: to play (or more later).', {}], ['6N', '25+ balanced: slam.', {}]);
+    for (const s of SUITS) rows.push([`3${s}`, `Natural: 5+ ${NAME[s]}, game forcing.`, { len: { [s]: [5, 13] } }]);
+  } else {
+    const x = pos[1];
+    rows.push([isMaj(x) ? `3${x}` : `4${x}`, `Sets ${NAME[x]} as trumps: slam interest.`, { len: { [x]: [3, 13] } }]);
+    rows.push([isMaj(x) ? '2N' : '3N', 'Balanced, no fit.', { balanced: true }]);
+    for (const s of SUITS) {
+      const c = `${levelOver(pos, s)}${s}`;
+      if (!rows.some((r) => r[0] === c)) rows.push([c, s === x ? `Long ${NAME[x]}.` : `Natural: 5+ ${NAME[s]}.`, { len: { [s]: [5, 13] } }]);
+    }
+  }
+  return table(STRONG, rows);
+}
+
 const SITUATIONS = [
   { after: ['2C'], calls: table(STRONG, [
     ['2D', 'Waiting: any hand without a positive. Says nothing about diamonds.', {}],
@@ -175,6 +208,7 @@ const SITUATIONS = [
     ['3D', 'Natural, 5+ diamonds, game forcing.', { len: { D: [5, 13] }, force: 'game' }],
   ]), decide: rebidAfter2D },
   ...['H', 'S', 'C', 'D'].map((x) => ({ after: ['2C', '2D', POSITIVE[x]], calls: openerSuitTable(x), decide: (e) => afterOpenerSuit(e, x) })),
+  ...['2H', '2S', '3C', '3D', '2N'].map((pos) => ({ after: ['2C', pos], calls: positiveTable(pos), decide: (e) => afterPositive(e, pos) })),
   ...['D', 'H', 'S'].flatMap((x) => [
     { after: [`2${x}`], calls: weakTwoTable(x), decide: (e) => respondWeakTwo(e, x) },
     { after: [`2${x}`, '2N'], calls: OGUST, decide: (e) => ogustReply(e, x) },

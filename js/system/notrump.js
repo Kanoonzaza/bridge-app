@@ -133,9 +133,13 @@ export function afterStayman(e, reply, min) {
     const five = ['S', 'H'].find((M) => e.len[M] === 5 && e.len[other(M)] === 4);
     if (five && inv) return R(`2${five}`, [`5 ${NAME[five]} + 4 ${NAME[other(five)]}`, 'invitational']);
     if (five) return R(`3${other(five)}`, [`4 ${NAME[other(five)]} + 5 ${NAME[five]}`, 'Smolen: game forcing, the notrump hand declares']);
+    if (h >= 33 - min) return R('6N', [`${h} HCP: small slam`]);
+    if (h >= 31 - min) return R('4N', [`${h} HCP: invite 6NT`]);
     return inv ? R('2N', [`${h} HCP: invite`]) : R('3N', [`${h} HCP: game`, 'no major fit']);
   }
-  if (e.len[s] >= 4) return inv ? R(`3${s}`, [`4 ${NAME[s]}: a fit`, 'invitational']) : R(`4${s}`, [`4 ${NAME[s]}: a fit`, 'game']);
+  if (e.len[s] >= 4) return inv ? R(`3${s}`, [`4 ${NAME[s]}: a fit`, 'invitational']) : h >= 33 - min ? R(`6${s}`, [`4 ${NAME[s]}: a fit`, `${h} HCP: small slam`]) : R(`4${s}`, [`4 ${NAME[s]}: a fit`, 'game']);
+  if (h >= 33 - min) return R('6N', [`${h} HCP: small slam`]);
+  if (h >= 31 - min) return R('4N', [`${h} HCP: invite 6NT`]);
   if (s === 'H' && e.len.S >= 4) return inv ? R('2S', ['4 spades, no heart fit', 'invitational']) : R('3N', ['4 spades, game values', 'opener corrects to 4♠ with 4 spades']);
   return inv ? R('2N', [`${h} HCP: invite`]) : R('3N', [`${h} HCP: game`]);
 }
@@ -158,6 +162,8 @@ function staymanFollowTable(reply) {
   }
   if (lv === 2) rows.push(['2N', 'Invitational, no fit.', {}]);
   rows.push(['3N', s === 'H' ? 'To play; may hold 4 spades (opener corrects to 4♠ with 4).' : 'To play.', {}]);
+  rows.push(['4N', 'Quantitative: invites 6NT.', {}], ['6N', 'To play.', {}]);
+  if (s !== 'D') rows.push([`6${s}`, 'Small slam.', {}]);
   return Object.fromEntries(rows.map(([call, meaning, shows, notes = NT]) => [call, { meaning, shows, notes }]));
 }
 

@@ -110,7 +110,7 @@ for (const x of SUITS4) {
     def(k, `${lv + 1}${y}`, `Raise: 6–9, 3+ ${nm(y)}.`, { hcp: [6, 9], len: { [y]: [3, 13] } });
     def(k, `${lv + 2}${y}`, `Preemptive jump raise: weak, 4+ ${nm(y)}.`, { len: { [y]: [4, 13] } });
     const cue = `${cheapest(ov, x)}${x}`;
-    def(k, cue, `Cue-bid: 10+ with ${nm(y)} support (limit raise or better).`, { hcp: [10, 37], len: { [y]: [3, 13] } });
+    def(k, cue, `Cue-bid: 10+ with ${nm(y)} support (limit raise or better).`, { hcp: [10, 37], len: { [y]: [3, 13] }, force: 'round' });
     if (lv === 1) def(k, '1N', `8–11 with a ${nm(x)} stopper.`, { hcp: [8, 11] });
     if (above('2N', ov)) def(k, '2N', `11–12 with a ${nm(x)} stopper.`, { hcp: [11, 12] });
     for (const z of SUITS4.filter((t) => t !== x && t !== y)) def(k, `${cheapest(ov, z)}${z}`, `Natural: 5+ ${nm(z)}, not forcing.`, { len: { [z]: [5, 13] } });
@@ -172,13 +172,13 @@ for (const o of SUITS4) {
         def(k, `${r}${o}`, `Simple raise: 6–9${isMajor(o) ? '' : ' (inverted minors are off)'}.`, { hcp: [6, 9], len: { [o]: [isMajor(o) ? 3 : 4, 13] } });
         if (r + 1 <= 4) def(k, `${r + 1}${o}`, `Preemptive jump raise: 4+ ${nm(o)}, weak.`, { len: { [o]: [4, 13] } });
       }
-      def(k, `${lv + 1}${y}`, `Cue-bid: limit raise or better in ${nm(o)} (10+).`, { hcp: [10, 37], len: { [o]: [3, 13] } });
+      def(k, `${lv + 1}${y}`, `Cue-bid: limit raise or better in ${nm(o)} (10+).`, { hcp: [10, 37], len: { [o]: [3, 13] }, force: 'round' });
       if (lv === 1) def(k, '1N', `Natural: about 8–10 with a ${nm(y)} stopper.`, { hcp: [8, 10] });
       for (const s of SUITS4.filter((t) => t !== o && t !== y)) {
         const sl = cheapest(ov, s);
         def(k, `${sl}${s}`, sl === 1
           ? `Natural: ${y === 'H' && s === 'S' ? '5+' : '4+'} ${nm(s)}, forcing.`
-          : `Natural: 5+ ${nm(s)}, 10+, forcing one round (2/1 is off).`, { len: { [s]: [sl === 1 ? 4 : 5, 13] }, force: 'round' });
+          : `Natural: 5+ ${nm(s)}, 10+, forcing one round (2/1 is off).`, { ...(sl === 1 ? { hcp: [6, 37] } : { hcp: [10, 37] }), len: { [s]: [sl === 1 ? 4 : 5, 13] }, force: 'round' });
         if (sl + 1 <= 3) def(k, `${sl + 1}${s}`, `Weak jump shift: 6+ ${nm(s)}.`, { hcp: [2, 5], len: { [s]: [6, 13] } });
       }
     }
