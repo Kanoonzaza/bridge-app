@@ -142,7 +142,7 @@ const entries = [
   ...SUITS.map((s) => ({
     ...OPEN, call: `1${s}`, priority: 20, notes: NOTES,
     meaning: ONE_MEANING[s],
-    shows: { hcp: [10, 21], len: { [s]: [s === 'S' || s === 'H' ? 5 : 3, 13] } },
+    shows: { hcp: [9, 21], len: { [s]: [s === 'S' || s === 'H' ? 5 : 3, 13] } },
     pick: (e, st) => openable(e, st.ctx.seat) && openingSuit(e) === s,
     why: (e, st) => oneLevelWhy(e, st.ctx.seat, s),
     close: (e, st) => oneLevelClose(e, st.ctx.seat),

@@ -37,7 +37,7 @@ export function decoderView(root, store) {
       el('div', { class: 'label' }, turn === 'S' ? 'What can I bid next?' : 'What can partner bid next?'),
       opts.length
         ? el('div', { class: 'lines' }, ...opts.map((o) => el('div', { class: 'line' },
-            el('summary', {}, el('span', { class: 'who' }, ''), el('span', { class: 'bid-l' }, callLabel(o.call)), el('span', {}, o.meaning)))))
+            el('div', { class: 'opt' }, el('span', { class: 'bid-l' }, callLabel(o.call)), el('span', {}, o.meaning)))))
         : el('p', { class: 'muted' }, 'No agreements entered for this situation yet.'));
   }
 
