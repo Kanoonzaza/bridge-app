@@ -71,7 +71,7 @@ export function respondToMajor(e, M, passed) {
 }
 
 const M_OF = (st) => st.key[0][1];
-const pick = (call) => (e, st) => respondToMajor(e, M_OF(st), st.ctx.responderPassed) === call;
+const pick = (call) => (e, st) => respondToMajor(e, M_OF(st), st.ctx.responderPassed) === call.replace('M', M_OF(st));
 const dpWhy = (e, M) => `${dummyPoints(e, M)} dummy points with ${e.len[M]} ${NAME[M]}`;
 
 function oneNtPlan(e, M) {

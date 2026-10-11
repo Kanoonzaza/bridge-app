@@ -37,7 +37,7 @@ export function respondToMinor(e, m, passed) {
     if (m === 'D' && e.len.C >= 5 && e.len.C > maxMajor) return '2C';
   }
   if (majors.length && e.hcp >= 6) return `1${majorToShow(e)}`;
-  if (!majors.length && e.balanced && e.hcp >= 6 && e.hcp <= 15) return notrump(e);
+  if (!majors.length && e.balanced && e.hcp >= 6 && e.hcp <= 15 && (e.len[m] < 5 || e.hcp < 10)) return notrump(e);
   if (e.hcp >= 5 && e.hcp <= 9 && e.len[m] >= 5 && !e.balanced) return `3${m}`;
   if (e.hcp >= 2 && e.hcp <= 5) {
     const s = SUITS.find((t) => t !== m && e.len[t] >= 6);
