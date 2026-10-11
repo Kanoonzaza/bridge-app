@@ -1,4 +1,4 @@
-const CACHE = 'bc-70cda86c';
+const CACHE = 'bc-1fd03f0f';
 const FILES = [
   './',
   'index.html',
@@ -19,6 +19,7 @@ const FILES = [
   'js/system/openings.js',
   'js/system/resp-major.js',
   'js/system/resp-minor.js',
+  'js/system/rebids.js',
   'js/ui/dom.js',
   'js/ui/hand-picker.js',
   'js/ui/bidding-box.js',
