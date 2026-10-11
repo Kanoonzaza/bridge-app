@@ -6,6 +6,7 @@ import respRebids from './resp-rebids.js';
 import notrump from './notrump.js';
 import twos from './twos.js';
 import slam from './slam.js';
+import competitive from './competitive.js';
 
-const ALL = [...openings, ...respMajor, ...respMinor, ...rebids, ...respRebids, ...notrump, ...twos, ...slam];
+const ALL = [...openings, ...respMajor, ...respMinor, ...rebids, ...respRebids, ...notrump, ...twos, ...slam, ...competitive];
 export default ALL;
