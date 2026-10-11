@@ -1,0 +1,6 @@
+{
+  "name": "bridge-coach",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test" }
+}
