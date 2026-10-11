@@ -1,0 +1,151 @@
+import { SUITS, NAME, ruleOf20, ruleOf15 } from '../cards.js';
+
+const NOTES = 'opening-bids-tier-0';
+const OPEN = { after: [], ctx: { role: 'opening' } };
+const honorsIn = (e, s) => [...e.hand[s]].filter((r) => 'AKQJT'.includes(r)).length;
+
+export function openingSuit(e) {
+  const max = e.pattern[0];
+  if (max >= 5) return SUITS.find((s) => e.len[s] === max); // SUITS run S,H,D,C: first hit is the higher suit
+  if (e.len.D >= 4) return 'D';
+  if (e.len.S === 4 && e.len.H === 4 && e.len.D === 3) return 'D';
+  return 'C';
+}
+
+export function openable(e, seat) {
+  if (e.hcp > 21 || e.hcp < 10) return false;
+  if (seat === 4) return ruleOf15(e) >= 15;
+  if (e.hcp >= 12) return true;
+  if (seat === 3 && SUITS.some((s) => e.len[s] >= 5 && e.good[s])) return true;
+  return ruleOf20(e) >= 20;
+}
+
+export const isStrong = (e) => e.hcp >= 22 || (e.ltc <= 3 && e.hcp >= 17);
+
+export function gamblingSuit(e) {
+  for (const s of ['C', 'D']) {
+    if (e.len[s] >= 7 && e.hand[s].startsWith('AKQ') && !SUITS.some((t) => t !== s && /[AK]/.test(e.hand[t]))) return s;
+  }
+  return null;
+}
+
+export function weakTwoSuit(e, seat) {
+  if (seat === 4 || e.hcp < 5 || e.hcp > 10) return null;
+  const s = ['S', 'H', 'D'].find((t) => e.len[t] === 6);
+  if (!s || honorsIn(e, s) < 2) return null;
+  if (seat <= 2 && (['S', 'H'].some((m) => m !== s && e.len[m] >= 4) || e.pattern[3] === 0)) return null;
+  return s;
+}
+
+export function preemptCall(e, seat) {
+  if (seat === 4 || e.hcp > 9) return null;
+  const s = SUITS.find((t) => e.len[t] >= 7);
+  if (!s || honorsIn(e, s) < 2) return null;
+  return `${e.len[s] >= 8 ? 4 : 3}${s}`;
+}
+
+function oneLevelWhy(e, seat, s) {
+  const r = [`${e.hcp} HCP`];
+  const tied = SUITS.filter((t) => e.len[t] === e.pattern[0]).length > 1;
+  if (e.len[s] >= 5) r.push(`${e.len[s]}-card ${NAME[s]}${tied ? ' (equal long suits: open the higher)' : ''}`);
+  else if (s === 'D' && e.len.D === 3) r.push('4♠ 4♥ 3♦ 2♣: the one hand that opens 1♦ with three');
+  else r.push(`no 5-card suit: open the ${s === 'D' ? 'diamonds (4+)' : 'clubs (3+)'}`);
+  if (seat === 4) r.push(`Rule of 15: ${e.hcp} + ${e.len.S} spades = ${ruleOf15(e)}`);
+  else if (e.hcp < 12 && ruleOf20(e) >= 20) r.push(`Rule of 20: ${e.hcp} + ${e.pattern[0]} + ${e.pattern[1]} = ${ruleOf20(e)}`);
+  else if (e.hcp < 12) r.push('light 3rd-seat opening with a good suit');
+  return r;
+}
+
+function oneLevelClose(e, seat) {
+  if (e.pattern.join('') === '4441') return 'Three 4-card suits: open 1♦, or 1♣ when the singleton is a diamond.';
+  if (seat <= 2 && e.hcp < 12 && ruleOf20(e) === 20) return 'Exactly 20 on the Rule of 20: open, but treat it as a light opening.';
+  return null;
+}
+
+function passWhy(e, seat) {
+  if (seat === 4 && e.hcp >= 10) {
+    return [`Rule of 15: ${e.hcp} + ${e.len.S} spades = ${ruleOf15(e)}, short of 15`, 'in 4th seat, passing scores 0 instead of letting the opponents win the part-score'];
+  }
+  if (seat === 4) return [`${e.hcp} HCP: not enough to open`, 'never preempt in 4th seat'];
+  return [`${e.hcp} HCP${e.hcp >= 10 ? `, Rule of 20 total ${ruleOf20(e)}` : ''}`, 'not enough to open, and no long suit for a weak two or preempt'];
+}
+
+function passClose(e, seat) {
+  if (seat <= 2 && e.hcp >= 10 && ruleOf20(e) === 19) return 'One short of the Rule of 20 (19): pass.';
+  if (seat === 4 && ruleOf15(e) === 14) return 'One short of the Rule of 15 (14): pass.';
+  return null;
+}
+
+const ONE_MEANING = {
+  S: '5+ spades, 12–21.',
+  H: '5+ hearts, 12–21.',
+  D: '4+ diamonds (3 only with exactly 4♠ 4♥ 3♦ 2♣), 12–21.',
+  C: '3+ clubs, 12–21.',
+};
+
+const entries = [
+  {
+    ...OPEN, call: '2N', priority: 5, notes: NOTES,
+    meaning: '20–21 balanced.',
+    shows: { hcp: [20, 21], balanced: true },
+    pick: (e) => e.balanced && e.hcp >= 20 && e.hcp <= 21,
+    why: (e) => [`${e.hcp} HCP, balanced`],
+  },
+  {
+    ...OPEN, call: '2C', priority: 6, notes: NOTES,
+    meaning: 'Strong and artificial: 22+ HCP, or about 9 playing tricks. Says nothing about clubs.',
+    shows: { hcp: [22, 37], force: 'game' },
+    pick: (e) => isStrong(e),
+    why: (e) => (e.hcp >= 22 ? [`${e.hcp} HCP`] : [`${e.hcp} HCP with only ${e.ltc} losers: about 9 playing tricks`]),
+  },
+  {
+    ...OPEN, call: '3N', priority: 8, notes: NOTES,
+    meaning: 'Gambling: a solid 7+ card minor (AKQxxxx) and no ace or king outside.',
+    shows: { hcp: [9, 14] },
+    pick: (e) => gamblingSuit(e) !== null,
+    why: (e) => {
+      const s = gamblingSuit(e);
+      return [`solid ${e.len[s]}-card ${NAME[s]}`, 'no ace or king outside'];
+    },
+  },
+  {
+    ...OPEN, call: '1N', priority: 10, notes: NOTES,
+    meaning: '15–17 balanced. May contain a 5-card major.',
+    shows: { hcp: [15, 17], balanced: true },
+    pick: (e) => e.balanced && e.hcp >= 15 && e.hcp <= 17,
+    why: (e) => [`${e.hcp} HCP, balanced`],
+    close: (e) => (e.len.S === 5 || e.len.H === 5 ? 'Balanced 15–17 with a 5-card major: we open 1NT. 1♥/1♠ is also fine with a very strong suit.' : null),
+  },
+  ...SUITS.map((s) => ({
+    ...OPEN, call: `1${s}`, priority: 20, notes: NOTES,
+    meaning: ONE_MEANING[s],
+    shows: { hcp: [12, 21], len: { [s]: [s === 'S' || s === 'H' ? 5 : 3, 13] } },
+    pick: (e, st) => openable(e, st.ctx.seat) && openingSuit(e) === s,
+    why: (e, st) => oneLevelWhy(e, st.ctx.seat, s),
+    close: (e, st) => oneLevelClose(e, st.ctx.seat),
+  })),
+  ...['S', 'H', 'D'].map((s) => ({
+    ...OPEN, call: `2${s}`, priority: 30, notes: NOTES,
+    meaning: `Weak two: 6 ${NAME[s]}, 5–10 HCP.`,
+    shows: { hcp: [5, 10], len: { [s]: [6, 6] } },
+    pick: (e, st) => weakTwoSuit(e, st.ctx.seat) === s,
+    why: (e) => [`6-card ${NAME[s]}`, `${e.hcp} HCP: too weak for a 1-level opening`],
+  })),
+  ...SUITS.flatMap((s) => [3, 4].map((lv) => ({
+    ...OPEN, call: `${lv}${s}`, priority: 40, notes: NOTES,
+    meaning: `Preempt: about ${lv + 4} ${NAME[s]}, weak.`,
+    shows: { hcp: [0, 9], len: { [s]: [lv + 4, 13] } },
+    pick: (e, st) => preemptCall(e, st.ctx.seat) === `${lv}${s}`,
+    why: (e) => [`${e.len[s]}-card ${NAME[s]}`, `${e.hcp} HCP: weak, so jump to make the opponents' bidding harder`],
+  }))),
+  {
+    ...OPEN, call: 'P', priority: 99, notes: NOTES,
+    meaning: 'No opening: usually under 12 HCP.',
+    shows: { hcp: [0, 11] },
+    pick: () => true,
+    why: (e, st) => passWhy(e, st.ctx.seat),
+    close: (e, st) => passClose(e, st.ctx.seat),
+  },
+];
+
+export default entries;
