@@ -863,7 +863,7 @@ export function openerFreeRebid(e, o, r, theirs, last) {
 }
 
 // Gap 12. Advancer after partner's overcall and their response (new suit, 1NT or a negative double).
-export function advanceAfterResponse(e, x, ov, rb) {
+export function advanceAfterResponse(e, x, ov, rb, vul = 'none') {
   const y = ov[1];
   const h = e.hcp;
   const L = e.len;
@@ -875,7 +875,13 @@ export function advanceAfterResponse(e, x, ov, rb) {
     const cue = cheapest(last, x);
     if (dp >= 10 && cue <= 3) return R(`${cue}${x}`, [`${L[y]} ${nm(y)}, ${dp} points: cue-bid raise`]);
     if (h <= 7 && (L[y] >= 5 || (L[y] >= 4 && shortness(e, y))) && c + 1 <= 4) return R(`${c + 1}${y}`, [`${L[y]} ${nm(y)}, weak: preemptive jump raise`]);
-    if ((dp >= 6 || (L[y] >= 4 && dp >= 4)) && c <= 3) return R(`${c}${y}`, [`${L[y]} ${nm(y)}, ${dp} points: raise`]);
+    // A 2-level raise is cheap; a 3-level raise needs real values with only 3 trumps (more when vulnerable).
+    const weVul = vul === 'we' || vul === 'both';
+    const ok = c <= 2
+      ? dp >= 6 || (L[y] >= 4 && dp >= 4)
+      : c === 3 && (L[y] >= 4 ? dp >= (weVul ? 7 : 6) : h >= (weVul ? 8 : 7) && dp >= (weVul ? 9 : 8));
+    if (ok) return R(`${c}${y}`, [`${L[y]} ${nm(y)}, ${dp} points: raise${c === 3 ? ' to the 3-level' : ''}`]);
+    if (c === 3) return R('P', [`${L[y]} ${nm(y)} but only ${h} HCP${weVul ? ', vulnerable' : ''}: too thin to raise at the 3-level`, 'their new suit is forcing: you can compete next round']);
   }
   const nt = cheapest(last, 'N');
   if (rb === 'X' && h >= 11 && !(e.balanced && stops(e, theirs) && nt === 1 && h <= 11)) return R('XX', [`${h} HCP: redouble shows the values`]);
@@ -1018,7 +1024,7 @@ for (const x of SUITS4) {
       const theirs = rb === 'X' || rb[1] === 'N' ? [x] : [x, rb[1]];
       const c = cheapest(last, y);
       def(k, 'P', 'Pass: no fit and nothing to add.', {}, ADVANCE_LATE);
-      if (c <= 3) def(k, `${c}${y}`, `Raise: 3+ ${nm(y)}, 6–9 (4+ ${nm(y)} on less).`, { hcp: [4, 9], len: { [y]: [3, 13] } }, ADVANCE_LATE);
+      if (c <= 3) def(k, `${c}${y}`, c <= 2 ? `Raise: 3+ ${nm(y)}, 6–9 (4+ ${nm(y)} on less).` : `Raise to the 3-level: 4+ ${nm(y)} and 6–9, or 3 ${nm(y)} and 8–9 (9 vulnerable).`, { hcp: [4, 9], len: { [y]: [3, 13] } }, ADVANCE_LATE);
       if (c + 1 <= 4) def(k, `${c + 1}${y}`, `Preemptive jump raise: 4+ ${nm(y)}, weak.`, { hcp: [0, 7], len: { [y]: [4, 13] } }, ADVANCE_LATE);
       const cue = cheapest(last, x);
       if (cue <= 3) def(k, `${cue}${x}`, `Cue-bid: 10+ with 3+ ${nm(y)} (limit raise or better).`, { hcp: [10, 37], len: { [y]: [3, 13] }, force: 'round' }, ADVANCE_LATE);
@@ -1028,7 +1034,7 @@ for (const x of SUITS4) {
       if (nt <= 2) def(k, '2N', `11–12 with stoppers in ${theirs.map(nm).join(' and ')}.`, { hcp: [11, 12] }, ADVANCE_LATE);
       def(k, '3N', `13+ with stoppers in ${theirs.map(nm).join(' and ')}.`, { hcp: [13, 37] }, ADVANCE_LATE);
       for (const s of SUITS4.filter((t) => !theirs.includes(t) && t !== y && cheapest(last, t) <= 3)) def(k, `${cheapest(last, s)}${s}`, `Natural: 5+ ${nm(s)}, not forcing.`, { len: { [s]: [5, 13] } }, ADVANCE_LATE);
-      advise(k, (e) => advanceAfterResponse(e, x, ov, rb), [{ dealer: 'E', calls: [`1${x}`, ov, rb] }]);
+      advise(k, (e, st) => advanceAfterResponse(e, x, ov, rb, st.ctx.vul), [{ dealer: 'E', calls: [`1${x}`, ov, rb] }]);
     }
   }
 }

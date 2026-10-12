@@ -83,3 +83,13 @@ test('the Decoder reads the 1NT overcall auction with our 1NT meanings', async (
   assert.match(rows[3].meaning, /Transfer/);
   assert.match(rows[5].meaning, /Completes the transfer/);
 });
+
+test('advancing at the 3-level needs real values (the 5-count raise to 3♦, both vulnerable)', () => {
+  const a = (vul, hand) => advise(parseHand(hand), { dealer: 'W', vul, calls: ['1H', '2D', '2S'] }).call;
+  assert.equal(a('both', '93 A10965 J93 1094'), 'P', '5 HCP, 3 trumps, vulnerable: pass');
+  assert.equal(a('none', '93 A10965 J93 1094'), 'P', 'still too thin not vulnerable');
+  assert.equal(a('none', '93 A1096 KJ93 1094'), '3D', '4 trumps: raise');
+  assert.equal(a('none', '93 A1096 QJ9 J1094'), '3D', '3 trumps, 8 HCP: raise');
+  assert.equal(a('none', '93 A1096 KJ9 Q1094'), '3H', '3 trumps, 10 HCP: cue-bid raise');
+  assert.equal(a('both', '93 A1096 J93 Q1094'), 'P', '3 trumps, 7 HCP vulnerable: pass');
+});
