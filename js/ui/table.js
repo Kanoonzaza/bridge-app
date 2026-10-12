@@ -109,7 +109,7 @@ export function tableView(root, store) {
       }
       fail('Could not create a table. Try again.');
     } catch (err) {
-      fail(`Could not connect: ${err.message ?? err}`);
+      fail(`Could not connect. Check the internet connection and try again. (${err.message ?? err})`);
     }
   }
 
@@ -131,7 +131,7 @@ export function tableView(root, store) {
         return free ? sit(t, free, ui.sync.uid, saved.name.trim()) : undefined;
       });
     } catch (err) {
-      fail(`Could not connect: ${err.message ?? err}`);
+      fail(`Could not connect. Check the internet connection and try again. (${err.message ?? err})`);
     }
   }
 
