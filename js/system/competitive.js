@@ -36,7 +36,10 @@ for (const x of SUITS4) {
     for (const s of SUITS4.filter((t) => t !== x)) {
       const lv = cheapest(`1${x}`, s);
       def(k, `${lv}${s}`, lv === 1 ? `Overcall: 5+ ${nm(s)}, 8–16.` : `Overcall: good 5+ ${nm(s)} (usually 6), 11–16.`, { hcp: lv === 1 ? [8, 16] : [11, 16], len: { [s]: [5, 13] } });
-      if (!balancing) def(k, `${lv + 1}${s}`, `Weak jump overcall: 6 ${nm(s)}, 5–10.`, { hcp: [5, 10], len: { [s]: [6, 6] } });
+      if (!balancing) {
+        const jumpLv = lv + 1;
+        def(k, `${jumpLv}${s}`, jumpLv >= 3 ? `Weak jump overcall, like a weak three: 7 ${nm(s)}, 5–10.` : `Weak jump overcall: 6 ${nm(s)}, 5–10.`, { hcp: [5, 10], len: { [s]: jumpLv >= 3 ? [7, 7] : [6, 6] } });
+      }
     }
     if (!balancing) {
       def(k, `2${x}`, isMajor(x)

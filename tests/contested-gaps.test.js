@@ -140,3 +140,15 @@ test('a pass over their opening says why no overcall (board 16)', () => {
   assert.match(why, /3 diamonds: too many in their suit for a takeout double/);
   assert.ok(r.close, 'flagged as a close call');
 });
+
+test('a weak jump overcall at the 3-level needs 7 cards (board 18)', () => {
+  const over = (hand, calls = ['1S']) => advise(parseHand(hand), { dealer: 'E', vul: 'NS', calls });
+  // The 6-card suit that would have jumped to 3♥ over 1♠: now passes, and says why.
+  const six = over('842 KQJ742 J2 103');
+  assert.equal(six.call, 'P');
+  assert.match(six.reasons.join(' '), /3-level needs 7 cards/);
+  // The same suit with 7 cards: weak three-style jump.
+  assert.equal(over('42 KQJ7432 J2 103').call, '3H', '7 hearts over 1♠: 3♥');
+  // Landing at the 2-level, 6 cards is still enough: (1♣)–2♥.
+  assert.equal(over('842 KQJ742 J2 103', ['1C']).call, '2H', '6 hearts over 1♣: weak two-style 2♥');
+});

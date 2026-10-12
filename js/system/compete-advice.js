@@ -185,8 +185,12 @@ export function overcall(e, x, balancing, vul = 'none') {
   }
   if (!balancing) {
     const minWj = vul === 'we' || vul === 'both' ? 7 : vul === 'they' ? 4 : 5;
-    const wj = others.find((s) => L[s] === 6 && top3(e, s) >= 2 && h >= minWj && h <= 10);
-    if (wj) return R(`${cheapest(`1${x}`, wj) + 1}${wj}`, [`6 good ${nm(wj)}, ${h} HCP: weak jump overcall`]);
+    // A jump that lands at the 2-level is like a weak two (6 cards); one that lands at the 3-level is like a weak three (7 cards).
+    const wj = others.find((s) => L[s] === (cheapest(`1${x}`, s) + 1 >= 3 ? 7 : 6) && top3(e, s) >= 2 && h >= minWj && h <= 10);
+    if (wj) {
+      const lvl = cheapest(`1${x}`, wj) + 1;
+      return R(`${lvl}${wj}`, [`${L[wj]} good ${nm(wj)}, ${h} HCP: weak jump overcall`, lvl >= 3 ? 'at the 3-level it needs 7 cards, like a weak three' : 'a weak two-style jump: 6 cards']);
+    }
   }
   if (h >= 17) return R('X', [`${h} HCP: double first, then bid again`]);
   for (const s of [...others].filter((t) => L[t] >= 5).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a])) {
@@ -205,6 +209,8 @@ function overcallPass(e, x, balancing) {
   const others = SUITS4.filter((s) => s !== x);
   const honors = (s) => ['A', 'K', 'Q'].filter((r) => e.hand[s].includes(r)).join('') || 'no top honor';
   const minTwo = balancing ? 9 : 11;
+  const weak3 = !balancing ? others.find((t) => L[t] === 6 && cheapest(`1${x}`, t) + 1 >= 3 && h >= 5 && h <= 10) : null;
+  if (weak3) return R('P', [`6 ${nm(weak3)}: a weak jump to the 3-level needs 7 cards (a jump overcall that lands at the 2-level needs only 6)`, `${h} HCP: too weak for an ordinary overcall`]);
   if (h < (balancing ? 7 : 8)) return R('P', [`${h} HCP: too weak to act`]);
   const why = [];
   let close = null;
