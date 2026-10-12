@@ -461,7 +461,7 @@ advise(['1N', '(X)'], (e) => {
 
 
 // ---------- We opened 1o; they bid Michaels (2o), Unusual 2NT or 1NT ----------
-export function overTheirConvention(e, o, their) {
+export function overTheirConvention(e, o, their, vul = 'none') {
   const h = e.hcp;
   const L = e.len;
   const fitNeed = isMajor(o) ? 3 : o === 'D' ? 4 : 5;
@@ -475,11 +475,16 @@ export function overTheirConvention(e, o, their) {
     if (dp >= 6) return R(`${lv}${o}`, [`${L[o]} ${nm(o)}: compete`]);
   }
   if (their !== '1N' && h >= 10) return R('X', [`${h} HCP: values, interest in penalizing them`]);
-  const own = SUITS4.filter((t) => t !== o && L[t] >= 5 && h >= (their === '1N' ? 5 : 8));
+  // Over their strong 1NT the weak suit bid must stand on its own: 6+ cards or a good 5-card suit
+  // (two of the top three honors); vulnerable, a good suit either way. LHO sits over us with the rest.
+  const playable = (t) => (vul === 'we' || vul === 'both' ? top3(e, t) >= 2 : L[t] >= 6 || top3(e, t) >= 2);
+  const own = SUITS4.filter((t) => t !== o && L[t] >= 5 && h >= (their === '1N' ? 5 : 8) && (their !== '1N' || playable(t)));
   if (own.length) {
     const t = longestOf(e, own);
-    return R(`${cheapest(their, t)}${t}`, [`${L[t]} ${nm(t)}: natural`]);
+    return R(`${cheapest(their, t)}${t}`, [`${L[t]} ${nm(t)}${their === '1N' ? (top3(e, t) >= 2 ? ', a good suit' : ', a 6-card suit') : ''}: natural`]);
   }
+  const poor = their === '1N' && SUITS4.find((t) => t !== o && L[t] >= 5);
+  if (poor) return R('P', [`${h} HCP and a poor ${L[poor]}-card ${nm(poor)} suit: too weak to bid at the 2-level over their strong 1NT${vul === 'we' || vul === 'both' ? ' vulnerable' : ''}`]);
   return R('P', [`${h} HCP: pass`]);
 }
 // Their two suits: Michaels over a minor = both majors; over a major = the other major (+ a minor); Unusual 2NT = the two lowest unbid.
@@ -502,10 +507,10 @@ for (const o of SUITS4) {
     if (isMajor(o) && lv === 3) def(k, `4${o}`, `Game in ${nm(o)}.`, { len: { [o]: [3, 13] } });
     // With more, responder doubles: a suit bid here is natural and limited, not forcing.
     for (const t of SUITS4.filter((x) => x !== o)) {
-      def(k, `${cheapest(their, t)}${t}`, their === '1N' ? `Natural: 5+ ${nm(t)}, 5–8 HCP (with 9+ double). Not forcing.` : `Natural: 5+ ${nm(t)}, 8–9 HCP (with 10+ double). Not forcing.`,
+      def(k, `${cheapest(their, t)}${t}`, their === '1N' ? `Natural, to play: 6+ ${nm(t)} or a good 5-card suit, 5–8 HCP (with 9+ double). Not forcing.` : `Natural: 5+ ${nm(t)}, 8–9 HCP (with 10+ double). Not forcing.`,
         { hcp: their === '1N' ? [5, 8] : [8, 9], len: { [t]: [5, 13] } });
     }
-    advise(k, (e) => overTheirConvention(e, o, their), [{ dealer: 'N', calls: [`1${o}`, their] }]);
+    advise(k, (e, st) => overTheirConvention(e, o, their, st.ctx.vul), [{ dealer: 'N', calls: [`1${o}`, their] }]);
   }
 }
 

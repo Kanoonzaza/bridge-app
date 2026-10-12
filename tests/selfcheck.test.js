@@ -60,6 +60,9 @@ test('board 44: 1♠ (1NT) 2♥ is limited and not forcing; opener with a heart 
   const row = explain({ dealer: 'W', calls }).at(-1);
   assert.deepEqual(row.shows.hcp, [5, 8]);
   assert.match(row.meaning, /Not forcing/);
-  assert.equal(advise(unpackHand('6.Q9764.T965.K43'), { dealer: 'W', vul: 'NS', calls: calls.slice(0, 3) }).call, '2H');
+  // Q9764 is a poor suit and N-S are vulnerable: pass. With KQ1094 (or 6 hearts) 2♥ is fine.
+  assert.equal(advise(unpackHand('6.Q9764.T965.K43'), { dealer: 'W', vul: 'NS', calls: calls.slice(0, 3) }).call, 'P');
+  assert.equal(advise(unpackHand('6.KQ1094.T965.43'), { dealer: 'W', vul: 'NS', calls: calls.slice(0, 3) }).call, '2H');
+  assert.equal(advise(unpackHand('6.Q97642.T96.K43'), { dealer: 'W', vul: 'none', calls: calls.slice(0, 3) }).call, '2H');
   assert.equal(advise(unpackHand('KQJT43..J872.AJ6'), { dealer: 'W', vul: 'NS', calls: [...calls, 'P'] }).call, '2S');
 });
