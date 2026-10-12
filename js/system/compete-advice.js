@@ -229,16 +229,26 @@ function overcallPass(e, x, balancing) {
   return R('P', why, close ? { close } : {});
 }
 
-export function dont(e) {
+export function dont(e, vul = 'none') {
   const h = e.hcp;
   const L = e.len;
   if (h < 8 || h > 15) return R('P', [`${h} HCP: ${h < 8 ? 'too weak' : 'defend'}`]);
+  const risk = vul === 'we' || vul === 'both' ? ['we are vulnerable: DONT needs a sound hand, because a double costs more'] : vul === 'they' ? ['they are vulnerable: a good time to get in, the risk is low'] : [];
+  const sh = (...parts) => [...parts, `${h} HCP: a playing hand (DONT is roughly 8–15)`, ...risk];
   const five = (a, b) => L[a] >= 4 && L[b] >= 4 && Math.max(L[a], L[b]) >= 5;
-  if (five('H', 'S')) return R('2H', ['hearts and spades']);
-  if (L.S >= 6 && !SUITS4.some((s) => s !== 'S' && L[s] >= 4)) return R('2S', [`${L.S} spades, one-suited`]);
-  if (['D', 'H', 'S'].some((s) => five('C', s))) return R('2C', ['clubs and a higher suit']);
-  if (MAJORS.some((s) => five('D', s))) return R('2D', ['diamonds and a major']);
-  if (SUITS4.some((s) => L[s] >= 6)) return R('X', ['one long suit'], { plan: 'Partner bids 2♣: pass with clubs, or bid your suit.' });
+  if (five('H', 'S')) return R('2H', sh(`${L.H} hearts and ${L.S} spades`), { plan: 'Partner passes with hearts, or bids 2♠ with spades.' });
+  if (L.S >= 6 && !SUITS4.some((s) => s !== 'S' && L[s] >= 4)) return R('2S', sh(`${L.S} spades, one-suited`));
+  const lower = ['D', 'H', 'S'].find((s) => five('C', s));
+  if (lower) return R('2C', sh(`${L.C} clubs and ${L[lower]} ${nm(lower)}`), { plan: 'Partner passes with clubs, or bids 2♦ to ask for your other suit.' });
+  const mj = MAJORS.find((s) => five('D', s));
+  if (mj) {
+    const weak = top3(e, mj) === 0;
+    return R('2D', sh(`${L.D} diamonds and ${L[mj]} ${nm(mj)}`), {
+      plan: 'Partner passes with diamonds, or bids 2♥ (pass or correct: pass with hearts, then you bid 2♠ with spades).',
+      close: weak ? `Your ${nm(mj)} (${e.hand[mj]}) have no top honor: DONT works best with a decent second suit, because partner may be left in a poor fit. Passing is also reasonable.` : null,
+    });
+  }
+  if (SUITS4.some((s) => L[s] >= 6)) return R('X', sh('one long suit'), { plan: 'Partner bids 2♣: pass with clubs, or bid your suit.' });
   return R('P', ['no DONT shape: pass']);
 }
 
@@ -377,7 +387,7 @@ for (const x of ['D', 'H', 'S']) {
 for (const pre of [['(1N)'], ['(1N)', 'P']]) {
   const bal = pre.length === 2;
   def(pre, 'P', 'Pass: no DONT shape.', {}, DONT);
-  advise(pre, (e) => dont(e), [bal ? { dealer: 'W', calls: ['1N', 'P', 'P'] } : { dealer: 'E', calls: ['1N'] }]);
+  advise(pre, (e, st) => dont(e, st.ctx.vul), [bal ? { dealer: 'W', calls: ['1N', 'P', 'P'] } : { dealer: 'E', calls: ['1N'] }]);
   const adv = (their) => (bal ? { dealer: 'E', calls: ['1N', 'P', 'P', their, 'P'] } : { dealer: 'W', calls: ['1N', their, 'P'] });
   advise([...pre, 'X'], (e) => {
     const own = ['D', 'H', 'S'].find((s) => e.len[s] >= 6 && e.len.C <= 2);
@@ -1192,6 +1202,70 @@ for (const o of SUITS4) {
   }
   def(k, 'XX', 'Redouble: a strong hand (18+), suggesting we can penalize them.', { hcp: [18, 37] }, REOPEN);
   advise(k, (e) => openerAfterPassAndDouble(e, o), [{ dealer: 'S', calls: [`1${o}`, 'P', 'P', 'X'] }]);
+}
+
+// ---------- Opener's answers after Lebensohl (our 1NT, their natural 2-level overcall) ----------
+// Responder's Stayman cue (direct = no stopper, slow = with a stopper), invitational 3M, and game-forcing 3-level suits.
+export function openerAfterStayman(e, y, slow) {
+  const h = e.hcp;
+  const L = e.len;
+  const cue = `3${y}`;
+  const asked = MAJORS.filter((m) => m !== y && L[m] >= 4);
+  if (asked.length) {
+    const m = asked.includes('H') ? 'H' : 'S';
+    return R(`${cheapest(cue, m)}${m}`, [`${L[m]} ${nm(m)}: answer Stayman`, asked.length === 2 ? 'both majors: hearts first' : `${h} HCP`]);
+  }
+  if (slow || stopper(e, y)) return R('3N', [`no 4-card major${slow ? '' : `, and a ${nm(y)} stopper`}`, slow ? 'responder has the stopper: 3NT' : 'game in notrump']);
+  const minor = ['C', 'D'].filter((t) => t !== y).sort((a, b) => L[b] - L[a])[0];
+  return R(`${cheapest(cue, minor)}${minor}`, ['no major and no stopper: show your longest minor', `${h} HCP`]);
+}
+
+export function openerAfterInvite(e, y, m) {
+  const h = e.hcp;
+  const L = e.len;
+  if (h >= 17 || (h >= 16 && L[m] >= 3)) return R(`4${m}`, [`${h} HCP${L[m] >= 3 ? ` and ${L[m]} ${nm(m)}` : ''}: accept the invitation`]);
+  return R('P', [`${h} HCP${L[m] >= 3 ? '' : ` and only ${L[m]} ${nm(m)}`}: a minimum, decline the invitation`]);
+}
+
+export function openerAfterGameForce(e, y, x) {
+  const h = e.hcp;
+  const L = e.len;
+  if (isMajor(x)) {
+    if (L[x] >= 3) return R(`4${x}`, [`${L[x]}-card ${nm(x)} support: game in the major`]);
+    if (stopper(e, y)) return R('3N', [`only ${L[x]} ${nm(x)}, but a ${nm(y)} stopper: 3NT`]);
+    return R(`4${x}`, [`no ${nm(y)} stopper: game in partner's 5-card ${nm(x)}`]);
+  }
+  if (stopper(e, y)) return R('3N', [`a ${nm(y)} stopper: 3NT`]);
+  return R(`4${x}`, [`no ${nm(y)} stopper: raise the minor`, `${h} HCP`]);
+}
+
+for (const y of SUITS4) {
+  const majorsAsked = MAJORS.filter((m) => m !== y);
+  const reply = (k, slow, sample) => {
+    const cue = `3${y}`;
+    for (const m of majorsAsked) def(k, `${cheapest(cue, m)}${m}`, `4+ ${nm(m)}: answers Stayman.`, { len: { [m]: [4, 13] } }, LEB);
+    def(k, '3N', slow ? 'No 4-card major: 3NT (responder has the stopper).' : 'No 4-card major, a stopper in their suit: 3NT.', {}, LEB);
+    if (!slow) for (const t of ['C', 'D'].filter((u) => u !== y)) def(k, `${cheapest(cue, t)}${t}`, `No major, no ${nm(y)} stopper: my longest minor.`, {}, LEB);
+    advise(k, (e) => openerAfterStayman(e, y, slow), [sample]);
+  };
+  reply(['1N', `(2${y})`, `3${y}`], false, { dealer: 'N', calls: ['1N', `2${y}`, `3${y}`, 'P'] });
+  if (y !== 'C') reply(['1N', `(2${y})`, '2N', '3C', `3${y}`], true, { dealer: 'N', calls: ['1N', `2${y}`, '2N', 'P', '3C', 'P', `3${y}`, 'P'] });
+  // Invitational 3M after the relay: accept or decline.
+  for (const m of majorsAsked) {
+    const k = ['1N', `(2${y})`, '2N', '3C', `3${m}`];
+    if (y === 'C') continue;
+    def(k, `4${m}`, `Accepts: 16–17 with 3+ ${nm(m)} (or 17).`, { hcp: [16, 17] }, LEB);
+    def(k, 'P', 'Declines: a minimum.', { hcp: [15, 15] }, LEB);
+    advise(k, (e) => openerAfterInvite(e, y, m), [{ dealer: 'N', calls: ['1N', `2${y}`, '2N', 'P', '3C', 'P', `3${m}`, 'P'] }]);
+  }
+  // Game-forcing direct 3-level suit (not their suit): choose the game.
+  for (const x of SUITS4.filter((t) => t !== y)) {
+    const k = ['1N', `(2${y})`, `3${x}`];
+    if (isMajor(x)) def(k, `4${x}`, `Game in ${nm(x)}: support (3+), or no stopper in ${nm(y)}.`, {}, LEB);
+    else def(k, `4${x}`, `No ${nm(y)} stopper: raise the minor.`, {}, LEB);
+    def(k, '3N', `A stopper in ${nm(y)}: 3NT.`, {}, LEB);
+    advise(k, (e) => openerAfterGameForce(e, y, x), [{ dealer: 'N', calls: ['1N', `2${y}`, `3${x}`, 'P'] }]);
+  }
 }
 
 export { SAMPLES };

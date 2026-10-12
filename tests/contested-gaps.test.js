@@ -181,3 +181,56 @@ test('a 7-card major over 1♣: the Advisor starts with 1♠, explains why, and 
   // A 5-card suit gets no such note.
   assert.equal(advise(parseHand('AKJ85 86 K72 1085'), { dealer: 'W', calls: ['P', '1C', 'P'] }).close ?? null, null);
 });
+
+// Opener's answers after Lebensohl (board 25).
+const LEB_ANSWERS = [
+  // slow Stayman (2NT, 3♣, then the cue-bid): answer the major
+  ['N', ['1N', '2D', '2N', 'P', '3C', 'P', '3D', 'P'], 'AT52 AJ5 94 AKT8', '3S', '4 spades: answer Stayman (board 25)'],
+  ['N', ['1N', '2D', '2N', 'P', '3C', 'P', '3D', 'P'], 'K52 AJ53 94 AKT8', '3H', '4 hearts: answer Stayman'],
+  ['N', ['1N', '2D', '2N', 'P', '3C', 'P', '3D', 'P'], 'K52 AJ5 Q94 AKT8', '3N', 'no major: 3NT (responder has the stopper)'],
+  ['N', ['1N', '2H', '2N', 'P', '3C', 'P', '3H', 'P'], 'AT52 AJ5 94 AKT8', '3S', 'over 2H: spades'],
+  // direct cue-bid: no stopper; a stopper makes 3NT possible
+  ['N', ['1N', '2D', '3D', 'P'], 'K52 AJ5 AQ4 AKT8', '3N', 'no major, I hold the diamond stopper'],
+  ['N', ['1N', '2D', '3D', 'P'], 'K52 AJ5 Q94 AKT8', '3N', 'a stopper (Qxx)'],
+  ['N', ['1N', '2D', '3D', 'P'], 'K52 AJ5 9874 AKT', '4C', 'no major, no stopper: longest minor'],
+  ['N', ['1N', '2S', '3S', 'P'], 'K52 AJ53 94 AKT8', '4H', 'over 2S the heart answer is 4H'],
+  // invitation after the relay
+  ['N', ['1N', '2H', '2N', 'P', '3C', 'P', '3S', 'P'], 'KJ2 A53 K94 AKT8', '4S', '17 with support: accept'],
+  ['N', ['1N', '2H', '2N', 'P', '3C', 'P', '3S', 'P'], 'K2 A53 Q94 AQT82', 'P', '15 with a doubleton: decline'],
+  // direct game-forcing 3-level suit
+  ['N', ['1N', '2H', '3S', 'P'], 'KJ2 A53 K94 AKT8', '4S', '3 spades: game in the major'],
+  ['N', ['1N', '2H', '3C', 'P'], 'KJ2 A53 K94 AKT8', '3N', 'a heart stopper: 3NT'],
+];
+for (const [dealer, calls, hand, want, why] of LEB_ANSWERS) {
+  test(`${calls.join(' ')}: ${hand} → ${want} (${why})`, () => {
+    const r = ask(dealer, calls, hand);
+    assert.equal(r.call, want);
+    assert.equal(r.fallback, undefined, 'a rule, not general judgment');
+  });
+}
+
+test('the Advisor\'s whole auction on board 25 no longer passes out a Stayman cue', () => {
+  const H = { N: 'Q763.2.KT6.97542', E: 'AT52.AJ5.94.AKT8', S: 'J94.T9863.AJ82.Q', W: 'K8.KQ74.Q753.J63' };
+  const seats = ['N', 'E', 'S', 'W'];
+  let calls = [];
+  for (let i = 0; i < 20; i++) {
+    const r = advise(parseHand(H[seats[calls.length % 4]].replace(/\./g, ' ')), { dealer: 'N', vul: 'EW', calls });
+    calls = [...calls, r.call];
+    if (calls.length >= 4 && calls.slice(-3).every((c) => c === 'P')) break;
+  }
+  assert.ok(calls.join(' ').includes('3D P 3S'), calls.join(' '));
+});
+
+test('DONT explanations say the shape, the strength and the vulnerability (board 25)', () => {
+  const r = advise(parseHand('J94 T9863 AJ82 Q'), { dealer: 'N', vul: 'EW', calls: ['P', '1N'] });
+  assert.equal(r.call, '2D');
+  const why = r.reasons.join(' | ');
+  assert.match(why, /4 diamonds and 5 hearts/);
+  assert.match(why, /8 HCP: a playing hand/);
+  assert.match(why, /they are vulnerable: a good time to get in/);
+  assert.match(r.plan, /Partner passes with diamonds/);
+  assert.match(r.close, /Your hearts \(T9863\) have no top honor/);
+  const strong = advise(parseHand('J94 AKJ98 A982 Q'), { dealer: 'N', vul: 'none', calls: ['P', '1N'] });
+  assert.equal(strong.call, '2D');
+  assert.equal(strong.close ?? null, null);
+});
