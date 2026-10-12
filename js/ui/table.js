@@ -11,6 +11,8 @@ import {
 import { reviewRows, systemAuction, contract } from '../table/review.js';
 import { el, segmented, keepFocus } from './dom.js';
 import { biddingBox } from './bidding-box.js';
+import { copyButton } from './copy.js';
+import { boardReport } from '../report.js';
 
 const COMPASS = { N: 'North', E: 'East', S: 'South', W: 'West' };
 const VUL_TEXT = { none: 'None vulnerable', NS: 'N-S vulnerable', EW: 'E-W vulnerable', both: 'Both vulnerable' };
@@ -332,7 +334,8 @@ export function tableView(root, store) {
           r.entry || r.notes ? el('a', { href: `${NOTES_URL}#${r.entry?.notes ?? r.notes}`, target: '_blank', rel: 'noopener' }, 'Read more in the system notes') : null)))),
       el('div', { class: 'row-buttons' },
         el('button', { type: 'button', class: 'pill on', 'data-key': 'next-board', onclick: () => act((cur) => cur && nextBoard(cur, rand)) }, 'Next board'),
-        el('button', { type: 'button', class: 'pill', 'data-key': 'rebid', onclick: () => act((cur) => cur && rebid(cur)) }, 'Bid it again')));
+        el('button', { type: 'button', class: 'pill', 'data-key': 'rebid', onclick: () => act((cur) => cur && rebid(cur)) }, 'Bid it again')),
+      copyButton('Copy this board', () => boardReport(t, me), 'copy-board'));
   }
 
   function tableScreen(t) {

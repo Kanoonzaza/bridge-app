@@ -154,3 +154,7 @@ body.has-update{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 .hand-switch{display:flex;justify-content:flex-end}
 .pill.small{padding:4px 10px;font-size:.8rem}
 .my-hand .hand-wrap .hcp{margin-top:-2px}
+.copy{display:grid;gap:6px}
+.copy .row-buttons{align-items:center}
+.copy-status{font-size:.82rem}
+.copy-area{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;line-height:1.35}

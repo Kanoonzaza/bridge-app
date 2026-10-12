@@ -145,3 +145,20 @@ test('undo takes back my last call and the robot replies after it, not other pla
   assert.equal(undo(t, 'pard').board.calls.split(' ').length, 2, 'partner can take back 2♥');
   assert.equal(undo(t, 'stranger'), undefined);
 });
+
+test('the board report has the hands, the auction, the differences and a replayable data line', async () => {
+  const { boardReport, advisorReport } = await import('../js/report.js');
+  let t = sit(fresh('pass'), 'N', 'pard', 'Ploy');
+  t = { ...t, board: { ...t.board, dealer: 'S', vul: 'both', hands: { ...t.board.hands, S: 'AKQ85.J7.Q84.QT5' } } };
+  t = call(t, 'S', '7N', 'me');
+  for (let g = 0; g < 4 && !isDone(t); g++) t = playRobot(t, advise) ?? call(t, turn(t), 'P', turn(t) === 'N' ? 'pard' : 'me');
+  const text = boardReport(t, 'S');
+  assert.match(text, /Board 1 · Dealer South · Both vulnerable/);
+  assert.match(text, /South \(Kan, me\): ♠AKQ85 ♥J7 ♦Q84 ♣Q105/);
+  assert.match(text, /S: 7NT/);
+  assert.match(text, /South bid 7NT; Advisor: 1♠/);
+  assert.match(text, /Data: dealer=S vul=both calls=7N P P P .*S=AKQ85\.J7\.Q84\.QT5/);
+  const adv = advisorReport(unpackHand('AKQ85.J7.Q84.QT5'), { dealer: 'S', vul: 'none', calls: [] }, advise(unpackHand('AKQ85.J7.Q84.QT5'), { dealer: 'S', vul: 'none', calls: [] }));
+  assert.match(adv, /Suggested: 1♠/);
+  assert.match(adv, /Data: dealer=S vul=none calls=- S=AKQ85\.J7\.Q84\.QT5/);
+});

@@ -8,6 +8,8 @@ import { NOTES_URL } from '../config.js';
 import { el, segmented, keepFocus } from './dom.js';
 import { handPicker } from './hand-picker.js';
 import { biddingBox } from './bidding-box.js';
+import { copyButton } from './copy.js';
+import { advisorReport } from '../report.js';
 
 const WHO = { S: 'You', N: 'Partner', E: 'Right', W: 'Left' };
 const OPP_NAME = { E: 'Right opponent', W: 'Left opponent' };
@@ -69,7 +71,8 @@ export function advisorView(root, store) {
       el('p', {}, el('b', {}, 'Tells partner: '), r.meaning),
       r.plan ? el('p', {}, el('b', {}, 'Plan: '), r.plan) : null,
       r.close ? el('p', { class: 'close' }, el('b', {}, 'Close call: '), r.close) : null,
-      el('a', { href: `${NOTES_URL}#${r.notes}`, target: '_blank', rel: 'noopener' }, 'Read more in the system notes'));
+      el('a', { href: `${NOTES_URL}#${r.notes}`, target: '_blank', rel: 'noopener' }, 'Read more in the system notes'),
+      copyButton('Copy for review', () => advisorReport(state.hand, a, r), 'copy-advice'));
   }
 
   function render() {
