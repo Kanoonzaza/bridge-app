@@ -19,20 +19,21 @@ export function systemAuction(b, seats) {
 export function reviewRows(b, seats) {
   const a = auctionOf(b);
   const rows = explain(a, undefined, { general: true });
-  const earlier = {}; // seat → the first call of theirs that differed from the Advisor
+  // Only each player's first difference is compared: the calls after it depend on it.
+  const departed = new Set();
   return rows.map((row) => {
     const seat = seatAt(a, row.i);
     const human = seats[seat].kind === 'human';
     let advisor = null;
-    if (human) {
+    let skipped = false;
+    if (human && departed.has(seat)) skipped = true;
+    else if (human) {
       const r = advise(handOf(b, seat), { ...a, calls: a.calls.slice(0, row.i) });
       advisor = r.notCovered ? null : { call: r.call, meaning: r.meaning, reasons: r.reasons };
     }
     const differs = !!advisor && advisor.call !== row.call;
-    // The Advisor's later advice builds on the call this player actually made: say so after a first difference.
-    const out = { ...row, seat, human, advisor, differs, since: earlier[seat] ?? null };
-    if (differs && !earlier[seat]) earlier[seat] = row.call;
-    return out;
+    if (differs) departed.add(seat);
+    return { ...row, seat, human, advisor, differs, skipped };
   });
 }
 

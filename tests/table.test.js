@@ -8,6 +8,7 @@ import {
 } from '../js/table/model.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
 import { memoryHub } from '../js/table/sync.js';
+import { boardReport } from '../js/report.js';
 import { mulberry32 } from './helpers.js';
 
 const rand = mulberry32(7);
@@ -163,7 +164,7 @@ test('the board report has the hands, the auction, the differences and a replaya
   assert.match(adv, /Data: dealer=S vul=none calls=- S=AKQ85\.J7\.Q84\.QT5/);
 });
 
-test('the review marks advice that follows an earlier call that already differed', () => {
+test('the review compares only a player\'s first difference', () => {
   let t = sit(fresh('pass'), 'N', 'pard', 'Ploy');
   t = { ...t, board: { ...t.board, dealer: 'S', hands: { ...t.board.hands, S: 'AKQ85.J7.Q84.QT5' } } };
   t = call(t, 'S', '2S', 'me');   // the Advisor opens 1♠
@@ -172,6 +173,8 @@ test('the review marks advice that follows an earlier call that already differed
   t = playRobot(t, advise);       // East passes
   t = call(t, 'S', 'P', 'me');
   const rows = reviewRows(t.board, t.seats).filter((r) => r.human && r.seat === 'S');
-  assert.equal(rows[0].since, null);
-  assert.equal(rows[1].since, '2S');
+  assert.equal(rows[0].differs, true);
+  assert.equal(rows[1].skipped, true);
+  assert.equal(rows[1].differs, false);
+  assert.match(boardReport(t, 'S'), /first difference only/);
 });
