@@ -2,12 +2,15 @@ import { store } from '../store.js';
 import { cleanTab } from '../state.js';
 import { advisorView } from './advisor.js';
 import { decoderView } from './decoder.js';
+import { tableView } from './table.js';
+import { setupTheme } from './theme.js';
 import { registerUpdates } from './update.js';
 
 registerUpdates();
+setupTheme(document.getElementById('theme-btn'), store);
 
-const TABS = ['advisor', 'decoder'];
-const views = { advisor: document.getElementById('advisor'), decoder: document.getElementById('decoder') };
+const TABS = ['advisor', 'decoder', 'table'];
+const views = { advisor: document.getElementById('advisor'), decoder: document.getElementById('decoder'), table: document.getElementById('table') };
 const buttons = [...document.querySelectorAll('[data-tab]')];
 
 function show(tab, { focus = false } = {}) {
@@ -31,7 +34,8 @@ for (const b of buttons) {
     show(TABS[(TABS.indexOf(b.dataset.tab) + step + TABS.length) % TABS.length], { focus: true });
   });
 }
-show(cleanTab(store.load('tab', {}), TABS));
+// An invitation link opens the Table tab.
+show(new URLSearchParams(location.search).has('table') ? 'table' : cleanTab(store.load('tab', {}), TABS));
 
 // A bad saved state must never leave a blank screen: reset that view's storage and start from defaults.
 function start(key, root, view) {
@@ -49,3 +53,4 @@ function start(key, root, view) {
 
 start('advisor', views.advisor, advisorView);
 start('decoder', views.decoder, decoderView);
+start('table', views.table, tableView);
