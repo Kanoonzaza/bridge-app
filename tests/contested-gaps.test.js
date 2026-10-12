@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseHand } from '../js/cards.js';
-import { advise } from '../js/engine.js';
+import { advise, explain } from '../js/engine.js';
 
 const ask = (dealer, calls, hand) => advise(parseHand(hand), { dealer, calls });
 
@@ -118,4 +118,16 @@ test('partner\'s takeout double later in the auction is answered, not passed (bo
   assert.equal(a('1082 J973 Q3 10853').call, '2H', '3 HCP, 4 hearts: bid hearts');
   assert.equal(a('1082 J97 KQJ93 853').call, 'P', 'five good diamonds: pass for penalty');
   assert.equal(a('1082 K973 Q3 AJ53').call, '3H', '10 HCP: jump');
+});
+
+test('opener after partner\'s pass and their balancing double (board 15)', () => {
+  const a = (hand) => advise(parseHand(hand), { dealer: 'S', vul: 'NS', calls: ['1D', 'P', 'P', 'X'] });
+  const r = a('106 A2 AKQJ5 K1042');
+  assert.equal(r.call, '2C', '5-4 with 17: show clubs');
+  assert.match(r.meaning, /4\+ clubs/);
+  assert.equal(r.fallback, undefined);
+  assert.equal(a('106 A2 AKQJ53 K42').call, '2D', 'six diamonds: rebid them');
+  assert.equal(a('Q106 A2 AKJ5 K42').call, 'P', 'nothing to show: pass');
+  const row = explain({ dealer: 'S', vul: 'NS', calls: ['1D', 'P', 'P', 'X', '2D'] }).at(-1);
+  assert.match(row.meaning, /6\+ diamonds/);
 });

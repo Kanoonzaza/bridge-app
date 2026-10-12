@@ -140,6 +140,10 @@ export function describeCall(auction, i, rows) {
   if (L >= 6) return general(`To play: slam in ${SYMBOL[s]}.`, 'rkcb-1430-and-slam-tools-tier-1', { len: { [s]: [6, 13] } });
   if (GAME(call)) return general(`To play: a long ${SYMBOL[s]} suit.`, 'which-game', { len: { [s]: [6, 13] } });
   if (jump) return general(`Jump in a new suit: a long ${SYMBOL[s]} suit (6+).`, competitive ? where : 'which-game', { len: { [s]: [6, 13] } });
+  const iOpened = opened && opened.seat === me;
+  if (iOpened && !jump && L <= 3 && !GAME(call)) {
+    return general(`Natural: a second suit, 4+ ${SYMBOL[s]} (the opening suit is longer)${competitive ? ', competing' : ''}.`, competitive ? 'competitive-bidding-tier-0' : 'openers-rebids-tier-0', { len: { [s]: [4, 13] } });
+  }
   const len = L === 1 ? 4 : 5;
   if (iDoubled && !mySuits.size) return general(`Natural: 5+ ${SYMBOL[s]} and a strong hand (doubled first, then bid a suit: 17+).`, 'takeout-doubles', { hcp: [17, 37], len: { [s]: [5, 13] } });
   if (competitive && weOpened && !iActed && me !== opened.seat) {

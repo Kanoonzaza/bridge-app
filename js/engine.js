@@ -350,7 +350,7 @@ function fallback(hand, auction, entries) {
   if (s.ctx.opened === 'them' && e.hcp <= 14) return pass([`${e.hcp} HCP and no clear action: pass`]);
   // Last resort in a contested auction: a strong hand shows a 5-card suit or doubles; otherwise pass.
   const iBid = auction.calls.some((c, i) => seatAt(auction, i) === s.actor && /^[1-7]/.test(c) && i >= auction.calls.findIndex((x) => /^[1-7]/.test(x)) && sideOf(seatAt(auction, auction.calls.findIndex((x) => /^[1-7]/.test(x)))) !== sideOf(s.actor));
-  if (e.hcp >= 15 && !iBid) {
+  if (e.hcp >= 15 && !iBid && s.ctx.opened === 'them') {
     const theirs = new Set(s.key.filter((t) => t.startsWith('(') && /\d/.test(t)).map((t) => t[2]));
     const legal = legalCalls(auction);
     const suit = ['S', 'H', 'D', 'C'].filter((x) => !theirs.has(x) && e.len[x] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];

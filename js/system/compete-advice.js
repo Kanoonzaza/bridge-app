@@ -1131,4 +1131,36 @@ for (const x of SUITS4) {
 }
 
 
+// Opener after partner's pass and their (balancing) double: 1o–P–P–(X). Partner is weak, so no game:
+// show shape to compete, or pass and let them find their suit.
+export function openerAfterPassAndDouble(e, o) {
+  const h = e.hcp;
+  const L = e.len;
+  const ol = cheapest(`1${o}`, o);
+  if (L[o] >= 6 && h >= 11) return R(`${ol}${o}`, [`${L[o]} ${nm(o)}: rebid the long suit`, 'competing, not extra strength']);
+  const seconds = SUITS4.filter((s) => s !== o && L[s] >= 4 && L[o] >= 5)
+    .map((s) => ({ s, lv: cheapest(`1${o}`, s) }))
+    .filter(({ s, lv }) => lv === 1 || RANK[s] < RANK[o] || h >= 16)
+    .sort((a, b) => L[b.s] - L[a.s] || a.lv - b.lv);
+  if (seconds.length && h >= 13) {
+    const { s, lv } = seconds[0];
+    return R(`${lv}${s}`, [`${L[o]}-${L[s]} in ${nm(o)} and ${nm(s)}, ${h} HCP`, 'show the second suit: competing, partner chooses']);
+  }
+  return R('P', [`${h} HCP and partner passed`, 'nothing more to show: pass and compete later if needed']);
+}
+for (const o of SUITS4) {
+  const k = [`1${o}`, 'P', '(X)'];
+  const ol = cheapest(`1${o}`, o);
+  def(k, 'P', 'Pass: nothing more to show (partner is weak; compete later if needed).', {}, REOPEN);
+  def(k, `${ol}${o}`, `6+ ${nm(o)}, competing. Not extra strength.`, { len: { [o]: [6, 13] } }, REOPEN);
+  for (const s of SUITS4.filter((t) => t !== o)) {
+    const lv = cheapest(`1${o}`, s);
+    def(k, `${lv}${s}`, lv === 1 || RANK[s] < RANK[o]
+      ? `Natural: 4+ ${nm(s)} (5-4 or longer), competing. Not forcing.`
+      : `Reverse: 4+ ${nm(s)}, ${nm(o)} longer, 16+.`, { len: { [s]: [4, 13], [o]: [5, 13] }, ...(lv === 1 || RANK[s] < RANK[o] ? {} : { hcp: [16, 37] }) }, REOPEN);
+  }
+  def(k, 'XX', 'Redouble: a strong hand (18+), suggesting we can penalize them.', { hcp: [18, 37] }, REOPEN);
+  advise(k, (e) => openerAfterPassAndDouble(e, o), [{ dealer: 'S', calls: [`1${o}`, 'P', 'P', 'X'] }]);
+}
+
 export { SAMPLES };

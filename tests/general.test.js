@@ -39,7 +39,8 @@ test('cue-bids, control bids and key-card replies', () => {
 
 test('a suit after a takeout double shows a strong hand; levels read correctly', () => {
   assert.match(last('E', ['2S', 'X', '3S', 'P', 'P', '4C']).meaning, /strong hand \(doubled first/);
-  assert.match(last('S', ['1C', '1S', 'X', '2S', '3D']).meaning, /^Natural: 5\+ ♦, with values to bid at the 3-level\.$/);
+  assert.match(last('W', ['1S', '2C', '2S', 'P', 'P', '3D']).meaning, /^Natural: 5\+ ♦, with values to bid at the 3-level\.$/);
+  assert.match(last('S', ['1C', '1S', 'X', '2S', '3D']).meaning, /^Natural: a second suit, 4\+ ♦/, 'the opener\'s new suit shows 4+');
 });
 
 test('every general meaning points at a section of the notes', () => {
