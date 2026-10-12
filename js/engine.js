@@ -2,6 +2,7 @@ import { SYMBOL, SUITS, evaluate } from './cards.js';
 import { legalCalls, seatAt, situationAt, partnerOf, isComplete, sideOf } from './auction.js';
 import ALL from './system/index.js';
 import { judge } from './judgment.js';
+import { describeCall } from './general.js';
 
 const PLACE = { M: ['H', 'S'], m: ['C', 'D'], x: ['C', 'D', 'H', 'S'] };
 
@@ -114,10 +115,12 @@ export function candidates(situation, entries = ALL, onlyPickable = false) {
   return [...best.values()];
 }
 
-export function explain(auction, entries = ALL) {
-  return auction.calls.map((call, i) => {
+// With { general: true }, calls no rule covers get a general meaning (marked `general`) from the notes' general rules.
+export function explain(auction, entries = ALL, { general = false } = {}) {
+  const rows = [];
+  auction.calls.forEach((call, i) => {
     const c = candidates(situationAt(auction, i), entries).find((x) => x.call === call);
-    return {
+    const row = {
       i,
       seat: seatAt(auction, i),
       call,
@@ -125,7 +128,10 @@ export function explain(auction, entries = ALL) {
       shows: c ? resolveShows(c.entry.shows, c.env) : null,
       entry: c ? c.entry : null,
     };
+    const g = !c && general ? describeCall(auction, i, rows) : null;
+    rows.push(g ? { ...row, meaning: g.meaning, shows: g.shows, notes: g.notes, general: true } : row);
   });
+  return rows;
 }
 
 export function summarize(rows, seat) {
@@ -175,6 +181,31 @@ export function nextOptions(auction, entries = ALL) {
     });
 }
 
+// With no rule for the next call: the general meaning of the natural candidates
+// (double, our suits, their suit, notrump, game), cheapest first.
+export function generalOptions(auction, entries = ALL) {
+  if (isComplete(auction)) return [];
+  const legal = legalCalls(auction).filter((c) => c !== 'P');
+  const rows = explain(auction, entries, { general: true });
+  const side = sideOf(seatAt(auction, auction.calls.length));
+  const strains = new Set(rows.filter((r) => /^[1-7][CDHSN]$/.test(r.call)).map((r) => r.call[1]));
+  const picks = new Set(legal.filter((c) => c === 'X' || c === 'XX'));
+  for (const st of strains) {
+    const c = legal.find((x) => x[1] === st);
+    if (c) picks.add(c);
+  }
+  const ourSuits = new Set(rows.filter((r) => sideOf(r.seat) === side && r.shows?.len).flatMap((r) => Object.keys(r.shows.len).filter((k) => r.shows.len[k][0] >= 3)));
+  for (const st of ourSuits) {
+    const g = st === 'H' || st === 'S' ? `4${st}` : `5${st}`;
+    if (legal.includes(g)) picks.add(g);
+  }
+  if (legal.includes('3N')) picks.add('3N');
+  return legal.filter((c) => picks.has(c)).map((call) => {
+    const row = explain({ ...auction, calls: [...auction.calls, call] }, entries, { general: true }).at(-1);
+    return { call, meaning: row.meaning, notes: row.entry?.notes ?? row.notes, general: !row.entry };
+  }).filter((o) => o.meaning);
+}
+
 function prepare(hand, auction, entries) {
   const s = situationAt(auction, auction.calls.length);
   const legal = new Set(legalCalls(auction));
@@ -221,6 +252,12 @@ function sameShape(a, b) {
   return Math.abs((a.hcp?.[0] ?? 6) - (b.hcp?.[0] ?? 6)) <= 4;
 }
 
+// What a call will tell partner: the rule partner will read it by, or else its general meaning.
+function tells(auction, call, entries) {
+  const row = explain({ ...auction, calls: [...auction.calls, call] }, entries, { general: true }).at(-1);
+  return row.meaning ? { meaning: row.meaning, notes: row.entry?.notes ?? row.notes } : null;
+}
+
 function fallback(hand, auction, entries) {
   const n = auction.calls.length;
   const s = situationAt(auction, n);
@@ -231,7 +268,9 @@ function fallback(hand, auction, entries) {
   const judged = () => {
     const rows = explain(auction, entries);
     const j = judge(e, auction, rows, (seat) => summarize(rows, seat), s.key);
-    return j && { call: j.call, meaning: j.call === 'P' ? 'Pass.' : 'Natural (general judgment).', reasons: j.why, plan: null, close: null, notes: s.ctx.competitive ? 'competitive-bidding-tier-0' : '21-game-forcing-tier-0', fallback: 'judgment' };
+    if (!j) return null;
+    const told = j.call === 'P' ? null : tells(auction, j.call, entries);
+    return { call: j.call, meaning: told?.meaning ?? 'Pass.', reasons: j.why, plan: null, close: null, notes: told?.notes ?? (s.ctx.competitive ? 'competitive-bidding-tier-0' : '21-game-forcing-tier-0'), fallback: 'judgment' };
   };
   if (!s.ctx.competitive) return judged();
   // We opened, partner has only passed, and the opponents compete: rebid a 6-card suit cheaply, or pass.

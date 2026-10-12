@@ -1,6 +1,6 @@
 import { cardCount } from '../cards.js';
 import { nextSeat, isComplete, seatAt } from '../auction.js';
-import { advise } from '../engine.js';
+import { advise, explain, summarize, describeShown } from '../engine.js';
 import { buildAuction, enteredTurn, oppsEnter, isOpp, OPENER_SEAT as OPENER, PARTNER } from '../advisor-model.js';
 import { cleanAdvisor, acceptedCalls } from '../state.js';
 import { callLabel } from '../format.js';
@@ -35,9 +35,11 @@ export function advisorView(root, store) {
       return el('span', { class: `call${isOpp(seat) && c === 'P' ? ' opp' : ''}` }, el('small', {}, WHO[seat]), el('span', {}, callLabel(c)));
     });
     if (!isComplete(a)) items.push(el('span', { class: 'call next' }, el('small', {}, WHO[nextSeat(a)]), '?'));
+    const shown = describeShown(summarize(explain(a, undefined, { general: true }), PARTNER));
     return el('div', {},
       el('div', { class: 'label' }, oppsEnter(state) ? 'Auction so far' : 'Auction so far (opponents pass)'),
       el('div', { class: 'strip' }, ...items),
+      shown.length ? el('div', { class: 'shown' }, el('div', { class: 'label' }, 'Partner has shown'), el('div', { class: 'chips' }, ...shown.map((c) => el('span', { class: 'chip' }, c)))) : null,
       state.ourCalls.length
         ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', 'data-key': 'act-undo', class: 'pill', onclick: () => update({ ourCalls: state.ourCalls.slice(0, -1) }) }, 'Undo'))
         : null);
