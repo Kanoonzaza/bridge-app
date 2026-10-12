@@ -46,7 +46,9 @@ export function judge(e, auction, rows, summary, key) {
   const P = summary(pard);
   const myFirst = mRows.find((r) => r.call !== 'P');
   const advancer = opened === 'them' && myFirst && rows.indexOf(myFirst) < rows.indexOf(pFirst);
-  let pMin = Math.max(P.known ? P.hcp[0] : 0, firstCallMinimum(pFirst.call, opened, firstBid.seat === pard, advancer, firstBid.call));
+  // A rule that states responder's strength wins over the general assumption for a first call.
+  const ruled = opened === 'us' && firstBid.seat !== pard && pFirst?.entry && pFirst.shows?.hcp;
+  let pMin = ruled ? P.hcp[0] : Math.max(P.known ? P.hcp[0] : 0, firstCallMinimum(pFirst.call, opened, firstBid.seat === pard, advancer, firstBid.call));
   // I doubled for takeout and partner answered with a jump: about 10+.
   const myX = [...mRows].reverse().find((r) => r.call === 'X');
   const pAns = myX && pRows.find((r) => r.i > myX.i && isBid(r.call));
@@ -219,6 +221,15 @@ export function judge(e, auction, rows, summary, key) {
   if (theyBidLast && T && combined >= 23) {
     const c = cheapest(T);
     if (c && Number(c[0]) <= 3) return { call: c, why: [...why, `${trumps}-card fit and extra values: compete to the 3-level`] };
+  }
+  // Misfit: partner's non-forcing new suit opposite my void or singleton, and a 6-card suit I have bid: rebid it.
+  const pSuit = pLast && isBid(pLast.call) && pLast.call[1] !== 'N' ? pLast.call[1] : null;
+  if (!theyBidLast && !T && pSuit && e.len[pSuit] <= 1) {
+    const mine = SUITS.find((s) => s !== pSuit && !theirSuits.has(s) && e.len[s] >= 6 && mRows.some((r) => isBid(r.call) && r.call[1] === s));
+    const c = mine && cheapest(mine);
+    if (c && (Number(c[0]) <= 2 || (Number(c[0]) === 3 && e.len[mine] >= 7))) {
+      return { call: c, why: [`${e.len[pSuit] ? 'a singleton' : 'a void'} in partner's ${NAME[pSuit]}: a misfit`, `${e.len[mine]} ${NAME[mine]}: play in my suit, not partner's`] };
+    }
   }
   // Invitation in an uncontested auction with a fit.
   if (!theyBidLast && T && combined >= 23 && combined <= 24) {

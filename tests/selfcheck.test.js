@@ -53,3 +53,13 @@ test('every suggestion says how firm it is: agreed system, proposed agreement or
   assert.equal(confidence({ call: '3S', notes: 'new-agreements-proposed' }).level, 'proposed');
   assert.equal(confidence({ notCovered: true }), null);
 });
+
+test('board 44: 1♠ (1NT) 2♥ is limited and not forcing; opener with a heart void rebids the spades', async () => {
+  const { advise } = await import('../js/engine.js');
+  const calls = ['P', '1S', '1N', '2H'];
+  const row = explain({ dealer: 'W', calls }).at(-1);
+  assert.deepEqual(row.shows.hcp, [5, 8]);
+  assert.match(row.meaning, /Not forcing/);
+  assert.equal(advise(unpackHand('6.Q9764.T965.K43'), { dealer: 'W', vul: 'NS', calls: calls.slice(0, 3) }).call, '2H');
+  assert.equal(advise(unpackHand('KQJT43..J872.AJ6'), { dealer: 'W', vul: 'NS', calls: [...calls, 'P'] }).call, '2S');
+});

@@ -500,7 +500,11 @@ for (const o of SUITS4) {
     const lv = their === '1N' ? 2 : 3;
     def(k, `${lv}${o}`, `Competitive raise of ${nm(o)}.`, { len: { [o]: [3, 13] } });
     if (isMajor(o) && lv === 3) def(k, `4${o}`, `Game in ${nm(o)}.`, { len: { [o]: [3, 13] } });
-    for (const t of SUITS4.filter((x) => x !== o)) def(k, `${cheapest(their, t)}${t}`, `Natural: 5+ ${nm(t)}.`, { len: { [t]: [5, 13] } });
+    // With more, responder doubles: a suit bid here is natural and limited, not forcing.
+    for (const t of SUITS4.filter((x) => x !== o)) {
+      def(k, `${cheapest(their, t)}${t}`, their === '1N' ? `Natural: 5+ ${nm(t)}, 5–8 HCP (with 9+ double). Not forcing.` : `Natural: 5+ ${nm(t)}, 8–9 HCP (with 10+ double). Not forcing.`,
+        { hcp: their === '1N' ? [5, 8] : [8, 9], len: { [t]: [5, 13] } });
+    }
     advise(k, (e) => overTheirConvention(e, o, their), [{ dealer: 'N', calls: [`1${o}`, their] }]);
   }
 }
