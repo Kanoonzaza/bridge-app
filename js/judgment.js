@@ -73,6 +73,12 @@ export function judge(e, auction, rows, summary, key) {
   }
   // Slam with a fit: ask for key cards.
   if (T && combined >= 33 && !mRows.some((r) => r.call === '4N') && !pRows.some((r) => r.call === '4N')) {
+    // In a minor, 4NT only with 2+ key cards of our own: a low reply could already pass 5 of the minor (proposed).
+    const keys = SUITS.filter((s) => e.hand[s].includes('A')).length + (e.hand[T].includes('K') ? 1 : 0);
+    if (!isMajor(T) && keys < 2) {
+      const c = combined >= 35 ? `6${T}` : `5${T}`;
+      if (legal.has(c)) return { call: c, why: [...why, `${NAME[T]} trumps but only ${keys} key card${keys === 1 ? '' : 's'}: skip 4NT, bid ${c[0] === '6' ? 'the slam' : 'game'}`] };
+    }
     const r = R('4N', [...why, `${trumps} ${NAME[T]} between you: ask for key cards (RKCB)`]);
     if (r) return r;
   }

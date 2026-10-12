@@ -371,6 +371,19 @@ for (const [pre, min] of [[['1N', '2C'], 15], [['2N', '3C'], 20]]) {
   }
 }
 
+
+// ---------- Opener after 1M–3NT (15–17, 2 cards in the major; proposed) ----------
+const NEW = 'new-agreements-proposed';
+for (const M of ['H', 'S']) {
+  sit([`1${M}`, '3N'], [['P', 'Balanced 5-card major: play 3NT.'], [`4${M}`, `6+ ${nm(M)} or unbalanced: play the major.`], ['4N', 'Quantitative: 16–17, invites 6NT.'], ['6N', '18+: small slam.']], (e) => {
+    if (e.hcp >= 18) return R('6N', [`${e.hcp} HCP opposite 15–17: slam`]);
+    if (e.len[M] >= 6 || !e.balanced) return R(`4${M}`, [`${e.len[M]} ${nm(M)}${e.balanced ? '' : ', unbalanced'}: the major plays better`]);
+    if (e.hcp >= 16) return R('4N', [`${e.hcp} HCP: invite 6NT`]);
+    return R('P', ['balanced minimum: 3NT']);
+  }, NEW);
+  sit([`1${M}`, '3N', '4N'], [['P', '15–16: decline.'], ['6N', '17: accept.']], (e) => (e.hcp >= 17 ? R('6N', ['maximum: accept']) : R('P', ['decline'])), NEW);
+}
+
 const entries = SITUATIONS.flatMap((s) => Object.entries(s.calls).map(([call, c]) => ({
   after: s.after,
   call,

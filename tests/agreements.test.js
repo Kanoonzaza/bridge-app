@@ -47,3 +47,27 @@ test('maximal double: game try when they bid the suit just below ours', () => {
   assert.match(meaning('S', ['1H', '2D', '2H', '3D', 'X']), /Maximal double/);
   assert.match(meaning('S', ['1H', '2D', '2H', '3D', '3H']), /Competitive only/);
 });
+
+const respond = (open, hand, seat = 1) => advise(parseHand(hand), buildAuction({ opener: 'partner', seat, ourCalls: [open] })).call;
+const rebid = (calls, hand) => advise(parseHand(hand), buildAuction({ opener: 'me', seat: 1, ourCalls: calls })).call;
+
+test('1M–3NT: 15–17 balanced with 2 cards in the major; opener chooses', () => {
+  assert.equal(respond('1S', 'K4 AQ5 KJ73 QJ62'), '3N');
+  assert.equal(rebid(['1S', '3N'], 'AQ853 K4 Q74 J62'), 'P');
+  assert.equal(rebid(['1S', '3N'], 'AQ8532 K4 Q7 J62'), '4S');
+  assert.match(meaning('N', ['1S', 'P', '3N']), /15–17 balanced with exactly 2/);
+});
+
+test('passed hand: jump shift is fit-showing, not weak', () => {
+  assert.equal(respond('1H', '84 QT74 AKJ83 52', 3), '3D');
+  assert.notEqual(respond('1H', 'QJT963 4 732 852', 3), '2S');
+  assert.equal(respond('1H', 'QJT963 4 732 852', 1), '2S');
+  assert.match(meaning('S', ['P', 'P', '1H', 'P', '3D']), /Fit-showing jump/);
+  assert.match(meaning('N', ['1H', 'P', '3D']), /Weak jump shift/);
+});
+
+test('their Michaels or Unusual 2NT: cue-bid of their cheaper suit = limit raise or better', () => {
+  assert.equal(ask('N', ['1H', '2H'], 'K4 QT74 A983 852').call, '2S');
+  assert.match(meaning('N', ['1H', '2H', '2S']), /limit raise or better in hearts/);
+  assert.match(meaning('N', ['1C', '2N', '3D']), /limit raise or better in clubs/);
+});

@@ -42,9 +42,17 @@ function weakJump(e, M) {
 }
 
 // The whole decision for responder's first bid after partner's 1♥/1♠ (opponents passing).
+// Passed hand, 4+ trumps and a good 5-card side suit: the jump shift is fit-showing (proposed agreement).
+export function fitJump(e, M) {
+  if (e.len[M] < 4 || dummyPoints(e, M) < 10 || e.hcp > 12) return null;
+  const s = SUITS.find((t) => t !== M && e.len[t] >= 5 && ['A', 'K', 'Q'].filter((r) => e.hand[t].includes(r)).length >= 2 && WJS[M][t]);
+  return s ? WJS[M][s] : null;
+}
+
 export function respondToMajor(e, M, passed) {
   const tr = e.len[M];
   const dp = dummyPoints(e, M);
+  if (passed && fitJump(e, M)) return fitJump(e, M);
   if (tr >= 4) {
     if (!passed) {
       const s = splinterSuit(e, M);
@@ -59,12 +67,13 @@ export function respondToMajor(e, M, passed) {
   if (tr === 3 && passed && dp >= 10 && e.hcp >= 7) return '2C';
   if (tr >= 3 && e.hcp >= 4 && dp >= 6 && (dp <= 9 || e.hcp < 7)) return `2${M}`;
   if (M === 'H' && e.len.S >= 4 && e.hcp >= 6) return '1S';
+  if (!passed && tr === 2 && e.balanced && e.hcp >= 15 && e.hcp <= 17) return '3N';
   if (!passed && gameForce(e, tr >= 3)) return `2${twoOverOneSuit(e, M)}`;
   if (passed && e.hcp >= 10) {
     const s = (M === 'S' ? ['H', 'D'] : ['D']).filter((t) => e.len[t] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
     if (s) return `2${s}`;
   }
-  const wj = weakJump(e, M);
+  const wj = passed ? null : weakJump(e, M);
   if (wj) return wj;
   if (e.hcp >= 6) return '1N';
   return 'P';
@@ -250,5 +259,23 @@ function oneNtWhy(e, M) {
   if (e.hcp >= 11) r.push('not enough for a 2/1 game force');
   return r;
 }
+
+const NEW = 'new-agreements-proposed';
+entries.push(
+  {
+    ...MAJ, ctx: UNPASSED, call: '3N', priority: 19, notes: NEW,
+    meaning: '15–17 balanced with exactly 2 {M}: opener chooses 3NT or 4{M}. (Proposed.)',
+    shows: { hcp: [15, 17], len: { M: [2, 2] }, balanced: true, force: 'game' },
+    pick: pick('3N'),
+    why: (e, st) => [`${e.hcp} HCP, balanced`, `only 2 ${NAME[M_OF(st)]}: let opener choose the game`],
+  },
+  ...[['1H', '2S', 'S'], ['1H', '3C', 'C'], ['1H', '3D', 'D'], ['1S', '3C', 'C'], ['1S', '3D', 'D'], ['1S', '3H', 'H']].map(([open, call, s]) => ({
+    after: [open], ctx: PASSED, call, priority: 12, notes: NEW,
+    meaning: `Fit-showing jump (passed hand): good 5+ ${NAME[s]} and 4+ ${NAME[open[1]]}, about 10–11. (Proposed.)`,
+    shows: { hcp: [8, 12], len: { [s]: [5, 13], [open[1]]: [4, 13] } },
+    pick: pick(call),
+    why: (e) => [`${e.len[open[1]]} ${NAME[open[1]]} and a good ${e.len[s]}-card ${NAME[s]} suit`, 'a passed hand: the jump shows the fit and where your values are'],
+  })),
+);
 
 export default entries;

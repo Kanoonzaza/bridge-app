@@ -428,6 +428,8 @@ export function overTheirConvention(e, o, their) {
   if (their === '1N' && h >= 9) return R('X', [`${h} HCP: penalty double of their 1NT`]);
   if (L[o] >= fitNeed) {
     const dp = isMajor(o) ? dummyPoints(e, o) : h;
+    const cue = theirCue(o, their);
+    if (cue && dp >= 10) return R(cue, [`${L[o]} ${nm(o)}, ${dp} points`, 'cue-bid of their cheaper suit: limit raise or better']);
     if (isMajor(o) && dp >= 13 && lv === 3) return R(`4${o}`, [`${L[o]} ${nm(o)}, ${dp} points: game`]);
     if (dp >= 6) return R(`${lv}${o}`, [`${L[o]} ${nm(o)}: compete`]);
   }
@@ -439,10 +441,20 @@ export function overTheirConvention(e, o, their) {
   }
   return R('P', [`${h} HCP: pass`]);
 }
+// Their two suits: Michaels over a minor = both majors; over a major = the other major (+ a minor); Unusual 2NT = the two lowest unbid.
+// Our cue-bid of the cheaper known suit = limit raise or better in our suit (proposed).
+function theirCue(o, their) {
+  if (their === '1N') return null;
+  const known = their === '2N' ? SUITS4.filter((t) => t !== o).slice(0, 2) : isMajor(o) ? [o === 'H' ? 'S' : 'H'] : ['H', 'S'];
+  const s = known[0];
+  return `${cheapest(their, s)}${s}`;
+}
 for (const o of SUITS4) {
   for (const their of [`2${o}`, '2N', '1N']) {
     const k = [`1${o}`, `(${their})`];
-    def(k, 'X', their === '1N' ? 'Penalty: 9+ HCP.' : 'Values (10+): interest in penalizing them.', { hcp: [their === '1N' ? 9 : 10, 37] });
+    const cue = theirCue(o, their);
+    if (cue) def(k, cue, `Cue-bid of their suit: limit raise or better in ${nm(o)} (10+). (Proposed.)`, { hcp: [10, 37], len: { [o]: [3, 13] }, force: 'round' }, 'new-agreements-proposed');
+    def(k, 'X', their === '1N' ? 'Penalty: 9+ HCP.' : 'Values (10+), usually short in our suit: interest in penalizing them.', { hcp: [their === '1N' ? 9 : 10, 37] });
     def(k, 'P', 'Pass.');
     const lv = their === '1N' ? 2 : 3;
     def(k, `${lv}${o}`, `Competitive raise of ${nm(o)}.`, { len: { [o]: [3, 13] } });
