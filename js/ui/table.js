@@ -1,12 +1,12 @@
 import { SUITS, SYMBOL, evaluate } from '../cards.js';
-import { SEATS, partnerOf, sideOf } from '../auction.js';
+import { SEATS, partnerOf, sideOf, seatAt } from '../auction.js';
 import { advise, explain } from '../engine.js';
 import { callLabel, rankLabel } from '../format.js';
 import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
 import {
   CODE, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
-  setOpponents, sit, leave, setSeatKind, call, playRobot, nextBoard, rebid,
+  setOpponents, sit, leave, setSeatKind, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
 } from '../table/model.js';
 import { reviewRows, systemAuction, contract } from '../table/review.js';
 import { el, segmented, keepFocus } from './dom.js';
@@ -22,6 +22,7 @@ function cleanSaved(raw) {
     code: CODE.test(r.code ?? '') ? r.code : '',
     name: typeof r.name === 'string' ? r.name.slice(0, 24) : '',
     hints: r.hints !== false,
+    handStyle: r.handStyle === 'list' ? 'list' : 'cards',
   };
 }
 
@@ -202,17 +203,76 @@ export function tableView(root, store) {
     }));
   }
 
-  function auctionGrid(t, me) {
+  // ---------- The table, drawn like a card table: partner on top, opponents left and right, me at the bottom ----------
+  const isVul = (b, s) => b.vul === 'both' || b.vul === sideOf(s);
+  const around = (me) => {
+    const m = me ?? 'S';
+    const i = SEATS.indexOf(m);
+    return { bottom: m, left: SEATS[(i + 1) % 4], top: SEATS[(i + 2) % 4], right: SEATS[(i + 3) % 4] };
+  };
+
+  function plate(t, s, me) {
+    const st = t.seats[s];
+    const name = st.kind === 'human' ? st.name || 'Player' : st.kind === 'robot' ? 'Robot' : st.kind === 'pass' ? 'Passes' : 'Empty';
+    const b = t.board;
+    return el('div', { class: `plate${turn(t) === s ? ' turn' : ''}${s === me ? ' me' : ''}`, title: `${COMPASS[s]}: ${name}` },
+      el('span', { class: `dir${isVul(b, s) ? ' vul' : ''}` }, s),
+      el('span', { class: 'pname' }, name),
+      b.dealer === s ? el('span', { class: 'dealer', 'aria-label': 'Dealer' }, 'D') : null);
+  }
+
+  const backs = (n, cls = '') => el('div', { class: `backs${cls}`, 'aria-hidden': 'true' }, ...Array.from({ length: n }, () => el('span', { class: 'back' })));
+
+  function boardBox(t, me) {
+    const b = t.board;
+    const pos = around(me);
+    const edge = (where) => (isVul(b, pos[where]) ? ' vul' : '');
+    return el('div', { class: `bnum${edge('top') ? ' vt' : ''}${edge('bottom') ? ' vb' : ''}${edge('left') ? ' vl' : ''}${edge('right') ? ' vr' : ''}`, 'aria-label': `Board ${b.n}, dealer ${COMPASS[b.dealer]}, ${VUL_TEXT[b.vul]}` },
+      el('span', {}, String(b.n)));
+  }
+
+  function auctionBox(t, me) {
     const a = auctionOf(t.board);
-    const cols = ['W', 'N', 'E', 'S'];
+    const pos = around(me);
+    const cols = [pos.left, pos.top, pos.right, pos.bottom];
     const cells = [];
-    const pad = cols.indexOf(a.dealer);
-    for (let i = 0; i < pad; i++) cells.push(el('span', { class: 'cell' }));
-    a.calls.forEach((c) => cells.push(el('span', { class: 'cell' }, callLabel(c))));
+    for (let i = 0; i < cols.indexOf(a.dealer); i++) cells.push(el('span', { class: 'cell' }));
+    a.calls.forEach((c, i) => cells.push(el('span', { class: `cell${seatAt(a, i) === me ? ' mine' : ''}` }, callLabel(c))));
     if (!isDone(t)) cells.push(el('span', { class: 'cell next' }, '?'));
-    return el('div', { class: 'grid4', role: 'table', 'aria-label': 'Auction' },
-      ...cols.map((s) => el('span', { class: `head${s === me ? ' me' : ''}` }, relative(me, s))),
-      ...cells);
+    return el('div', { class: 'abox', role: 'table', 'aria-label': 'Auction' },
+      el('div', { class: 'ahead' }, ...cols.map((s) => el('span', { class: `${isVul(t.board, s) ? 'vul' : ''}${s === me ? ' me' : ''}`, title: relative(me, s) }, s))),
+      el('div', { class: 'abody' }, ...cells));
+  }
+
+  // My hand as cards or as a list (each phone remembers its choice).
+  function myHand(hand) {
+    const asCards = saved.handStyle === 'cards';
+    return el('div', { class: 'my-hand' },
+      asCards ? cards(hand) : handView(hand, 'Your hand'),
+      el('div', { class: 'hand-switch' },
+        el('button', { type: 'button', class: 'pill small', 'data-key': 'hand-style', onclick: () => { saved.handStyle = asCards ? 'list' : 'cards'; save(); render(); } }, asCards ? 'Show as list' : 'Show as cards')));
+  }
+
+  function felt(t, me) {
+    const pos = around(me);
+    return el('div', { class: 'felt' },
+      el('div', { class: 'f-board' }, boardBox(t, me)),
+      el('div', { class: 'f-top' }, backs(13), plate(t, pos.top, me)),
+      el('div', { class: 'f-left' }, backs(5, ' side'), plate(t, pos.left, me)),
+      el('div', { class: 'f-center' }, auctionBox(t, me)),
+      el('div', { class: 'f-right' }, backs(5, ' side'), plate(t, pos.right, me)),
+      el('div', { class: 'f-bottom' }, plate(t, pos.bottom, me)));
+  }
+
+  // My hand as cards: spades, hearts, clubs, diamonds (alternating colours), overlapping to fit the screen.
+  function cards(hand) {
+    const list = ['S', 'H', 'C', 'D'].flatMap((s) => [...hand[s]].map((r) => [s, r]));
+    const e = evaluate(hand);
+    return el('div', { class: 'hand-wrap' },
+      el('div', { class: 'cards', role: 'img', 'aria-label': `Your hand: ${SUITS.map((s) => `${SYMBOL[s]} ${hand[s] ? [...hand[s]].map(rankLabel).join(' ') : 'none'}`).join(', ')}` },
+        ...list.map(([s, r]) => el('span', { class: `card${s === 'H' || s === 'D' ? ' redc' : ''}` },
+          el('span', { class: 'rank' }, rankLabel(r)), el('span', { class: 'pip' }, SYMBOL[s])))),
+      el('div', { class: 'hcp' }, `${e.hcp} HCP`));
   }
 
   function meanings(t, me) {
@@ -241,6 +301,11 @@ export function tableView(root, store) {
               el('p', {}, el('b', {}, 'Tells partner: '), hint.meaning)]
           : el('button', { type: 'button', class: 'pill', 'data-key': 'hint', onclick: () => { ui.hint = advise(handOf(t.board, me), a); render(); } }, 'Show the Advisor\'s bid')),
       biddingBox(a, { doubles: true, onCall: (c) => act((cur) => cur && call(cur, me, c, ui.sync.uid), 'That call did not go through. Try again.') }));
+  }
+
+  function undoButton(t) {
+    if (lastOwnCall(t, ui.sync.uid) < 0) return null;
+    return el('button', { type: 'button', class: 'pill', 'data-key': 'undo', onclick: () => act((cur) => cur && undo(cur, ui.sync.uid), 'Too late to undo: another player has called since.') }, '↶ Undo my last call');
   }
 
   function review(t, me) {
@@ -275,22 +340,27 @@ export function tableView(root, store) {
     const b = t.board;
     const now = turn(t);
     const waiting = now && t.seats[now].kind === 'open' ? `Waiting for a player in the ${COMPASS[now]} seat.` : now && t.seats[now].kind === 'human' ? `Waiting for ${relative(me, now) === 'Partner' ? 'partner' : t.seats[now].name || COMPASS[now]}…` : now ? 'The robot is thinking…' : '';
+    const someoneMissing = SEATS.some((s) => t.seats[s].kind === 'open');
     return el('div', { class: 'stack' },
       el('div', { class: 'table-head' },
         el('div', {}, el('div', { class: 'label' }, 'Table'), el('div', { class: 'code-big' }, t.code)),
         el('div', { class: 'row-buttons' },
           el('button', { type: 'button', class: 'pill', 'data-key': 'share', onclick: () => share(t.code) }, 'Invite'),
           el('button', { type: 'button', class: 'pill', 'data-key': 'leave', onclick: exit }, 'Leave'))),
-      seatsView(t, me),
-      me === 'N' || me === 'S' ? segmented('Opponents', [['robot', 'Robots'], ['pass', 'Always pass'], ['players', 'Players']], t.opponents, (v) => act((cur) => cur && setOpponents(cur, v))) : null,
       el('div', { class: 'board-line' }, el('b', {}, `Board ${b.n}`), ` · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`),
-      me && !isDone(t) ? handView(handOf(b, me), 'Your hand') : null,
-      auctionGrid(t, me),
-      isDone(t) ? review(t, me) : me && now === me ? myTurn(t, me) : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat to play.'),
+      felt(t, me),
+      me ? myHand(handOf(b, me)) : null,
+      isDone(t) ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
+      undoButton(t) ? el('div', { class: 'row-buttons' }, undoButton(t)) : null,
+      isDone(t) ? review(t, me) : me && now === me ? myTurn(t, me) : null,
       !isDone(t) ? el('label', { class: 'toggle' },
         el('input', { type: 'checkbox', 'data-key': 'hints', checked: saved.hints, onchange: (e) => { saved.hints = e.target.checked; save(); render(); } }),
         ' Show what each call means') : null,
       !isDone(t) && saved.hints ? meanings(t, me) : null,
+      el('details', { class: 'manage', open: someoneMissing || !me },
+        el('summary', {}, 'Seats and opponents'),
+        seatsView(t, me),
+        me === 'N' || me === 'S' ? segmented('Opponents', [['robot', 'Robots'], ['pass', 'Always pass'], ['players', 'Players']], t.opponents, (v) => act((cur) => cur && setOpponents(cur, v))) : null),
       ui.error ? el('p', { class: 'muted', role: 'status' }, ui.error) : null);
   }
 

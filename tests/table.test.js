@@ -4,7 +4,7 @@ import { advise } from '../js/engine.js';
 import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
-  call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf,
+  call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
 } from '../js/table/model.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
 import { memoryHub } from '../js/table/sync.js';
@@ -130,4 +130,18 @@ test('two phones racing to make the robot call: only one call goes through', asy
   let seen = null;
   a.watch('ABC234', (t) => { seen = t; });
   assert.equal(auctionOf(seen.board).calls.length, 1);
+});
+
+test('undo takes back my last call and the robot replies after it, not other players\' calls', () => {
+  let t = sit(fresh('robot'), 'N', 'pard', 'Ploy');
+  t = { ...t, board: { ...t.board, dealer: 'S', calls: '' } };
+  assert.equal(undo(t, 'me'), undefined, 'nothing to undo yet');
+  t = call(t, 'S', '1H', 'me');
+  t = playRobot(t, advise); // West
+  assert.equal(lastOwnCall(t, 'me'), 0);
+  assert.equal(undo(t, 'me').board.calls, '', 'my 1♥ and the robot reply are gone');
+  t = call(t, 'N', '2H', 'pard');
+  assert.equal(undo(t, 'me'), undefined, 'partner has called since');
+  assert.equal(undo(t, 'pard').board.calls.split(' ').length, 2, 'partner can take back 2♥');
+  assert.equal(undo(t, 'stranger'), undefined);
 });

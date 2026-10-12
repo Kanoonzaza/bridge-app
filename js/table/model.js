@@ -2,7 +2,7 @@
 // Pure functions only: every change returns a new table (or undefined when the change is not allowed),
 // so the same code runs inside a Firebase transaction, in tests, and in the local two-tab mode.
 import { SUITS, RANKS } from '../cards.js';
-import { SEATS, legalCalls, isComplete, nextSeat, partnerOf } from '../auction.js';
+import { SEATS, legalCalls, isComplete, nextSeat, partnerOf, seatAt } from '../auction.js';
 
 export const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE = /^[A-Z2-9]{6}$/;
@@ -148,6 +148,25 @@ export function nextBoard(t, rand) {
   const keys = Object.keys(history).map(Number).sort((a, b) => a - b);
   for (const k of keys.slice(0, Math.max(0, keys.length - HISTORY))) delete history[k];
   return { ...t, board: board(t.board.n + 1, rand), history };
+}
+
+// Take back my last call: allowed while no other player has called after it (robot and
+// always-pass replies after it are taken back too). Returns undefined when not allowed.
+export function lastOwnCall(t, uid) {
+  const me = mySeat(t, uid);
+  if (!me) return -1;
+  const a = auctionOf(t.board);
+  for (let i = a.calls.length - 1; i >= 0; i--) {
+    const s = seatAt(a, i);
+    if (s === me) return i;
+    if (t.seats[s].kind === 'human' || t.seats[s].kind === 'open') return -1;
+  }
+  return -1;
+}
+export function undo(t, uid) {
+  const i = lastOwnCall(t, uid);
+  if (i < 0) return undefined;
+  return { ...t, board: { ...t.board, calls: auctionOf(t.board).calls.slice(0, i).join(' ') } };
 }
 
 // Restart the current board's bidding (same cards), e.g. after a mis-click.
