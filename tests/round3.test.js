@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseHand, randomHand } from '../js/cards.js';
 import { advise, matchingEntries } from '../js/engine.js';
 import { buildAuction } from '../js/advisor-model.js';
-import { SITUATIONS } from '../js/system/round3.js';
+import { SITUATIONS } from '../js/system/rebids/third-round.js';
 import { mulberry32 } from './helpers.js';
 
 // seat 3: the opening comes after a pass by responder (a passed hand), as Drury needs.

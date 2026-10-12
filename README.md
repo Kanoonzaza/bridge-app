@@ -5,7 +5,7 @@ Practice app for our 2/1 Game Forcing partnership system: an Advisor that sugges
 Live: https://kanoonzaza.github.io/bridge-app/
 
 - Tests: `npm test` (Node 20+)
-- Rules live in `js/system/`; every entry links to a section of the published system notes.
+- Rules live in `js/system/`, in folders that follow the parts of the system notes; every entry links to the notes section that explains it. How the Advisor and Decoder use them: [docs/how-the-advisor-works.md](docs/how-the-advisor-works.md).
 - Advisor: choose who opens (you, partner or an opponent) and whether the opponents always pass or you enter their calls.
 - For practice and study only; electronic aids are not allowed at the table.
 

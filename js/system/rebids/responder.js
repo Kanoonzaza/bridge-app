@@ -1,6 +1,6 @@
-import { SUITS, NAME, SYMBOL, dummyPoints } from '../cards.js';
+import { SUITS, NAME, SYMBOL, dummyPoints } from '../../cards.js';
 
-// Responder's second bid in uncontested auctions (Plan 3b): XYZ, fourth suit forcing, after a reverse, after a forcing 1NT.
+// Responder's second bid in uncontested auctions: XYZ, fourth suit forcing, after a reverse, after a forcing 1NT.
 const XYZ = 'xyz-tier-1';
 const FSF = 'fourth-suit-forcing-tier-1';
 const REV = 'reverses-tier-0';

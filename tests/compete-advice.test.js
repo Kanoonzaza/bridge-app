@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseHand, randomHand } from '../js/cards.js';
 import { advise, matchingEntries } from '../js/engine.js';
 import { situationAt } from '../js/auction.js';
-import { SAMPLES } from '../js/system/compete-advice.js';
+import { SAMPLES } from '../js/system/competitive/index.js';
 import { mulberry32 } from './helpers.js';
 
 const ask = (dealer, calls, hand) => advise(parseHand(hand), { dealer, calls });

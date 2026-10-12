@@ -1,9 +1,13 @@
-// General bidding judgment for later rounds that no specific rule covers.
-// Works from what partner has shown (minimum strength, suit lengths, forcing status) and our own hand:
-// find a fit, add up combined points, then choose slam / game / invitation / competition / penalty double / pass.
+// General bidding judgment for later rounds that no specific rule covers (fallback.js steps 2 and 6).
+//
+// readSituation reads the auction once: what partner has shown (minimum strength, suit lengths), our best
+// fit and combined points, who bid last, whether the auction is forcing. Then the steps below run in
+// order and the first that answers decides:
+//   answer partner's takeout double · slam · penalty doubles · game · compete by the Law of Total Tricks ·
+//   keep a forcing auction going · free bids · misfits · invitation · otherwise pass, saying why.
 import { NAME, dummyPoints } from './cards.js';
 import { legalCalls, seatAt, sideOf, partnerOf, isBid, relativeVul } from './auction.js';
-import { agreedSuit } from './system/slam.js';
+import { agreedSuit } from './system/rebids/slam.js';
 import { describeCall } from './general.js';
 
 const SUITS = ['S', 'H', 'D', 'C'];
@@ -28,7 +32,9 @@ function firstCallMinimum(call, opened, isOpener, advancer, opening) {
   return call === 'X' ? 12 : call === '1N' ? 15 : 8;
 }
 
-export function judge(e, auction, rows, summary, key) {
+// Read the auction: what partner has shown, our fit, combined points, who bid last, what is forcing.
+function readSituation(e, auction, rows, summary, key) {
+
   const n = auction.calls.length;
   const me = seatAt(auction, n);
   const pard = partnerOf(me);
@@ -88,13 +94,24 @@ export function judge(e, auction, rows, summary, key) {
   const stopsAll = [...theirSuits].every((s) => stopper(e, s) || pardStops(s));
   // Without a stopper: game in a 6-card suit of our own instead of 3NT.
   const longGame = () => SUITS.filter((s) => !theirSuits.has(s) && e.len[s] >= 6).map(gameCall).find((c) => legal.has(c));
+  return { e, auction, rows, summary, key, n, me, pard, side, legal, ours, theirs, pRows, mRows, firstBid, opened, pFirst, P, myFirst, advancer, ruled, pMin, myX, pAns, lastBidRow, lastBid, theyBidLast, pLast, gameForced, mustBid, theirSuits, ourBidSuits, fits, agreed, T, mine, combined, trumps, R, cheapest, gameCall, why, pardStops, stopsAll, longGame };
+}
 
+// They redoubled partner's takeout double.
+function runFromRedouble(c) {
+  const { e, auction, pRows, P, theirSuits, cheapest, why } = c;
   // They redoubled partner's takeout double: run to our best suit.
   if (auction.calls.at(-1) === 'XX' || (auction.calls.at(-2) === 'XX' && auction.calls.at(-1) === 'P')) {
     const run = SUITS.filter((s) => !theirSuits.has(s)).sort((a, b) => e.len[b] - e.len[a])[0];
     const c = run && cheapest(run);
     if (c && pRows.some((r) => r.call === 'X')) return { call: c, why: ['they redoubled partner\'s takeout double: bid your longest suit'] };
   }
+  return null;
+}
+
+// Answer partner's takeout double (or pass it for penalty with long, strong trumps).
+function answerTakeoutDouble(c) {
+  const { e, auction, rows, pard, side, legal, mRows, P, lastBid, theirSuits, trumps, cheapest, why, stopsAll } = c;
   // Partner's takeout double, and they passed: answer it. Passing turns it into a penalty double,
   // so pass only with long, strong trumps. (Takeout or penalty: the same general rule the Decoder shows.)
   const lastAct = [...rows].reverse().find((r) => r.call !== 'P');
@@ -133,12 +150,24 @@ export function judge(e, auction, rows, summary, key) {
       }
     }
   }
+  return null;
+}
+
+// I doubled with a big hand and partner's answer was forced: bid again.
+function bigDoublerBidsAgain(c) {
+  const { e, legal, mRows, pMin, pAns, theyBidLast, theirSuits, cheapest, why, stopsAll } = c;
   // I doubled with a big hand and partner's answer was forced: bid again (3NT with their suits stopped, or my long suit).
   if (pAns && !theyBidLast && e.hcp >= 19 && pMin <= 5 && mRows.some((r) => r.call === 'X')) {
     if (stopsAll && legal.has('3N')) return { call: '3N', why: [`${e.hcp} HCP: the double showed a big hand`, 'their suits stopped: 3NT'] };
     const own = SUITS.filter((s) => !theirSuits.has(s) && e.len[s] >= 6).map(cheapest).find((c) => c && Number(c[0]) <= 4);
     if (own) return { call: own, why: [`${e.hcp} HCP: the double showed a big hand`, `${e.len[own[1]]} ${NAME[own[1]]}: show the long suit`] };
   }
+  return null;
+}
+
+// Slam with a fit (RKCB), or 6NT without one.
+function slam(c) {
+  const { e, key, legal, pRows, mRows, T, combined, trumps, R, why } = c;
   // Slam with a fit: ask for key cards.
   if (T && combined >= 33 && !mRows.some((r) => r.call === '4N') && !pRows.some((r) => r.call === '4N')) {
     // In a minor, 4NT only with 2+ key cards of our own: a low reply could already pass 5 of the minor (proposed).
@@ -154,12 +183,30 @@ export function judge(e, auction, rows, summary, key) {
     const r = R('6N', [...why, 'no fit but slam values: 6NT']);
     if (r) return r;
   }
+  return null;
+}
+
+// After our redouble, our doubles are for penalty.
+function penaltyAfterOurRedouble(c) {
+  const { e, legal, ours, lastBid, theyBidLast, why } = c;
   // After our redouble, our doubles are for penalty: double them with length in their suit.
   if (theyBidLast && ours.some((r) => r.call === 'XX') && Number(lastBid[0]) <= 3 && lastBid[1] !== 'N' && e.len[lastBid[1]] >= 3 && legal.has('X')) {
     return { call: 'X', why: [`we redoubled: ${e.len[lastBid[1]]} ${NAME[lastBid[1]]}, double for penalty`] };
   }
+  return null;
+}
+
+// They outbid our game: double them.
+function theyOutbidOurGame(c) {
+  const { P, lastBid, theyBidLast, combined, R, why } = c;
   // They outbid our game: double for penalty.
   if (theyBidLast && combined >= 25 && rank(lastBid) >= rank('4H')) return R('X', [...why, 'they bid over our game: double for penalty']) ?? { call: 'P', why };
+  return null;
+}
+
+// Game: in the fit, in notrump with the stoppers, or in a long suit.
+function game(c) {
+  const { legal, P, lastBid, theyBidLast, gameForced, mustBid, T, combined, trumps, gameCall, why, stopsAll, longGame } = c;
   // Game.
   if (combined >= 25) {
     // No fit, no stopper and no long suit: double them when they bid last, rather than a blind 3NT.
@@ -169,21 +216,45 @@ export function judge(e, auction, rows, summary, key) {
     if (g && legal.has(g)) return { call: g, why: [...why, T ? `${trumps}-card ${NAME[T]} fit: game` : 'game in notrump'] };
     if (rank(lastBid) >= rank(g ?? (T ? gameCall(T) : '3N')) && !theyBidLast) return { call: 'P', why: [...why, 'we are already at game'] };
   }
+  return null;
+}
+
+// No fit but most of the strength: double.
+function balanceOfStrengthDouble(c) {
+  const { e, lastBid, theyBidLast, gameForced, T, combined, R, why } = c;
   // No fit but the balance of strength, and they are still low: double (takeout below the 4-level), partner decides.
   if (theyBidLast && !T && !gameForced && (combined >= 25 || (e.hcp >= 17 && e.len[lastBid[1]] <= 2)) && Number(lastBid[0]) <= 3 && lastBid[1] !== 'N') {
     const r = R('X', [...why, 'no fit yet but most of the strength: double, partner passes or bids']);
     if (r) return r;
   }
+  return null;
+}
+
+// Penalty double without a fit.
+function penaltyDoubleNoFit(c) {
+  const { e, lastBid, theyBidLast, T, combined, R, why } = c;
   // Penalty double without a fit: they are high, we have values and length in their suit.
   if (theyBidLast && !T && combined >= 23 && Number(lastBid[0]) >= 2 && e.len[lastBid[1]] >= 4 && /[AKQ]/.test(e.hand[lastBid[1]])) {
     const r = R('X', [...why, `${e.len[lastBid[1]]} ${NAME[lastBid[1]]}: penalty double`]);
     if (r) return r;
   }
+  return null;
+}
+
+// Maximal double (a game try).
+function maximalDouble(c) {
+  const { legal, lastBid, theyBidLast, agreed, combined, why } = c;
   // Maximal double: they bid the suit just below our agreed suit at the 3-level; double is the only game try left.
   const BELOW = { S: 'H', H: 'D', D: 'C' };
   if (theyBidLast && agreed && lastBid === `3${BELOW[agreed]}` && combined >= 23 && combined <= 24 && legal.has('X')) {
     return { call: 'X', why: [...why, `maximal double: a game try in ${NAME[agreed]} (3${agreed === 'S' ? '♠' : agreed === 'H' ? '♥' : '♦'} would only compete)`] };
   }
+  return null;
+}
+
+// Compete with a fit, by the Law of Total Tricks.
+function competeByTotalTricks(c) {
+  const { e, auction, side, P, theyBidLast, mustBid, T, mine, combined, trumps, cheapest, why } = c;
   // Compete with a fit, by the Law of Total Tricks (trumps − 6).
   if (T) {
     const c = cheapest(T);
@@ -196,6 +267,12 @@ export function judge(e, auction, rows, summary, key) {
       return { call: c, why: [...why, `${trumps} trumps: safe to compete to the ${trumps - 6 + fav}-level${fav ? ' (favorable vulnerability: one more)' : ''}`] };
     }
   }
+  return null;
+}
+
+// Forcing auctions must go on.
+function keepForcingAuctionGoing(c) {
+  const { e, legal, mRows, P, theyBidLast, gameForced, mustBid, theirSuits, ourBidSuits, cheapest, why, stopsAll } = c;
   // Forcing auctions must go on.
   if (gameForced || mustBid) {
     if (gameForced && legal.has('3N') && stopsAll) return { call: '3N', why: ['game forcing: 3NT'] };
@@ -217,17 +294,35 @@ export function judge(e, auction, rows, summary, key) {
     if (gameForced && theyBidLast && !stopsAll) return { call: 'P', why: ['game forcing: after their bid a pass is forcing, so partner will bid again'] };
     if (legal.has('3N')) return { call: '3N', why: ['forcing: 3NT'] };
   }
+  return null;
+}
+
+// A free bid with a long suit of our own.
+function freeBidLongSuit(c) {
+  const { e, theyBidLast, theirSuits, cheapest, why } = c;
   // A free bid with a long suit of our own.
   if (theyBidLast) {
     const long = SUITS.filter((s) => !theirSuits.has(s) && e.len[s] >= 6 && e.hcp >= 10).sort((a, b) => e.len[b] - e.len[a])[0];
     const c = long && cheapest(long);
     if (c && Number(c[0]) <= 3) return { call: c, why: [`${e.len[long]} ${NAME[long]}: compete`] };
   }
+  return null;
+}
+
+// A fit and extra values after they compete: the 3-level.
+function competeWithExtras(c) {
+  const { theyBidLast, T, combined, trumps, cheapest, why } = c;
   // With a fit and extra values after they compete: compete to the 3-level (Law of Total Tricks plus strength).
   if (theyBidLast && T && combined >= 23) {
     const c = cheapest(T);
     if (c && Number(c[0]) <= 3) return { call: c, why: [...why, `${trumps}-card fit and extra values: compete to the 3-level`] };
   }
+  return null;
+}
+
+// Misfit: rebid my own long suit.
+function misfitRebid(c) {
+  const { e, mRows, theyBidLast, pLast, theirSuits, T, mine, cheapest, why } = c;
   // Misfit: partner's non-forcing new suit opposite my void or singleton, and a 6-card suit I have bid: rebid it.
   const pSuit = pLast && isBid(pLast.call) && pLast.call[1] !== 'N' ? pLast.call[1] : null;
   if (!theyBidLast && !T && pSuit && e.len[pSuit] <= 1) {
@@ -237,11 +332,37 @@ export function judge(e, auction, rows, summary, key) {
       return { call: c, why: [`${e.len[pSuit] ? 'a singleton' : 'a void'} in partner's ${NAME[pSuit]}: a misfit`, `${e.len[mine]} ${NAME[mine]}: play in my suit, not partner's`] };
     }
   }
+  return null;
+}
+
+// Invitation with a fit.
+function invite(c) {
+  const { auction, legal, theyBidLast, T, combined, why } = c;
   // Invitation in an uncontested auction with a fit.
   if (!theyBidLast && T && combined >= 23 && combined <= 24) {
     const inv = isMajor(T) ? `3${T}` : '2N';
     if (legal.has(inv)) return { call: inv, why: [...why, 'invite game'] };
   }
+  return null;
+}
+
+// The decisions, in order: the first that answers decides; otherwise pass (and say why).
+const STEPS = [
+  runFromRedouble, answerTakeoutDouble, bigDoublerBidsAgain,
+  slam, penaltyAfterOurRedouble, theyOutbidOurGame, game,
+  balanceOfStrengthDouble, penaltyDoubleNoFit, maximalDouble,
+  competeByTotalTricks, keepForcingAuctionGoing, freeBidLongSuit, competeWithExtras,
+  misfitRebid, invite,
+];
+
+export function judge(e, auction, rows, summary, key) {
+  const c = readSituation(e, auction, rows, summary, key);
+  if (!c) return null;
+  for (const step of STEPS) {
+    const r = step(c);
+    if (r) return r;
+  }
+  const { side, theirs, P, theyBidLast, T, combined, why } = c;
   return { call: 'P', why: [...why, ...passReasons({ e, T, theyBidLast, theirs, combined, auction, side })] };
 }
 

@@ -1,4 +1,4 @@
-import { SUITS, NAME } from '../cards.js';
+import { SUITS, NAME } from '../../cards.js';
 
 // RKCB 1430 (whenever a suit is agreed) and the asker's continuation after Gerber.
 const SLAM = 'rkcb-1430-and-slam-tools-tier-1';

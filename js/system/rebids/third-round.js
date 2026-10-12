@@ -1,4 +1,4 @@
-import { SUITS, NAME, SYMBOL, dummyPoints } from '../cards.js';
+import { SUITS, NAME, SYMBOL, dummyPoints } from '../../cards.js';
 
 // Third round of uncontested auctions: responder after opener's rebid (raises, own-suit rebids, 2NT,
 // jump rebids, inverted raises, game tries, 2/1, Jacoby) and opener after notrump, XYZ and fourth-suit sequences.

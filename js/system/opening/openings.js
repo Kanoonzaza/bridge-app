@@ -1,5 +1,7 @@
-import { SUITS, NAME, ruleOf20, ruleOf15 } from '../cards.js';
+import { SUITS, NAME, ruleOf20, ruleOf15 } from '../../cards.js';
 
+// The opening bid: when to open (seat, Rule of 20, Rule of 15) and which call (1NT, 2NT, 2♣, a weak two,
+// a preempt, Gambling 3NT, or a 1-level suit). Notes: Part 2, "Opening bids".
 const NOTES = 'opening-bids-tier-0';
 const NT_NOTES = '1nt-opening-and-responses-tier-0';
 const OPEN = { after: [], ctx: { role: 'opening' } };

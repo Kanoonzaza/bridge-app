@@ -1,7 +1,7 @@
-import { SUITS, NAME, SYMBOL, dummyPoints } from '../cards.js';
-import { splinterSuit } from './resp-major.js';
+import { SUITS, NAME, SYMBOL, dummyPoints } from '../../cards.js';
+import { splinterSuit } from '../responding/major.js';
 
-// Opener's second bid after each uncontested first response (Plan 3).
+// Opener's second bid after each uncontested first response. Notes: Part 4, "Opener's rebids" (and the raise, 2/1 and Drury sections).
 const REBID = 'openers-rebids-tier-0';
 const REV = 'reverses-tier-0';
 const FNT = 'forcing-1nt-response-tier-0';

@@ -1,4 +1,4 @@
-import { SUITS, NAME, SYMBOL } from '../cards.js';
+import { SUITS, NAME, SYMBOL } from '../../cards.js';
 
 // 1NT (15–17) and 2NT (20–21, or 22–24 after 2♣–2♦) auctions: responses, opener's replies, responder's next bid.
 const NT = '1nt-opening-and-responses-tier-0';

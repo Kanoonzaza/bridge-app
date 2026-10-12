@@ -1,5 +1,8 @@
-import { SUITS, NAME, SYMBOL, dummyPoints, quality } from '../cards.js';
+import { SUITS, NAME, SYMBOL, dummyPoints, quality } from '../../cards.js';
 
+// Responder's first bid after partner's 1♥ / 1♠ (opponents passing): raises (with Jacoby, splinters and Drury),
+// 2/1 game force, forcing 1NT, 1♠ over 1♥, jumps. One decision function, respondToMajor, picks the call.
+// Notes: Part 3, "Raising partner's major", "Drury", "2/1 Game Forcing", "Forcing 1NT response".
 const RAISE = 'raising-partners-major-tier-0';
 const FNT = 'forcing-1nt-response-tier-0';
 const GF = '21-game-forcing-tier-0';

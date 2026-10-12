@@ -1,4 +1,4 @@
-import { SUITS, NAME } from '../cards.js';
+import { SUITS, NAME } from '../../cards.js';
 
 // Strong 2♣, weak twos (with Ogust), 3- and 4-level preempts and Gambling 3NT: partner's responses and the follow-ups.
 const STRONG = 'strong-2-opening-tier-2';

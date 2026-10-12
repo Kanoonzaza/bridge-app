@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseHand, randomHand } from '../js/cards.js';
 import { advise, explain, matchingEntries } from '../js/engine.js';
 import { buildAuction } from '../js/advisor-model.js';
-import { SITUATIONS } from '../js/system/rebids.js';
+import { SITUATIONS } from '../js/system/rebids/opener.js';
 import { mulberry32 } from './helpers.js';
 
 const auctionFor = (calls, seat) => buildAuction({ opener: 'me', seat, ourCalls: calls });

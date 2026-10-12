@@ -1,6 +1,8 @@
-import { SUITS, NAME } from '../cards.js';
-import { splinterSuit } from './resp-major.js';
+import { SUITS, NAME } from '../../cards.js';
+import { splinterSuit } from './major.js';
 
+// Responder's first bid after partner's 1♣ / 1♦ (opponents passing). One decision function, respondToMinor,
+// picks the call. Notes: Part 3, "Responding to 1♣ / 1♦" and "Inverted minor raises".
 const RESP = 'responding-to-1-1-tier-0';
 const INV = 'inverted-minor-raises-tier-1';
 const GF = '21-game-forcing-tier-0';

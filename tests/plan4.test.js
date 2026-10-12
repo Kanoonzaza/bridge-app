@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { parseHand, randomHand } from '../js/cards.js';
 import { advise, explain, matchingEntries } from '../js/engine.js';
 import { buildAuction } from '../js/advisor-model.js';
-import { SITUATIONS as NT } from '../js/system/notrump.js';
-import { SITUATIONS as TWOS } from '../js/system/twos.js';
-import { agreedSuit } from '../js/system/slam.js';
+import { SITUATIONS as NT } from '../js/system/opening/notrump.js';
+import { SITUATIONS as TWOS } from '../js/system/opening/twos.js';
+import { agreedSuit } from '../js/system/rebids/slam.js';
 import { mulberry32 } from './helpers.js';
 
 // Odd number of our calls: partner opened and it is our (responder's) turn; even: we opened.
