@@ -112,3 +112,10 @@ for (const [dealer, calls, hand, want, why] of AUDIT) {
     assert.equal(ask(dealer, calls, hand).call, want);
   });
 }
+
+test('partner\'s takeout double later in the auction is answered, not passed (board 14)', () => {
+  const a = (hand) => advise(parseHand(hand), { dealer: 'E', vul: 'none', calls: ['1S', 'P', '1N', 'P', '2D', 'P', 'P', 'X', 'P'] });
+  assert.equal(a('1082 J973 Q3 10853').call, '2H', '3 HCP, 4 hearts: bid hearts');
+  assert.equal(a('1082 J97 KQJ93 853').call, 'P', 'five good diamonds: pass for penalty');
+  assert.equal(a('1082 K973 Q3 AJ53').call, '3H', '10 HCP: jump');
+});

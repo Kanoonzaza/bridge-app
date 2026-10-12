@@ -4,12 +4,16 @@
 import { NAME, dummyPoints } from './cards.js';
 import { legalCalls, seatAt, sideOf, partnerOf, isBid, relativeVul } from './auction.js';
 import { agreedSuit } from './system/slam.js';
+import { describeCall } from './general.js';
 
 const SUITS = ['S', 'H', 'D', 'C'];
 const isMajor = (s) => s === 'H' || s === 'S';
 const RANK = { C: 0, D: 1, H: 2, S: 3, N: 4 };
 const rank = (c) => (Number(c[0]) - 1) * 5 + RANK[c[1]];
 const stopper = (e, s) => /A/.test(e.hand[s]) || (/K/.test(e.hand[s]) && e.len[s] >= 2) || (/Q/.test(e.hand[s]) && e.len[s] >= 3);
+
+// Cheapest level for strain s over the bid `last`.
+const cheapest2 = (last, s) => Number(last[0]) + (RANK[s] > RANK[last[1]] ? 0 : 1);
 
 // Minimum strength a player's first action promises, when the rule's `shows` says nothing.
 function firstCallMinimum(call, opened, isOpener, advancer, opening) {
@@ -42,7 +46,17 @@ export function judge(e, auction, rows, summary, key) {
   const P = summary(pard);
   const myFirst = mRows.find((r) => r.call !== 'P');
   const advancer = opened === 'them' && myFirst && rows.indexOf(myFirst) < rows.indexOf(pFirst);
-  const pMin = Math.max(P.known ? P.hcp[0] : 0, firstCallMinimum(pFirst.call, opened, firstBid.seat === pard, advancer, firstBid.call));
+  let pMin = Math.max(P.known ? P.hcp[0] : 0, firstCallMinimum(pFirst.call, opened, firstBid.seat === pard, advancer, firstBid.call));
+  // I doubled for takeout and partner answered with a jump: about 10+.
+  const myX = [...mRows].reverse().find((r) => r.call === 'X');
+  const pAns = myX && pRows.find((r) => r.i > myX.i && isBid(r.call));
+  if (pAns && !pAns.entry) {
+    const before = rows.slice(0, pAns.i).reverse().find((r) => isBid(r.call));
+    const cheap = before && cheapest2(before.call, pAns.call[1]);
+    if (cheap && Number(pAns.call[0]) > cheap) pMin = Math.max(pMin, 10);
+    // A cheap answer with no bid in between was forced: it shows nothing.
+    else if (pAns === pFirst && auction.calls[pAns.i - 1] === 'P') pMin = P.known ? P.hcp[0] : 0;
+  }
   const lastBidRow = [...rows].reverse().find((r) => isBid(r.call));
   const lastBid = lastBidRow.call;
   const theyBidLast = sideOf(lastBidRow.seat) !== side;
@@ -70,6 +84,44 @@ export function judge(e, auction, rows, summary, key) {
     const run = SUITS.filter((s) => !theirSuits.has(s)).sort((a, b) => e.len[b] - e.len[a])[0];
     const c = run && cheapest(run);
     if (c && pRows.some((r) => r.call === 'X')) return { call: c, why: ['they redoubled partner\'s takeout double: bid your longest suit'] };
+  }
+  // Partner's takeout double, and they passed: answer it. Passing turns it into a penalty double,
+  // so pass only with long, strong trumps. (Takeout or penalty: the same general rule the Decoder shows.)
+  const lastAct = [...rows].reverse().find((r) => r.call !== 'P');
+  if (lastAct && lastAct.seat === pard && lastAct.call === 'X') {
+    const meaning = lastAct.entry ? lastAct.meaning ?? '' : describeCall(auction, lastAct.i, rows)?.meaning ?? '';
+    // A real takeout double leaves at least two suits to choose from; after they bid three suits it shows values.
+    if (/takeout/i.test(meaning) && !/penalty/i.test(meaning) && SUITS.filter((x) => !theirSuits.has(x)).length >= 2) {
+      const t = lastBid[1];
+      const top = ['A', 'K', 'Q'].filter((x) => e.hand[t]?.includes(x)).length;
+      const unbid = SUITS.filter((x) => !theirSuits.has(x));
+      const majors = unbid.filter((x) => isMajor(x) && e.len[x] >= 4);
+      // Longest first; on a tie a major, then a suit our side has not bid yet.
+      const fresh = (x) => !mRows.some((r) => isBid(r.call) && r.call[1] === x);
+      const suit = (majors.length ? majors : unbid).sort((a, b) => e.len[b] - e.len[a] || isMajor(b) - isMajor(a) || fresh(b) - fresh(a))[0];
+      const answer = suit && cheapest(suit);
+      // Defend with length in their suit: 5+, or 4 when the only answer is a weak 3-level bid.
+      const high = Number(lastBid[0]) >= 3;
+      if (t !== 'N' && ((e.len[t] >= 5) || (e.len[t] >= 4 && top >= 2 && e.hcp >= 8) || (e.len[t] >= 4 && high && top >= 1) || (e.len[t] >= 4 && e.hcp <= 7 && answer && Number(answer[0]) >= 3))) {
+        return { call: 'P', why: [`${e.len[t]} ${NAME[t]}: defend, pass partner's takeout double for penalty`] };
+      }
+      // Game values opposite the double: bid game rather than the cheapest suit (12+ over a 3-level double).
+      if (e.hcp >= (Number(lastBid[0]) >= 3 ? 12 : 13)) {
+        const M = majors.sort((a, b) => e.len[b] - e.len[a])[0];
+        const g = M && legal.has(`4${M}`) ? `4${M}` : t !== 'N' && stopper(e, t) && legal.has('3N') ? '3N'
+          : unbid.find((x) => !isMajor(x) && e.len[x] >= 6 && legal.has(`5${x}`)) ? `5${unbid.find((x) => !isMajor(x) && e.len[x] >= 6)}` : legal.has('3N') ? '3N' : null;
+        if (g) return { call: g, why: [`${e.hcp} HCP opposite partner's takeout double: game values`, g === '3N' ? 'game in notrump' : `game in ${NAME[g[1]]}`] };
+      }
+      // No suit worth bidding (the best unbid suit is a doubleton): defend.
+      if (suit && e.len[suit] <= 2) return { call: 'P', why: [`no unbid suit longer than ${e.len[suit]} cards: defend`] };
+      const nt = cheapest('N');
+      if (!majors.length && t !== 'N' && stopper(e, t) && e.hcp >= 8 && nt && Number(nt[0]) <= 2) return { call: nt, why: [`${e.hcp} HCP with a ${NAME[t]} stopper: answer partner's takeout double in notrump`] };
+      const c = suit && cheapest(suit);
+      if (c) {
+        const jump = e.hcp >= 10 && Number(c[0]) + 1 <= 3 && legal.has(`${Number(c[0]) + 1}${suit}`);
+        return { call: jump ? `${Number(c[0]) + 1}${suit}` : c, why: [`partner's double is for takeout: bid your best unbid suit (${e.len[suit]} ${NAME[suit]})`, jump ? `${e.hcp} HCP: jump to show values` : 'passing would play their contract doubled with no trump tricks'] };
+      }
+    }
   }
   // Slam with a fit: ask for key cards.
   if (T && combined >= 33 && !mRows.some((r) => r.call === '4N') && !pRows.some((r) => r.call === '4N')) {

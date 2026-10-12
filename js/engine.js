@@ -356,7 +356,12 @@ function fallback(hand, auction, entries) {
     const suit = ['S', 'H', 'D', 'C'].filter((x) => !theirs.has(x) && e.len[x] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
     const bid = suit && legal.find((c) => c[1] === suit && /^[1-4]/.test(c));
     if (bid) return { call: bid, meaning: `Natural: 5+ ${({ S: 'spades', H: 'hearts', D: 'diamonds', C: 'clubs' })[suit]}, a strong hand.`, reasons: [`${e.hcp} HCP and ${e.len[suit]} cards: bid again voluntarily (17+)`], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'strong' };
-    if (legal.includes('X') && e.hcp >= 17) return { call: 'X', meaning: 'Double: a strong hand.', reasons: [`${e.hcp} HCP: double to show strength`], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'strong' };
+    // Double only when short in their suit (partner will take it out); with length and a stopper, notrump.
+    const their = [...s.key].reverse().find((t) => /^\(\d[CDHS]\)$/.test(t))?.[2];
+    const stop = their && (/A/.test(e.hand[their]) || (/K/.test(e.hand[their]) && e.len[their] >= 2) || (/Q/.test(e.hand[their]) && e.len[their] >= 3));
+    const nt = legal.find((c) => c[1] === 'N' && /^[1-3]/.test(c));
+    if (their && e.len[their] >= 3 && stop && nt) return { call: nt, ...told(auction, nt, entries), reasons: [`${e.hcp} HCP with ${e.len[their]} cards and a stopper in their suit: notrump, not a takeout double`], plan: null, close: null, fallback: 'strong' };
+    if (legal.includes('X') && e.hcp >= 17 && (!their || e.len[their] <= 2)) return { call: 'X', meaning: 'Double: a strong hand.', reasons: [`${e.hcp} HCP: double to show strength`], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'strong' };
   }
   return pass([`${e.hcp} HCP: no clear action, so pass`]);
 }
