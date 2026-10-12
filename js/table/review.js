@@ -29,7 +29,7 @@ export function reviewRows(b, seats) {
     if (human && departed.has(seat)) skipped = true;
     else if (human) {
       const r = advise(handOf(b, seat), { ...a, calls: a.calls.slice(0, row.i) });
-      advisor = r.notCovered ? null : { call: r.call, meaning: r.meaning, reasons: r.reasons };
+      advisor = r.notCovered ? null : { call: r.call, meaning: r.meaning, reasons: r.reasons, close: r.close ?? null };
     }
     const differs = !!advisor && advisor.call !== row.call;
     if (differs) departed.add(seat);

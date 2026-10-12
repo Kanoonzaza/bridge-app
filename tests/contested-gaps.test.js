@@ -168,3 +168,16 @@ test('advice never builds on an earlier call that does not describe the hand (bo
   const big = advise(parseHand('K54 AQ3 A83 AQ52'), { dealer: 'S', vul: 'EW', calls });
   assert.equal(big.call, '4S');
 });
+
+test('a 7-card major over 1♣: the Advisor starts with 1♠, explains why, and names 4♠ as the alternative (board 20)', async () => {
+  const { explain } = await import('../js/engine.js');
+  const r = advise(parseHand('AKQJ1075 86 2 1085'), { dealer: 'W', vul: 'both', calls: ['P', '1C', 'P'] });
+  assert.equal(r.call, '1S');
+  assert.match(r.reasons.join(' '), /7-card suit: 1♠ is forcing, so slam stays possible/);
+  assert.match(r.close, /direct 4♠ is also reasonable/);
+  // The Decoder reads the 4♠ jump with a real meaning, not a guess.
+  const row = explain({ dealer: 'W', calls: ['P', '1C', 'P', '4S'] }).at(-1);
+  assert.match(row.meaning, /^Jump to game: 7\+ spades, to play/);
+  // A 5-card suit gets no such note.
+  assert.equal(advise(parseHand('AKJ85 86 K72 1085'), { dealer: 'W', calls: ['P', '1C', 'P'] }).close ?? null, null);
+});

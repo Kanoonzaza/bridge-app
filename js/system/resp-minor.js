@@ -119,8 +119,20 @@ const entries = [
       : '4+ spades, 6+ HCP. Forcing one round. Denies 4 hearts unless spades are 5+.',
     shows: { hcp: [6, 37], len: { [s]: [4, 13] }, force: 'round' },
     pick: fixed(`1${s}`),
-    why: (e, st) => majorWhy(e, s, st),
+    why: (e, st) => [
+      ...majorWhy(e, s, st),
+      ...(e.len[s] >= 7 && e.hcp >= 8 ? [`a ${e.len[s]}-card suit: 1${s === 'H' ? '♥' : '♠'} is forcing, so slam stays possible and you can jump to game next turn`] : []),
+    ],
     plan: (e) => (e.hcp >= 12 ? 'Game values: make sure the auction reaches game (new suits and fourth suit forcing).' : null),
+    close: (e) => (e.len[s] >= 7 && e.hcp >= 8
+      ? `A direct 4${s === 'H' ? '♥' : '♠'} is also reasonable with ${e.len[s]} cards: it shows a long suit, to play, and ends the auction. Prefer 1${s === 'H' ? '♥' : '♠'} when slam is possible (partner has 12–21); prefer 4${s === 'H' ? '♥' : '♠'} when you are sure nothing more is needed.`
+      : null),
+  })),
+  // Jump to game in a major: a long suit, to play (Decoder only: the Advisor starts with the forcing 1M).
+  ...['H', 'S'].map((s) => ({
+    ...MIN, call: `4${s}`, priority: 19, notes: RESP,
+    meaning: `Jump to game: 7+ ${NAME[s]}, to play, little interest in slam. (Proposed.)`,
+    shows: { hcp: [6, 13], len: { [s]: [7, 13] } },
   })),
   ...Object.entries(NT_MEANING).map(([call, [meaning, hcp]]) => ({
     ...MIN, call, priority: 16, notes: RESP,

@@ -46,7 +46,7 @@ export function boardReport(t, me) {
     `The Advisor would bid: ${calls(sys.calls)} → ${kText(contract(sys))}`,
     '',
     rows.length ? 'Where the Advisor differs (each player\'s first difference only):' : 'Every player\'s call matched the Advisor.',
-    ...rows.map((r) => `- ${COMPASS[r.seat]} bid ${callLabel(r.call)}; Advisor: ${callLabel(r.advisor.call)} (${r.advisor.meaning}${r.advisor.reasons?.length ? `; ${r.advisor.reasons.join('; ')}` : ''})`),
+    ...rows.map((r) => `- ${COMPASS[r.seat]} bid ${callLabel(r.call)}; Advisor: ${callLabel(r.advisor.call)} (${r.advisor.meaning}${r.advisor.reasons?.length ? `; ${r.advisor.reasons.join('; ')}` : ''})${r.advisor.close ? ` Close call: ${r.advisor.close}` : ''}`),
     '',
     'My question:',
     '',
