@@ -258,6 +258,11 @@ function tells(auction, call, entries) {
   return row.meaning ? { meaning: row.meaning, notes: row.entry?.notes ?? row.notes } : null;
 }
 
+const told = (auction, call, entries) => {
+  const t = tells(auction, call, entries);
+  return { meaning: t?.meaning ?? 'Natural.', notes: t?.notes ?? 'competitive-bidding-tier-0' };
+};
+
 function fallback(hand, auction, entries) {
   const n = auction.calls.length;
   const s = situationAt(auction, n);
@@ -280,6 +285,17 @@ function fallback(hand, auction, entries) {
     const call = ['C', 'D', 'H', 'S'].includes(o) ? legalCalls(auction).find((c) => c[1] === o && /^[1-7]/.test(c)) : null;
     if (call && e.len[o] >= 6 && Number(call[0]) <= 2 && e.hcp >= 11) {
       return { call, meaning: `6+ ${o === 'S' ? 'spades' : o === 'H' ? 'hearts' : o === 'D' ? 'diamonds' : 'clubs'}: competing for the part-score.`, reasons: [`${e.len[o]}-card suit`, 'partner is weak: compete at the 2-level'], plan: null, close: null, notes: 'competitive-bidding-tier-0', fallback: 'compete' };
+    }
+    // A second 5-card suit at the 2-level, or a takeout double when short in the suit they just bid.
+    const theirBids = s.key.filter((t) => /^\(\d[CDHS]\)$/.test(t)).map((t) => t.slice(1, -1));
+    const theirSuits = new Set(theirBids.map((c) => c[1]));
+    const lastTheirs = theirBids.at(-1);
+    const legal = legalCalls(auction);
+    const second = ['S', 'H', 'D', 'C'].filter((x) => x !== o && !theirSuits.has(x) && e.len[x] >= 5 && e.len[o] >= 5)
+      .map((x) => legal.find((c) => c[1] === x && /^[1-7]/.test(c))).find((c) => c && Number(c[0]) <= 2);
+    if (second && e.hcp >= 11) return { call: second, ...told(auction, second, entries), reasons: [`5-5: show the second suit`, 'partner is weak: compete at the 2-level'], plan: null, close: null, fallback: 'compete' };
+    if (lastTheirs && Number(lastTheirs[0]) <= 2 && e.len[lastTheirs[1]] <= 1 && e.hcp >= 13 && legal.includes('X')) {
+      return { call: 'X', ...told(auction, 'X', entries), reasons: [`${e.len[lastTheirs[1]]} card${e.len[lastTheirs[1]] === 1 ? '' : 's'} in their suit, ${e.hcp} HCP`, 'takeout double: partner chooses'], plan: null, close: null, fallback: 'compete' };
     }
     if (e.hcp <= 16) return pass([`${e.hcp} HCP and partner passed: let them play`]);
   }

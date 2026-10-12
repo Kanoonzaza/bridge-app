@@ -86,6 +86,10 @@ export function judge(e, auction, rows, summary, key) {
     const r = R('6N', [...why, 'no fit but slam values: 6NT']);
     if (r) return r;
   }
+  // After our redouble, our doubles are for penalty: double them with length in their suit.
+  if (theyBidLast && ours.some((r) => r.call === 'XX') && Number(lastBid[0]) <= 3 && lastBid[1] !== 'N' && e.len[lastBid[1]] >= 3 && legal.has('X')) {
+    return { call: 'X', why: [`we redoubled: ${e.len[lastBid[1]]} ${NAME[lastBid[1]]}, double for penalty`] };
+  }
   // They outbid our game: double for penalty.
   if (theyBidLast && combined >= 25 && rank(lastBid) >= rank('4H')) return R('X', [...why, 'they bid over our game: double for penalty']) ?? { call: 'P', why };
   // Game.
@@ -93,6 +97,11 @@ export function judge(e, auction, rows, summary, key) {
     const g = T && (isMajor(T) || combined >= 28) ? gameCall(T) : stopper(e, [...theirSuits][0] ?? 'S') || !theirSuits.size ? '3N' : T ? gameCall(T) : '3N';
     if (legal.has(g)) return { call: g, why: [...why, T ? `${trumps}-card ${NAME[T]} fit: game` : 'game in notrump'] };
     if (rank(lastBid) >= rank(g) && !theyBidLast) return { call: 'P', why: [...why, 'we are already at game'] };
+  }
+  // No fit but the balance of strength, and they are still low: double (takeout below the 4-level), partner decides.
+  if (theyBidLast && !T && !gameForced && (combined >= 25 || (e.hcp >= 17 && e.len[lastBid[1]] <= 2)) && Number(lastBid[0]) <= 3 && lastBid[1] !== 'N') {
+    const r = R('X', [...why, 'no fit yet but most of the strength: double, partner passes or bids']);
+    if (r) return r;
   }
   // Penalty double without a fit: they are high, we have values and length in their suit.
   if (theyBidLast && !T && combined >= 23 && Number(lastBid[0]) >= 2 && e.len[lastBid[1]] >= 4 && /[AKQ]/.test(e.hand[lastBid[1]])) {
@@ -109,7 +118,10 @@ export function judge(e, auction, rows, summary, key) {
     const c = cheapest(T);
     // At favorable vulnerability (they vulnerable, we not) compete one level higher.
     const fav = relativeVul(auction.vul, side) === 'they' && theyBidLast ? 1 : 0;
-    if (c && Number(c[0]) <= Math.max(2, trumps - 6 + fav) && (theyBidLast || mustBid || combined >= 23)) {
+    // A raise needs a few points of our own (4+), unless the fit is 9+ cards (then it is preemptive)
+    // or it is a 2-level preference to partner's 5-card suit.
+    const worth = mine >= 4 || trumps >= 9 || mustBid || e.len[T] > P.len[T][0] || (P.len[T][0] >= 5 && c && Number(c[0]) <= 2);
+    if (c && worth && Number(c[0]) <= Math.max(2, trumps - 6 + fav) && (theyBidLast || mustBid || combined >= 23)) {
       return { call: c, why: [...why, `${trumps} trumps: safe to compete to the ${trumps - 6 + fav}-level${fav ? ' (favorable vulnerability: one more)' : ''}`] };
     }
   }
@@ -128,6 +140,11 @@ export function judge(e, auction, rows, summary, key) {
     const long = SUITS.filter((s) => !theirSuits.has(s) && e.len[s] >= 6 && e.hcp >= 10).sort((a, b) => e.len[b] - e.len[a])[0];
     const c = long && cheapest(long);
     if (c && Number(c[0]) <= 3) return { call: c, why: [`${e.len[long]} ${NAME[long]}: compete`] };
+  }
+  // With a fit and extra values after they compete: compete to the 3-level (Law of Total Tricks plus strength).
+  if (theyBidLast && T && combined >= 23) {
+    const c = cheapest(T);
+    if (c && Number(c[0]) <= 3) return { call: c, why: [...why, `${trumps}-card fit and extra values: compete to the 3-level`] };
   }
   // Invitation in an uncontested auction with a fit.
   if (!theyBidLast && T && combined >= 23 && combined <= 24) {

@@ -56,7 +56,7 @@ export function describeCall(auction, i, rows) {
     const P = (why) => general(`Penalty double: ${why}.`, 'penalty-or-takeout-the-general-rule');
     if (lb[1] === 'N') return P('they bid notrump');
     // Their call was artificial (it does not show the suit named): double shows that suit.
-    if (lastBid.entry && !suitsShown(lastBid).includes(lb[1])) return general(`Double of their artificial ${SYMBOL[lb[1]]}: shows good cards in ${SYMBOL[lb[1]]} (a lead director).`, 'lead-directing-doubles');
+    if (lastBid.entry && !suitsShown(lastBid, 3).includes(lb[1]) && !theirSuits.has(lb[1])) return general(`Double of their artificial ${SYMBOL[lb[1]]}: shows good cards in ${SYMBOL[lb[1]]} (a lead director).`, 'lead-directing-doubles');
     if (GAME(lb)) return P(ours.some((r) => isBid(r.call)) ? 'we expect to beat their contract' : 'they bid a game freely');
     if (agreed) return P(`we have already agreed ${SYMBOL[agreed]}, so this shows values and length in their suit`);
     if (ours.some((r) => r.call === 'XX')) return P("our redouble already showed values");

@@ -157,7 +157,9 @@ function negativeDouble(o, ov) {
     else if (lv === 1 && u === 'H') shape = '4+ hearts (2♥ would show 5+ hearts and 10+)';
     else shape = `4 ${nm(u)} plus the other unbid suit, or a hand with values and no good bid`;
   } else shape = 'both minors, or a hand with values and no good bid';
-  return [`Negative double: ${shape}. ${min}+ HCP.`, { hcp: [min, 37] }];
+  // The majors it promises: both at the 1-level, or the one unbid major.
+  const len = unbid.length === 2 && lv === 1 ? { H: [4, 13], S: [4, 13] } : unbid.length === 1 ? { [unbid[0]]: [4, 13] } : undefined;
+  return [`Negative double: ${shape}. ${min}+ HCP.`, len ? { hcp: [min, 37], len } : { hcp: [min, 37] }];
 }
 
 for (const o of SUITS4) {

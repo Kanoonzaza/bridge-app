@@ -127,16 +127,6 @@ export function afterNegativeDouble(e, o, ov) {
   return R('P', [`${h} HCP: nothing to add`]);
 }
 
-// ---------- Opener after 1o–1r and their interference (support doubles) ----------
-export function supportDecision(e, o, r, ov) {
-  const L = e.len;
-  if (L[r] === 3) return R(ov === 'X' ? 'XX' : 'X', [`exactly 3 ${nm(r)}`, `support ${ov === 'X' ? 'redouble' : 'double'}`]);
-  if (L[r] >= 4) return R(`2${r}`, [`${L[r]} ${nm(r)}: raise`]);
-  const ol = cheapest(ov === 'X' ? `1${r}` : ov, o);
-  if (L[o] >= 6 && ol <= 3) return R(`${ol}${o}`, [`${L[o]} ${nm(o)}`, `no ${nm(r)} support`]);
-  return R('P', [`no ${nm(r)} support: pass for now`]);
-}
-
 // ---------- Our 1NT, their natural 2-level overcall: Lebensohl ----------
 function lebensohlPlan(e, y) {
   const h = e.hcp;
@@ -402,7 +392,7 @@ for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']
     def(k, 'P', `No ${nm(r)} support: pass for now.`, {}, SUPPORT);
     const ol = cheapest(ov === 'X' ? `1${r}` : ov, o);
     if (ol <= 3) def(k, `${ol}${o}`, `6+ ${nm(o)}, no ${nm(r)} support.`, { len: { [o]: [6, 13] } }, SUPPORT);
-    advise(k, (e) => supportDecision(e, o, r, ov), [{ dealer: 'S', calls: [`1${o}`, 'P', `1${r}`, ov] }]);
+    // Opener's decision is attached with the third batch (openerFreeRebid), which adds the natural bids.
   }
 }
 
@@ -660,7 +650,8 @@ for (const x of SUITS4) {
         if (r.call.startsWith('OWN:')) {
           const t = r.call.slice(4);
           const c = `${cheapest(theirRaise, t)}${t}`;
-          return Number(c[0]) <= 3 ? R(c, r.why) : R('P', ['too high']);
+          if (Number(c[0]) <= 3) return R(c, r.why);
+          return e.hcp >= 10 ? R('X', [`${e.hcp} HCP: too strong to pass, the suit is too high to bid: responsive double`]) : R('P', ['too high']);
         }
         return r;
       }, [{ dealer: 'W', calls: [`1${x}`, pc, theirRaise] }]);
@@ -775,6 +766,309 @@ for (const lv of [6, 7]) {
           pick: (e) => lightner(e, x).call === call,
           why: (e) => lightner(e, x).why,
         });
+      }
+    }
+  }
+}
+
+// ---------- Third batch of proposed agreements (gaps 9–13) ----------
+const lvOf = (c) => Number(c[0]);
+const stops = (e, suits) => suits.every((y) => stopper(e, y));
+const hcpIn = (e, s) => e.hcpBy?.[s] ?? 0;
+
+// Gap 9. Opener after 1M–1NT (forcing) and their overcall: the 1NT is no longer forcing.
+export function openerAfter1NTOvercall(e, M, ov) {
+  const y = ov[1];
+  const h = e.hcp;
+  const L = e.len;
+  const mLv = cheapest(ov, M);
+  const side = SUITS4.filter((s) => s !== M && s !== y && L[s] >= 5 && !(M === 'H' && s === 'S'));
+  if (h >= 18 && e.balanced && stopper(e, y)) return R(h >= 20 ? '3N' : '2N', [`${h} HCP balanced with a ${nm(y)} stopper`, h >= 20 ? 'game' : 'invite game']);
+  if (L[M] >= 6) {
+    if (h >= 16 && mLv === 2) return R(`3${M}`, [`${L[M]} ${nm(M)}, ${h} HCP: jump to invite`]);
+    if (mLv === 2) return R(`2${M}`, [`${L[M]} ${nm(M)}: rebid the 6-card suit`]);
+    if (L[M] >= 7 || h >= 14) return R(`3${M}`, [`${L[M]} ${nm(M)}, ${h} HCP: compete at the 3-level`]);
+  }
+  if ((L[y] <= 1 && h >= 13) || (L[y] <= 2 && h >= 16)) return R('X', [`${L[y]} ${nm(y)}, ${h} HCP`, 'takeout double: extra values and short in their suit']);
+  const two = side.filter((s) => cheapest(ov, s) === 2);
+  if (two.length && h >= 11) return R(`2${longestOf(e, two)}`, [`${L[longestOf(e, two)]} ${nm(longestOf(e, two))}: natural, not forcing`]);
+  const three = side.filter((s) => cheapest(ov, s) === 3);
+  if (three.length && (h >= 15 || (L[M] >= 5 && h >= 13))) return R(`3${longestOf(e, three)}`, [`5-5, ${h} HCP: show the second suit`]);
+  if (h >= 18) return R('X', [`${h} HCP: too strong to pass`]);
+  return R('P', [`${h} HCP, no sixth ${nm(M).slice(0, -1)}, no shortness in ${nm(y)}`, 'their bid ended the forcing 1NT: pass, partner can still act']);
+}
+
+// Gap 10. Opener's reopening after 1o–(overcall)–P–(P): double when short in their suit.
+export function reopen(e, o, ov) {
+  const y = ov[1];
+  const lv = lvOf(ov);
+  const h = e.hcp;
+  const L = e.len;
+  const nt = `${lv}N`;
+  const ol = cheapest(ov, o);
+  if (h >= 18 && e.balanced && stopper(e, y) && h <= 19) return R(nt, [`${h} HCP balanced with a ${nm(y)} stopper`]);
+  if (L[y] <= 1 || (L[y] === 2 && L[o] < 6) || (h >= 19 && L[y] <= 3)) return R('X', [`${L[y]} ${nm(y)}: reopen with a double`, 'partner may be waiting to pass it for penalty']);
+  if (L[o] >= 6 && ol <= 3) return R(h >= 16 && ol + 1 <= 3 ? `${ol + 1}${o}` : `${ol}${o}`, [`${L[o]} ${nm(o)}`, h >= 16 && ol + 1 <= 3 ? `${h} HCP: jump` : 'rebid the long suit']);
+  const two = SUITS4.filter((s) => s !== o && s !== y && L[s] >= 5 && cheapest(ov, s) <= 2 && (RANK[s] < RANK[o] || h >= 16));
+  if (two.length) return R(`${cheapest(ov, two[0])}${two[0]}`, [`5-5 (or 6-5): show the second suit`]);
+  return R('P', [`${L[y]} ${nm(y)}: no reason to reopen`]);
+}
+
+// Responder after opener's takeout double (gaps 9 and 10): pass for penalty with their suit, else bid.
+export function answerOpenersDouble(e, o, ov, after1NT) {
+  const y = ov[1];
+  const h = e.hcp;
+  const L = e.len;
+  if (L[y] >= 5 || (L[y] >= 4 && hcpIn(e, y) >= 4)) return R('P', [`${L[y]} ${nm(y)}: pass for penalty`]);
+  const ntLv = cheapest(ov, 'N');
+  const five = SUITS4.some((s) => s !== y && s !== o && L[s] >= 5);
+  if (stopper(e, y) && L[o] <= 2 && !five) {
+    if (h >= (after1NT ? 10 : 11) && ntLv <= 3) return R('3N', [`${h} HCP with a ${nm(y)} stopper: game`]);
+    if (ntLv <= 2 && h >= (after1NT ? 8 : 6)) return R(`${ntLv}N`, [`a ${nm(y)} stopper: natural`]);
+  }
+  const need = after1NT ? 2 : 3;
+  const others = SUITS4.filter((s) => s !== y && s !== o && L[s] >= 4).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a]);
+  const pick = L[o] >= need + 1 || (L[o] >= need && !(others[0] && L[others[0]] >= 5)) ? o : others[0] ?? longestOf(e, SUITS4.filter((s) => s !== y));
+  const c = cheapest(ov, pick);
+  if (h >= 10 && c + 1 <= (isMajor(pick) ? 4 : 3)) return R(`${c + 1}${pick}`, [`${L[pick]} ${nm(pick)}, ${h} HCP: jump`]);
+  return R(`${c}${pick}`, [`${L[pick]} ${nm(pick)}`, 'answer the double: bid your best suit']);
+}
+
+// Gap 11 (and opener's natural bids in the support-double situations): support first, then natural.
+export function openerFreeRebid(e, o, r, theirs, last) {
+  const L = e.len;
+  const h = e.hcp;
+  if (L[r] === 3) return R(last === 'X' ? 'XX' : 'X', [`exactly 3 ${nm(r)}`, `support ${last === 'X' ? 'redouble' : 'double'}`]);
+  const ref = last === 'X' ? `1${r}` : last;
+  if (L[r] >= 4) {
+    const c = cheapest(ref, r);
+    if (h >= 16 && c + 1 <= 3) return R(`${c + 1}${r}`, [`${L[r]} ${nm(r)}, ${h} HCP: jump raise`]);
+    return R(`${c}${r}`, [`${L[r]} ${nm(r)}: raise`]);
+  }
+  const nt = cheapest(ref, 'N');
+  if (h >= 18 && h <= 19 && e.balanced && stops(e, theirs) && nt <= 2) return R('2N', [`${h} HCP balanced, stoppers: invitational`]);
+  if (h >= 18 && e.balanced && stops(e, theirs)) return R('3N', [`${h} HCP balanced, stoppers`]);
+  const ol = cheapest(ref, o);
+  if (L[o] >= 6 && ol <= 3) return R(`${ol}${o}`, [`${L[o]} ${nm(o)}`, `no ${nm(r)} support`]);
+  const seconds = SUITS4.filter((s) => s !== o && s !== r && !theirs.includes(s) && L[s] >= 4 && cheapest(ref, s) <= 2 && (cheapest(ref, s) === 1 || RANK[s] < RANK[o] || h >= 16));
+  if (seconds.length) return R(`${cheapest(ref, seconds[0])}${seconds[0]}`, [`${L[seconds[0]]} ${nm(seconds[0])}: natural`, `no ${nm(r)} support`]);
+  const five = SUITS4.filter((s) => s !== o && s !== r && !theirs.includes(s) && L[s] >= 5 && L[o] >= 5 && cheapest(ref, s) === 3);
+  if (five.length && h >= 12) return R(`3${five[0]}`, [`5-5, ${h} HCP: show the second suit`, `no ${nm(r)} support`]);
+  if (nt === 1 && h <= 14 && e.balanced && stops(e, theirs)) return R('1N', [`${h} HCP balanced with a stopper`]);
+  if (h >= 18) {
+    const cue = theirs.map((s) => `${cheapest(ref, s)}${s}`).find((c) => lvOf(c) <= 3);
+    if (cue) return R(cue, [`${h} HCP, no clear bid: cue-bid their suit (forcing)`]);
+  }
+  return R('P', [`no ${nm(r)} support: pass for now`]);
+}
+
+// Gap 12. Advancer after partner's overcall and their response (new suit, 1NT or a negative double).
+export function advanceAfterResponse(e, x, ov, rb) {
+  const y = ov[1];
+  const h = e.hcp;
+  const L = e.len;
+  const last = rb === 'X' ? ov : rb;
+  const theirs = rb === 'X' || rb[1] === 'N' ? [x] : [x, rb[1]];
+  if (L[y] >= 3) {
+    const dp = dummyPoints(e, y);
+    const c = cheapest(last, y);
+    const cue = cheapest(last, x);
+    if (dp >= 10 && cue <= 3) return R(`${cue}${x}`, [`${L[y]} ${nm(y)}, ${dp} points: cue-bid raise`]);
+    if (h <= 7 && (L[y] >= 5 || (L[y] >= 4 && shortness(e, y))) && c + 1 <= 4) return R(`${c + 1}${y}`, [`${L[y]} ${nm(y)}, weak: preemptive jump raise`]);
+    if ((dp >= 6 || (L[y] >= 4 && dp >= 4)) && c <= 3) return R(`${c}${y}`, [`${L[y]} ${nm(y)}, ${dp} points: raise`]);
+  }
+  const nt = cheapest(last, 'N');
+  if (rb === 'X' && h >= 11 && !(e.balanced && stops(e, theirs) && nt === 1 && h <= 11)) return R('XX', [`${h} HCP: redouble shows the values`]);
+  if (stops(e, theirs) && h >= 8) {
+    if (nt === 1 && h <= 11) return R('1N', [`${h} HCP with stoppers`]);
+    if (nt <= 2 && h >= 11 && h <= 12) return R('2N', [`${h} HCP with stoppers: invitational`]);
+    if (h >= 13) return R('3N', [`${h} HCP with stoppers`]);
+  }
+  const own = SUITS4.filter((s) => !theirs.includes(s) && s !== y && L[s] >= 5 && cheapest(last, s) <= (h >= 10 ? 3 : 2));
+  if (own.length && h >= 8) return R(`${cheapest(last, longestOf(e, own))}${longestOf(e, own)}`, [`${L[longestOf(e, own)]} ${nm(longestOf(e, own))}: natural, not forcing`]);
+  return R('P', [`${h} HCP: pass`]);
+}
+
+// All four live in the proposed section (#opener-after-1m-1nt-and-their-overcall, #opener-reopening-double,
+// #support-doubles-after-their-overcall, #advancing-after-their-response).
+const OPEN_AFTER = NEW;
+const REOPEN = NEW;
+const SUPPORT_LATE = NEW;
+const ADVANCE_LATE = NEW;
+
+const answerDefs = (k, o, ov, notes) => {
+  const y = ov[1];
+  def(k, 'P', `Penalty pass: length in ${nm(y)}.`, { len: { [y]: [4, 13] } }, notes);
+  for (const s of SUITS4.filter((t) => t !== y)) {
+    const c = cheapest(ov, s);
+    def(k, `${c}${s}`, s === o ? `Preference: support for opener's ${nm(o)}.` : `Natural: 4+ ${nm(s)}, answering the double.`, { len: { [s]: [s === o ? 2 : 4, 13] } }, notes);
+    if (c + 1 <= 4) def(k, `${c + 1}${s}`, `Jump: ${s === o ? 'support' : `4+ ${nm(s)}`} and 10+ HCP.`, { hcp: [10, 37] }, notes);
+  }
+  const nt = cheapest(ov, 'N');
+  if (nt <= 2) def(k, `${nt}N`, `Natural, a ${nm(y)} stopper, no fit and no 5-card suit.`, {}, notes);
+  def(k, '3N', `To play: 10+ with a ${nm(y)} stopper.`, { hcp: [10, 37] }, notes);
+};
+
+for (const M of MAJORS) {
+  for (const y of SUITS4.filter((t) => t !== M)) {
+    const ov = `2${y}`;
+    const k = [`1${M}`, '1N', `(${ov})`];
+    const mLv = cheapest(ov, M);
+    def(k, 'P', 'Minimum, nothing more to show: their bid ended the forcing 1NT. (Proposed.)', {}, OPEN_AFTER);
+    def(k, `${mLv}${M}`, mLv === 2 ? `6+ ${nm(M)}, minimum.` : `6+ ${nm(M)} (7+, or extra values): competing at the 3-level.`, { len: { [M]: [6, 13] } }, OPEN_AFTER);
+    if (mLv === 2) def(k, `3${M}`, `6+ ${nm(M)}, 16–18: invitational.`, { hcp: [16, 18], len: { [M]: [6, 13] } }, OPEN_AFTER);
+    def(k, 'X', `Takeout: short in ${nm(y)} with extra values (13+ with a singleton, 16+ with a doubleton), or 18+. Partner passes with ${nm(y)} length.`, { hcp: [13, 37] }, OPEN_AFTER);
+    for (const s of SUITS4.filter((t) => t !== M && t !== y && !(M === 'H' && t === 'S'))) {
+      const c = cheapest(ov, s);
+      def(k, `${c}${s}`, c === 2 ? `Natural: 5+ ${nm(s)}, not forcing.` : `Natural: 5+ ${nm(s)}, 5-5 or 15+, not forcing.`, { len: { [s]: [5, 13] } }, OPEN_AFTER);
+    }
+    def(k, '2N', `18–19 balanced with a ${nm(y)} stopper: invitational.`, { hcp: [18, 19], balanced: true }, OPEN_AFTER);
+    def(k, '3N', `20–21 balanced with a ${nm(y)} stopper.`, { hcp: [20, 21], balanced: true }, OPEN_AFTER);
+    advise(k, (e) => openerAfter1NTOvercall(e, M, ov), [{ dealer: 'S', calls: [`1${M}`, 'P', '1N', ov] }]);
+    const a = [...k, 'X'];
+    answerDefs(a, M, ov, OPEN_AFTER);
+    advise(a, (e) => answerOpenersDouble(e, M, ov, true), [{ dealer: 'N', calls: [`1${M}`, 'P', '1N', ov, 'X', 'P'] }]);
+  }
+}
+
+for (const o of SUITS4) {
+  for (const y of SUITS4.filter((t) => t !== o)) {
+    for (let lv = cheapest(`1${o}`, y); lv <= 2; lv++) {
+      const ov = `${lv}${y}`;
+      const k = [`1${o}`, `(${ov})`, 'P'];
+      const ol = cheapest(ov, o);
+      def(k, 'P', `Pass: length in ${nm(y)}, or nothing to add.`, {}, REOPEN);
+      def(k, 'X', `Reopening double: short in ${nm(y)} (usually 0–2). Partner passes with ${nm(y)} length, or bids.`, {}, REOPEN);
+      def(k, `${ol}${o}`, `6+ ${nm(o)}.`, { len: { [o]: [6, 13] } }, REOPEN);
+      if (ol + 1 <= 3) def(k, `${ol + 1}${o}`, `6+ ${nm(o)}, 16–18.`, { hcp: [16, 18], len: { [o]: [6, 13] } }, REOPEN);
+      for (const s of SUITS4.filter((t) => t !== o && t !== y && cheapest(ov, t) <= 2)) def(k, `${cheapest(ov, s)}${s}`, `Natural: 5+ ${nm(s)}, a two-suiter.`, { len: { [s]: [5, 13] } }, REOPEN);
+      def(k, `${lv}N`, `18–19 balanced with a ${nm(y)} stopper.`, { hcp: [18, 19], balanced: true }, REOPEN);
+      advise(k, (e) => reopen(e, o, ov), [{ dealer: 'S', calls: [`1${o}`, ov, 'P', 'P'] }]);
+      const a = [...k, 'X'];
+      answerDefs(a, o, ov, REOPEN);
+      advise(a, (e) => answerOpenersDouble(e, o, ov, false), [{ dealer: 'N', calls: [`1${o}`, ov, 'P', 'P', 'X', 'P'] }]);
+    }
+  }
+}
+
+// Opener's natural bids next to the support doubles: after 1o–(P)–1r–(ov), and after 1o–(1y)–1r–(any bid through 2r).
+const freeDefs = (k, o, r, theirs, last, notes) => {
+  const ref = last === 'X' ? `1${r}` : last;
+  def(k, last === 'X' ? 'XX' : 'X', `Support ${last === 'X' ? 'redouble' : 'double'}: exactly 3 ${nm(r)}.`, { len: { [r]: [3, 3] } }, notes);
+  const c = cheapest(ref, r);
+  def(k, `${c}${r}`, `4+ ${nm(r)}: raise.`, { len: { [r]: [4, 13] } }, notes);
+  if (c + 1 <= 3) def(k, `${c + 1}${r}`, `4+ ${nm(r)}, 16–18: jump raise.`, { hcp: [16, 18], len: { [r]: [4, 13] } }, notes);
+  const ol = cheapest(ref, o);
+  if (ol <= 3) def(k, `${ol}${o}`, `6+ ${nm(o)}, no ${nm(r)} support.`, { len: { [o]: [6, 13] } }, notes);
+  for (const s of SUITS4.filter((t) => t !== o && t !== r && !theirs.includes(t) && cheapest(ref, t) <= 3)) {
+    const lv = cheapest(ref, s);
+    def(k, `${lv}${s}`, lv <= 2 ? `Natural: 4+ ${nm(s)}, no ${nm(r)} support.` : `Natural: 5-5, no ${nm(r)} support.`, { len: { [s]: [lv <= 2 ? 4 : 5, 13] } }, notes);
+  }
+  const nt = cheapest(ref, 'N');
+  if (nt === 1) def(k, '1N', `12–14 balanced with a stopper, no ${nm(r)} support.`, { hcp: [12, 14], balanced: true }, notes);
+  if (nt <= 2) def(k, '2N', `18–19 balanced with stoppers, no ${nm(r)} support.`, { hcp: [18, 19], balanced: true }, notes);
+  def(k, '3N', `18+ balanced with stoppers, no ${nm(r)} support.`, { hcp: [18, 21], balanced: true }, notes);
+  for (const t of theirs) {
+    const cue = `${cheapest(ref, t)}${t}`;
+    if (lvOf(cue) <= 3) def(k, cue, `Cue-bid: 18+, no clear bid, forcing.`, { hcp: [18, 37], force: 'round' }, notes);
+  }
+  def(k, 'P', `No ${nm(r)} support: pass for now.`, {}, notes);
+};
+for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']]) {
+  // 1o–(P)–1r–(ov): extend the existing support-double situations with opener's natural bids.
+  const overs = ['X'];
+  for (const s of SUITS4.filter((t) => t !== r)) {
+    const lv = cheapest(`1${r}`, s);
+    if (!above(`${lv}${s}`, `2${r}`)) overs.push(`${lv}${s}`);
+  }
+  for (const ov of overs) {
+    const k = [`1${o}`, `1${r}`, `(${ov})`];
+    const theirs = ov === 'X' ? [] : [ov[1]];
+    freeDefs(k, o, r, theirs, ov, SUPPORT);
+    advise(k, (e) => openerFreeRebid(e, o, r, theirs, ov), [{ dealer: 'S', calls: [`1${o}`, 'P', `1${r}`, ov] }]);
+  }
+  // 1o–(1y)–1r–(their bid through 2r): support doubles stay on.
+  for (const y of SUITS4.filter((t) => t !== o && t !== r && RANK[t] < RANK[r] && cheapest(`1${o}`, t) === 1)) {
+    const lasts = ['X', '1N'];
+    for (const s of SUITS4.filter((t) => t !== r)) {
+      const lv = cheapest(`1${r}`, s);
+      if (!above(`${lv}${s}`, `2${r}`)) lasts.push(`${lv}${s}`);
+    }
+    for (const last of lasts) {
+      const k = [`1${o}`, `(1${y})`, `1${r}`, `(${last})`];
+      const theirs = [...new Set([y, ...(last === 'X' || last === '1N' ? [] : [last[1]])])];
+      freeDefs(k, o, r, theirs, last, SUPPORT_LATE);
+      advise(k, (e) => openerFreeRebid(e, o, r, theirs, last), [{ dealer: 'S', calls: [`1${o}`, `1${y}`, `1${r}`, last] }]);
+    }
+  }
+}
+
+for (const x of SUITS4) {
+  for (const y of SUITS4.filter((t) => t !== x)) {
+    const ov = `${cheapest(`1${x}`, y)}${y}`;
+    const responses = ['X'];
+    if (ov[0] === '1') responses.push('1N');
+    for (const t of SUITS4.filter((u) => u !== x && u !== y)) {
+      const lv = cheapest(ov, t);
+      if (lv <= 2) responses.push(`${lv}${t}`);
+    }
+    for (const rb of responses) {
+      const k = [`(1${x})`, ov, `(${rb})`];
+      const last = rb === 'X' ? ov : rb;
+      const theirs = rb === 'X' || rb[1] === 'N' ? [x] : [x, rb[1]];
+      const c = cheapest(last, y);
+      def(k, 'P', 'Pass: no fit and nothing to add.', {}, ADVANCE_LATE);
+      if (c <= 3) def(k, `${c}${y}`, `Raise: 3+ ${nm(y)}, 6–9 (4+ ${nm(y)} on less).`, { hcp: [4, 9], len: { [y]: [3, 13] } }, ADVANCE_LATE);
+      if (c + 1 <= 4) def(k, `${c + 1}${y}`, `Preemptive jump raise: 4+ ${nm(y)}, weak.`, { hcp: [0, 7], len: { [y]: [4, 13] } }, ADVANCE_LATE);
+      const cue = cheapest(last, x);
+      if (cue <= 3) def(k, `${cue}${x}`, `Cue-bid: 10+ with 3+ ${nm(y)} (limit raise or better).`, { hcp: [10, 37], len: { [y]: [3, 13] }, force: 'round' }, ADVANCE_LATE);
+      if (rb === 'X') def(k, 'XX', '11+ HCP, usually no fit for partner. From here our doubles are for penalty.', { hcp: [11, 37] }, ADVANCE_LATE);
+      const nt = cheapest(last, 'N');
+      if (nt === 1) def(k, '1N', `8–11 with stoppers in ${theirs.map(nm).join(' and ')}.`, { hcp: [8, 11] }, ADVANCE_LATE);
+      if (nt <= 2) def(k, '2N', `11–12 with stoppers in ${theirs.map(nm).join(' and ')}.`, { hcp: [11, 12] }, ADVANCE_LATE);
+      def(k, '3N', `13+ with stoppers in ${theirs.map(nm).join(' and ')}.`, { hcp: [13, 37] }, ADVANCE_LATE);
+      for (const s of SUITS4.filter((t) => !theirs.includes(t) && t !== y && cheapest(last, t) <= 3)) def(k, `${cheapest(last, s)}${s}`, `Natural: 5+ ${nm(s)}, not forcing.`, { len: { [s]: [5, 13] } }, ADVANCE_LATE);
+      advise(k, (e) => advanceAfterResponse(e, x, ov, rb), [{ dealer: 'E', calls: [`1${x}`, ov, rb] }]);
+    }
+  }
+}
+
+// Opener after partner's negative double when they raise their suit: show the major, double with extras.
+export function afterNegXRaise(e, o, ov, rz) {
+  const y = ov[1];
+  const h = e.hcp;
+  const L = e.len;
+  const us = MAJORS.filter((s) => s !== o && s !== y && L[s] >= 4);
+  if (us.length) {
+    const u = longestOf(e, us);
+    const c = cheapest(rz, u);
+    if (h >= 16 && c <= 4) return R(`4${u}`, [`${L[u]} ${nm(u)}, ${h} HCP: game in the major partner showed`]);
+    if (c <= 3) return R(`${c}${u}`, [`${L[u]} ${nm(u)}: the major partner showed`]);
+  }
+  if (h >= 17 && stopper(e, y) && L[y] <= 3) return R('3N', [`${h} HCP with a ${nm(y)} stopper: game`]);
+  if (h >= 17) return R('X', [`${h} HCP: cooperative double, partner passes or bids`]);
+  const ol = cheapest(rz, o);
+  if (L[o] >= 6 && ol <= 3) return R(`${ol}${o}`, [`${L[o]} ${nm(o)}: compete`]);
+  return R('P', [`${h} HCP: nothing more to say`]);
+}
+for (const o of SUITS4) {
+  for (const y of SUITS4.filter((t) => t !== o)) {
+    for (let lv = cheapest(`1${o}`, y); lv <= 2; lv++) {
+      const ov = `${lv}${y}`;
+      for (let rl = lv + 1; rl <= 3; rl++) {
+        const rz = `${rl}${y}`;
+        const k = [`1${o}`, `(${ov})`, 'X', `(${rz})`];
+        def(k, 'P', 'Minimum: nothing more to say.', {}, NEW);
+        def(k, 'X', 'Cooperative double: extra values (17+). Partner passes with their suit, or bids.', { hcp: [17, 37] }, NEW);
+        def(k, '3N', `To play: 17+ with a ${nm(y)} stopper.`, { hcp: [17, 37] }, NEW);
+        for (const u of MAJORS.filter((t) => t !== o && t !== y)) {
+          const c = cheapest(rz, u);
+          if (c <= 3) def(k, `${c}${u}`, `4 ${nm(u)}: the major partner showed.`, { len: { [u]: [4, 13] } }, NEW);
+          if (c <= 4) def(k, `4${u}`, `4 ${nm(u)}, 16+: game.`, { hcp: [16, 37], len: { [u]: [4, 13] } }, NEW);
+        }
+        const ol = cheapest(rz, o);
+        if (ol <= 3) def(k, `${ol}${o}`, `6+ ${nm(o)}: competing.`, { len: { [o]: [6, 13] } }, NEW);
+        advise(k, (e) => afterNegXRaise(e, o, ov, rz), [{ dealer: 'S', calls: [`1${o}`, ov, 'X', rz] }]);
       }
     }
   }
