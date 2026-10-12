@@ -158,3 +158,10 @@ body.has-update{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 .copy .row-buttons{align-items:center}
 .copy-status{font-size:.82rem}
 .copy-area{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;line-height:1.35}
+.tabs button{padding:8px 4px;font-size:.92rem}
+.doc-link{display:block;color:var(--ink);text-decoration:none}
+.doc-link .doc-title{font-size:1.1rem;font-weight:700;margin:2px 0}
+.doc-link p{margin:2px 0 0}
+.toc-list{display:grid}
+.toc-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px solid var(--rule);color:var(--ink);text-decoration:none}
+.chip.warn{background:var(--warn-soft);color:var(--warn-ink)}

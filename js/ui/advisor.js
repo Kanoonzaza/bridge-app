@@ -71,7 +71,7 @@ export function advisorView(root, store) {
       el('p', {}, el('b', {}, 'Tells partner: '), r.meaning),
       r.plan ? el('p', {}, el('b', {}, 'Plan: '), r.plan) : null,
       r.close ? el('p', { class: 'close' }, el('b', {}, 'Close call: '), r.close) : null,
-      el('a', { href: `${NOTES_URL}#${r.notes}`, target: '_blank', rel: 'noopener' }, 'Read more in the system notes'),
+      el('a', { href: `${NOTES_URL}#${r.notes}` }, 'Read more in the system notes'),
       copyButton('Copy for review', () => advisorReport(state.hand, a, r), 'copy-advice'));
   }
 

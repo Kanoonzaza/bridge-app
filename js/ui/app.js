@@ -3,14 +3,15 @@ import { cleanTab } from '../state.js';
 import { advisorView } from './advisor.js';
 import { decoderView } from './decoder.js';
 import { tableView } from './table.js';
+import { notesView } from './notes.js';
 import { setupTheme } from './theme.js';
 import { registerUpdates } from './update.js';
 
 registerUpdates();
 setupTheme(document.getElementById('theme-btn'), store);
 
-const TABS = ['advisor', 'decoder', 'table'];
-const views = { advisor: document.getElementById('advisor'), decoder: document.getElementById('decoder'), table: document.getElementById('table') };
+const TABS = ['advisor', 'decoder', 'table', 'notes'];
+const views = { advisor: document.getElementById('advisor'), decoder: document.getElementById('decoder'), table: document.getElementById('table'), notes: document.getElementById('notes') };
 const buttons = [...document.querySelectorAll('[data-tab]')];
 
 function show(tab, { focus = false } = {}) {
@@ -54,3 +55,4 @@ function start(key, root, view) {
 start('advisor', views.advisor, advisorView);
 start('decoder', views.decoder, decoderView);
 start('table', views.table, tableView);
+start('notes', views.notes, notesView);

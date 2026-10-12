@@ -8,7 +8,7 @@ import { cleanDecoder } from '../state.js';
 
 const WHO = { S: 'You', N: 'Partner', E: 'Right opp', W: 'Left opp' };
 
-const more = (notes) => el('a', { href: `${NOTES_URL}#${notes}`, target: '_blank', rel: 'noopener' }, 'Read more in the system notes');
+const more = (notes) => el('a', { href: `${NOTES_URL}#${notes}` }, 'Read more in the system notes');
 
 function rowView(r) {
   const opp = sideOf(r.seat) === 'EW';

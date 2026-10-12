@@ -1,4 +1,5 @@
-export const NOTES_URL = 'https://claude.ai/artifact/NrdCttHcwDpCv83CsLGpfd';
+// The system notes inside the app (built from notes/system-notes.html by `npm run stamp`).
+export const NOTES_URL = 'guide/system-notes.html';
 
 // Firebase web config for live tables (public by design; the database rules protect the data).
 export const FIREBASE = {

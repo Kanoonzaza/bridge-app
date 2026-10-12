@@ -1,4 +1,4 @@
-const CACHE = 'bc-77aa2a12';
+const CACHE = 'bc-1301872b';
 const FILES = [
   './',
   'index.html',
@@ -7,6 +7,9 @@ const FILES = [
   'icons/icon-192.png',
   'icons/icon-512.png',
   'data/notes-anchors.json',
+  'data/notes-toc.json',
+  'guide/system-notes.html',
+  'guide/convention-card.html',
   'js/config.js',
   'js/cards.js',
   'js/format.js',
@@ -40,6 +43,7 @@ const FILES = [
   'js/table/sync.js',
   'js/ui/theme.js',
   'js/ui/copy.js',
+  'js/ui/notes.js',
   'js/report.js',
   'js/ui/table.js',
   'js/ui/app.js',
