@@ -36,18 +36,22 @@ export function gamblingSuit(e) {
   return null;
 }
 
-export function weakTwoSuit(e, seat) {
-  if (seat === 4 || e.hcp < 5 || e.hcp > 10) return null;
+// Vulnerable: a sound preempt (7+ HCP, two of the top three honors). Favorable (they are vulnerable, we are not): as light as 4 HCP.
+const preemptOk = (e, s, vul) => (vul === 'we' || vul === 'both' ? e.hcp >= 7 && e.good[s] : true);
+const minPreempt = (vul) => (vul === 'they' ? 4 : 5);
+
+export function weakTwoSuit(e, seat, vul = 'none') {
+  if (seat === 4 || e.hcp < minPreempt(vul) || e.hcp > 10) return null;
   const s = ['S', 'H', 'D'].find((t) => e.len[t] === 6);
-  if (!s || honorsIn(e, s) < 2) return null;
+  if (!s || honorsIn(e, s) < 2 || !preemptOk(e, s, vul)) return null;
   if (seat <= 2 && (['S', 'H'].some((m) => m !== s && e.len[m] >= 4) || e.pattern[3] === 0 || SUITS.some((t) => t !== s && e.len[t] >= 5))) return null;
   return s;
 }
 
-export function preemptCall(e, seat) {
+export function preemptCall(e, seat, vul = 'none') {
   if (seat === 4 || e.hcp > 10) return null;
   const s = SUITS.find((t) => e.len[t] >= 7);
-  if (!s || honorsIn(e, s) < 2) return null;
+  if (!s || honorsIn(e, s) < 2 || !preemptOk(e, s, vul)) return null;
   return `${e.len[s] >= 8 ? 4 : 3}${s}`;
 }
 
@@ -69,7 +73,8 @@ function oneLevelClose(e, seat) {
   return null;
 }
 
-function passWhy(e, seat) {
+function passWhy(e, seat, vul = 'none') {
+  if ((vul === 'we' || vul === 'both') && (weakTwoSuit(e, seat) || preemptCall(e, seat))) return ['vulnerable: a preempt needs 7+ HCP and two of the top three honors'];
   if (seat === 4) {
     if (e.hcp >= 9) {
       return [`Rule of 15: ${e.hcp} + ${e.len.S} spades = ${ruleOf15(e)}, short of 15`, 'in 4th seat, passing scores 0 instead of letting the opponents win the part-score'];
@@ -151,14 +156,14 @@ const entries = [
     ...OPEN, call: `2${s}`, priority: 30, notes: 'weak-twos-and-ogust-tier-0',
     meaning: `Weak two: 6 ${NAME[s]}, 5–10 HCP.`,
     shows: { hcp: [5, 10], len: { [s]: [6, 6] } },
-    pick: (e, st) => weakTwoSuit(e, st.ctx.seat) === s,
+    pick: (e, st) => weakTwoSuit(e, st.ctx.seat, st.ctx.vul) === s,
     why: (e) => [`6-card ${NAME[s]}`, `${e.hcp} HCP: too weak for a 1-level opening`],
   })),
   ...SUITS.flatMap((s) => [3, 4].map((lv) => ({
     ...OPEN, call: `${lv}${s}`, priority: 40, notes: 'preempts-tier-0',
     meaning: `Preempt: about ${lv + 4} ${NAME[s]}, weak.`,
     shows: { hcp: [0, 10], len: { [s]: [lv + 4, 13] } },
-    pick: (e, st) => preemptCall(e, st.ctx.seat) === `${lv}${s}`,
+    pick: (e, st) => preemptCall(e, st.ctx.seat, st.ctx.vul) === `${lv}${s}`,
     why: (e) => [`${e.len[s]}-card ${NAME[s]}`, `${e.hcp} HCP: weak, so jump to make the opponents' bidding harder`],
   }))),
   {
@@ -166,7 +171,7 @@ const entries = [
     meaning: 'No opening: usually under 12 HCP.',
     shows: { hcp: [0, 13] },
     pick: () => true,
-    why: (e, st) => passWhy(e, st.ctx.seat),
+    why: (e, st) => passWhy(e, st.ctx.seat, st.ctx.vul),
     close: (e, st) => passClose(e, st.ctx.seat),
   },
 ];

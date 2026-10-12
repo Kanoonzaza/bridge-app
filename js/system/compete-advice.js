@@ -171,7 +171,7 @@ export function afterLebensohlRelay(e, y) {
 }
 
 // ---------- They opened: our overcall ----------
-export function overcall(e, x, balancing) {
+export function overcall(e, x, balancing, vul = 'none') {
   const h = e.hcp;
   const L = e.len;
   const others = SUITS4.filter((s) => s !== x);
@@ -187,7 +187,8 @@ export function overcall(e, x, balancing) {
     if (L[low[0]] >= 5 && L[low[1]] >= 5) return R('2N', [`5-5 in ${nm(low[0])} and ${nm(low[1])}: Unusual 2NT`]);
   }
   if (!balancing) {
-    const wj = others.find((s) => L[s] === 6 && top3(e, s) >= 2 && h >= 5 && h <= 10);
+    const minWj = vul === 'we' || vul === 'both' ? 7 : vul === 'they' ? 4 : 5;
+    const wj = others.find((s) => L[s] === 6 && top3(e, s) >= 2 && h >= minWj && h <= 10);
     if (wj) return R(`${cheapest(`1${x}`, wj) + 1}${wj}`, [`6 good ${nm(wj)}, ${h} HCP: weak jump overcall`]);
   }
   if (h >= 17) return R('X', [`${h} HCP: double first, then bid again`]);
@@ -308,7 +309,7 @@ for (const x of SUITS4) {
   for (const bal of [false, true]) {
     const k = bal ? [`(1${x})`, 'P'] : [`(1${x})`];
     def(k, 'P', 'Pass: no suitable action.');
-    advise(k, (e) => overcall(e, x, bal), [bal ? { dealer: 'W', calls: [`1${x}`, 'P', 'P'] } : { dealer: 'E', calls: [`1${x}`] }]);
+    advise(k, (e, st) => overcall(e, x, bal, st.ctx.vul), [bal ? { dealer: 'W', calls: [`1${x}`, 'P', 'P'] } : { dealer: 'E', calls: [`1${x}`] }]);
   }
   for (const lv of [2, 3]) {
     if (lv === 2 && x === 'C') continue;
@@ -555,6 +556,113 @@ for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']
     def(k, `4${r}`, `5+ ${nm(r)}, game.`, {}, SUPPORT);
     def(k, '3N', 'To play.', {}, SUPPORT);
     advise(k, (e) => afterSupportDouble(e, r), [{ dealer: 'N', calls: [`1${o}`, 'P', `1${r}`, ov, sup, 'P'] }]);
+  }
+}
+
+
+// ---------- New agreements (proposed, Oct 2026) ----------
+const LEAD = 'new-agreements-proposed';
+const goodSuit = (e, s) => e.len[s] >= 5 && top3(e, s) >= 2 || (e.len[s] >= 4 && top3(e, s) === 3);
+
+// Lead-directing doubles of their artificial bids (Stayman and transfers over their notrump).
+for (const [nt, arts] of [['1N', ['2C', '2D', '2H']], ['2N', ['3C', '3D', '3H']]]) {
+  for (const a of arts) {
+    const k = [`(${nt})`, 'P', `(${a})`];
+    def(k, 'X', `Lead-directing: a good ${nm(a[1])} suit, please lead it.`, { len: { [a[1]]: [4, 13] } }, LEAD);
+    def(k, 'P', 'Pass.', {}, LEAD);
+    advise(k, (e) => (goodSuit(e, a[1]) ? R('X', [`good ${nm(a[1])}: ask partner to lead it`]) : R('P', ['no lead to suggest: pass'])), [{ dealer: 'W', calls: [nt, 'P', a] }]);
+  }
+}
+// Lead-directing double of their RKCB reply.
+entries.push(...SUITS4.map((s) => ({
+  tail: true, after: ['(4N)', 'P', `(5${s})`], call: 'X', notes: LEAD, meaning: `Lead-directing: lead ${nm(s)}.`, shows: { len: { [s]: [4, 13] } },
+})));
+
+// Defense against their strong 2♣.
+export function overStrong2C(e, after2D) {
+  const L = e.len;
+  const lead = after2D ? 'D' : 'C';
+  if (L.C >= 5 && L.D >= 5) return R('2N', ['5-5 in the minors']);
+  if (goodSuit(e, lead) && L[lead] <= 6) return R('X', [`good ${nm(lead)}: lead-directing`]);
+  const s = SUITS4.filter((t) => L[t] >= 6 || (L[t] === 5 && top3(e, t) >= 2)).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a])[0];
+  if (s && !(after2D && s === 'D')) {
+    const lv = cheapest(after2D ? '2D' : '2C', s);
+    return R(`${L[s] >= 7 ? lv + 1 : lv}${s}`, [`${L[s]} ${nm(s)}: preempt their big hand`]);
+  }
+  if (goodSuit(e, lead)) return R('X', [`good ${nm(lead)}: lead-directing`]);
+  return R('P', ['pass: they have the big hand']);
+}
+for (const after2D of [false, true]) {
+  const k = after2D ? ['(2C)', 'P', '(2D)'] : ['(2C)'];
+  const last = after2D ? '2D' : '2C';
+  const lead = after2D ? 'D' : 'C';
+  def(k, 'X', `Lead-directing: a good ${nm(lead)} suit.`, { len: { [lead]: [4, 13] } }, LEAD);
+  def(k, 'P', 'Pass.', {}, LEAD);
+  def(k, '2N', 'Both minors (5-5), preemptive.', { len: { C: [5, 13], D: [5, 13] } }, LEAD);
+  for (const t of SUITS4.filter((u) => !(after2D && u === 'D'))) {
+    const lv = cheapest(last, t);
+    def(k, `${lv}${t}`, `Natural: 5+ ${nm(t)}, preemptive.`, { len: { [t]: [5, 13] } }, LEAD);
+    def(k, `${lv + 1}${t}`, `Preemptive jump: 7+ ${nm(t)}.`, { len: { [t]: [7, 13] } }, LEAD);
+  }
+  advise(k, (e) => overStrong2C(e, after2D), [after2D ? { dealer: 'W', calls: ['2C', 'P', '2D'] } : { dealer: 'E', calls: ['2C'] }]);
+}
+
+// Responsive doubles: they raise over partner's takeout double or overcall (through 3♠).
+export function responsive(e, x, partner) {
+  const h = e.hcp;
+  const L = e.len;
+  const raise = partner;
+  const unbid = SUITS4.filter((t) => t !== x && t !== partner[1]);
+  if (partner !== 'X') {
+    const y = partner[1];
+    if (L[y] >= 3 && dummyPoints(e, y) >= 6) return R('RAISE', [`${L[y]} ${nm(y)}: compete in partner's suit`]);
+  }
+  const twoSuits = partner === 'X' ? MAJORS.filter((t) => t !== x) : unbid;
+  if (h >= 8 && twoSuits.length >= 2 && twoSuits.every((t) => L[t] >= 4)) return R('X', [`4+ in ${twoSuits.map(nm).join(' and ')}, ${h} HCP: responsive double`]);
+  const own = unbid.filter((t) => L[t] >= 5).sort((a, b) => L[b] - L[a])[0];
+  if (own && h >= 6) return R(`OWN:${own}`, [`${L[own]} ${nm(own)}: natural`]);
+  if (h >= 10) return R('X', [`${h} HCP and no clear suit: responsive double`]);
+  void raise;
+  return R('P', [`${h} HCP: pass`]);
+}
+for (const x of SUITS4) {
+  const partners = ['X', ...SUITS4.filter((t) => t !== x).map((y) => `${cheapest(`1${x}`, y)}${y}`)];
+  for (const pc of partners) {
+    for (const lv of [2, 3]) {
+      const theirRaise = `${lv}${x}`;
+      if (pc !== 'X' && !above(theirRaise, pc)) continue;
+      const k = [`(1${x})`, pc, `(${theirRaise})`];
+      const unbid = SUITS4.filter((t) => t !== x && t !== pc[1]);
+      def(k, 'X', pc === 'X'
+        ? `Responsive double: values (8+), both unbid ${MAJORS.includes(x) ? 'suits' : 'majors'}.`
+        : `Responsive double: values (8+), the unbid suits (${unbid.map(nm).join(' and ')}).`, { hcp: [8, 37] }, LEAD);
+      def(k, 'P', 'Pass.');
+      const raiseCall = pc === 'X' ? null : `${cheapest(theirRaise, pc[1])}${pc[1]}`;
+      if (raiseCall) def(k, raiseCall, `Raise: competing in ${nm(pc[1])}.`, { len: { [pc[1]]: [3, 13] } });
+      for (const t of unbid) def(k, `${cheapest(theirRaise, t)}${t}`, `Natural: 5+ ${nm(t)}.`, { len: { [t]: [5, 13] } });
+      advise(k, (e) => {
+        const r = responsive(e, x, pc);
+        if (r.call === 'RAISE') return raiseCall && Number(raiseCall[0]) <= 3 ? R(raiseCall, r.why) : R('P', ['too high to compete']);
+        if (r.call.startsWith('OWN:')) {
+          const t = r.call.slice(4);
+          const c = `${cheapest(theirRaise, t)}${t}`;
+          return Number(c[0]) <= 3 ? R(c, r.why) : R('P', ['too high']);
+        }
+        return r;
+      }, [{ dealer: 'W', calls: [`1${x}`, pc, theirRaise] }]);
+    }
+  }
+}
+
+// Maximal double: we agreed a suit and they bid the suit just below ours at the 3-level.
+const BELOW = { S: 'H', H: 'D', D: 'C' };
+for (const [o, them] of [['H', 'D'], ['S', 'H'], ['H', 'C'], ['S', 'C'], ['S', 'D']]) {
+  for (const k of [[`1${o}`, `(2${them})`, `2${o}`, `(3${them})`], [`1${o}`, `2${o}`, `(3${them})`]]) {
+    const maximal = BELOW[o] === them;
+    def(k, 'X', maximal ? `Maximal double: a game try in ${nm(o)} (no room for anything else).` : 'Penalty: they have no fit and we have the values.', {}, LEAD);
+    def(k, `3${o}`, maximal ? 'Competitive only: not a game try.' : 'Competing (or a mild invitation).', {}, COMP);
+    def(k, `4${o}`, 'Game.', {}, COMP);
+    def(k, 'P', 'Pass: content to defend.', {}, COMP);
   }
 }
 

@@ -264,7 +264,7 @@ function fallback(hand, auction, entries) {
     const same = real.every((row, i) => sideOf(row.seat) !== side || row.call === 'P' || sameShape(row.shows, calm[i].shows));
     const lastBid = auction.calls.map((c, i) => [c, i]).filter(([c]) => /^[1-7]/.test(c)).at(-1);
     const theyOutbid = lastBid && sideOf(seatAt(auction, lastBid[1])) !== side;
-    if (same && r && !r.notCovered && !r.fallback && !(theyOutbid && r.call === 'P') && legalCalls(auction).includes(r.call)) {
+    if (same && r && !r.notCovered && !r.fallback && !theyOutbid && legalCalls(auction).includes(r.call)) {
       return { ...r, reasons: [...r.reasons, "the opponents' bids took none of our room: bid as if they had passed"], fallback: 'quiet' };
     }
   }

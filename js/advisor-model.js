@@ -21,8 +21,11 @@ export function enteredTurn(state, auction) {
   return auction.calls.some(isBid) ? !isOpp(s) || oppsEnter(state) : s === OPENER_SEAT[state.opener];
 }
 
+// Vulnerability is chosen from our side (we = North-South).
+const VUL = { none: 'none', we: 'NS', they: 'EW', both: 'both' };
+
 export function buildAuction(state) {
-  let a = { dealer: dealerFor(state.opener, state.seat), calls: [] };
+  let a = { dealer: dealerFor(state.opener, state.seat), calls: [], vul: VUL[state.vul] ?? 'none' };
   const queue = [...state.ourCalls];
   for (let guard = 0; guard < 200 && !isComplete(a); guard++) {
     if (!enteredTurn(state, a)) {

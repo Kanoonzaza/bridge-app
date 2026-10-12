@@ -2,7 +2,7 @@
 // Works from what partner has shown (minimum strength, suit lengths, forcing status) and our own hand:
 // find a fit, add up combined points, then choose slam / game / invitation / competition / penalty double / pass.
 import { NAME, dummyPoints } from './cards.js';
-import { legalCalls, seatAt, sideOf, partnerOf, isBid } from './auction.js';
+import { legalCalls, seatAt, sideOf, partnerOf, isBid, relativeVul } from './auction.js';
 import { agreedSuit } from './system/slam.js';
 
 const SUITS = ['S', 'H', 'D', 'C'];
@@ -93,11 +93,18 @@ export function judge(e, auction, rows, summary, key) {
     const r = R('X', [...why, `${e.len[lastBid[1]]} ${NAME[lastBid[1]]}: penalty double`]);
     if (r) return r;
   }
+  // Maximal double: they bid the suit just below our agreed suit at the 3-level; double is the only game try left.
+  const BELOW = { S: 'H', H: 'D', D: 'C' };
+  if (theyBidLast && agreed && lastBid === `3${BELOW[agreed]}` && combined >= 23 && combined <= 24 && legal.has('X')) {
+    return { call: 'X', why: [...why, `maximal double: a game try in ${NAME[agreed]} (3${agreed === 'S' ? '♠' : agreed === 'H' ? '♥' : '♦'} would only compete)`] };
+  }
   // Compete with a fit, by the Law of Total Tricks (trumps − 6).
   if (T) {
     const c = cheapest(T);
-    if (c && Number(c[0]) <= Math.max(2, trumps - 6) && (theyBidLast || mustBid || combined >= 23)) {
-      return { call: c, why: [...why, `${trumps} trumps: safe to compete to the ${trumps - 6}-level`] };
+    // At favorable vulnerability (they vulnerable, we not) compete one level higher.
+    const fav = relativeVul(auction.vul, side) === 'they' && theyBidLast ? 1 : 0;
+    if (c && Number(c[0]) <= Math.max(2, trumps - 6 + fav) && (theyBidLast || mustBid || combined >= 23)) {
+      return { call: c, why: [...why, `${trumps} trumps: safe to compete to the ${trumps - 6 + fav}-level${fav ? ' (favorable vulnerability: one more)' : ''}`] };
     }
   }
   // Forcing auctions must go on.

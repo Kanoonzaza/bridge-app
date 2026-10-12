@@ -28,6 +28,7 @@ export function cleanAdvisor(raw) {
     seat: Number.isInteger(r.seat) && r.seat >= 1 && r.seat <= 4 ? r.seat : 1,
     ourCalls: cleanCalls(r.ourCalls),
     compete: r.compete === true,
+    vul: ['we', 'they', 'both'].includes(r.vul) ? r.vul : 'none',
   };
 }
 

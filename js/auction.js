@@ -50,6 +50,13 @@ export function undo(auction) {
   return { ...auction, calls: auction.calls.slice(0, -1) };
 }
 
+// Vulnerability from the actor's side: 'none' | 'we' | 'they' | 'both'. auction.vul is 'none' | 'NS' | 'EW' | 'both'.
+export function relativeVul(vul = 'none', side) {
+  const we = vul === 'both' || vul === side;
+  const they = vul === 'both' || (vul !== 'none' && vul !== side);
+  return we && they ? 'both' : we ? 'we' : they ? 'they' : 'none';
+}
+
 // The situation facing the player about to make call number n, seen from that player's side.
 // key: calls from the opening bid onward; own side plain, opponents' non-pass calls in brackets.
 export function situationAt(auction, n) {
@@ -74,6 +81,7 @@ export function situationAt(auction, n) {
     role,
     responderPassed: first >= 0 && calls.slice(0, first).some((_, i) => seatAt(auction, i) === partnerOf(openerSeat)),
     competitive: calls.some((c, i) => c !== 'P' && sideOf(seatAt(auction, i)) !== side),
+    vul: relativeVul(auction.vul, side),
   };
   return { key, ctx, actor };
 }

@@ -84,6 +84,7 @@ export function advisorView(root, store) {
         segmented('Who opens?', [['me', "I'm opening"], ['partner', 'Partner'], ['lho', 'Left opp'], ['rho', 'Right opp']], state.opener, (v) => update({ opener: v, ourCalls: [] })),
         isOpp(OPENER[state.opener]) ? null : segmented('Opponents', [[false, 'Always pass'], [true, 'Enter their calls']], state.compete, (v) => update({ compete: v, ourCalls: [] })),
         segmented('Seat of the opening bid', SEAT_NAMES.map((t, i) => [i + 1, t]), state.seat, (v) => update({ seat: v, ourCalls: [] })),
+        segmented('Vulnerable', [['none', 'None'], ['we', 'We are'], ['they', 'They are'], ['both', 'Both']], state.vul, (v) => update({ vul: v })),
         auctionStrip(a));
       live.replaceChildren(answerCard(a));
       bottom.replaceChildren(...(ourTurn ? [biddingBox(a, { onCall: (c) => update({ ourCalls: [...state.ourCalls, c] }), doubles: oppsEnter(state) })] : []));
