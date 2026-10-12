@@ -162,3 +162,16 @@ test('the board report has the hands, the auction, the differences and a replaya
   assert.match(adv, /Suggested: 1♠/);
   assert.match(adv, /Data: dealer=S vul=none calls=- S=AKQ85\.J7\.Q84\.QT5/);
 });
+
+test('the review marks advice that follows an earlier call that already differed', () => {
+  let t = sit(fresh('pass'), 'N', 'pard', 'Ploy');
+  t = { ...t, board: { ...t.board, dealer: 'S', hands: { ...t.board.hands, S: 'AKQ85.J7.Q84.QT5' } } };
+  t = call(t, 'S', '2S', 'me');   // the Advisor opens 1♠
+  t = playRobot(t, advise);       // West passes
+  t = call(t, 'N', '3S', 'pard');
+  t = playRobot(t, advise);       // East passes
+  t = call(t, 'S', 'P', 'me');
+  const rows = reviewRows(t.board, t.seats).filter((r) => r.human && r.seat === 'S');
+  assert.equal(rows[0].since, null);
+  assert.equal(rows[1].since, '2S');
+});

@@ -152,3 +152,19 @@ test('a weak jump overcall at the 3-level needs 7 cards (board 18)', () => {
   // Landing at the 2-level, 6 cards is still enough: (1♣)–2♥.
   assert.equal(over('842 KQJ742 J2 103', ['1C']).call, '2H', '6 hearts over 1♣: weak two-style 2♥');
 });
+
+test('advice never builds on an earlier call that does not describe the hand (board 19)', () => {
+  const calls = ['1C', 'P', '1S', '2H', '2N', 'P', '3S', 'P'];
+  const r = advise(parseHand('654 A43 A83 A532'), { dealer: 'S', vul: 'EW', calls });
+  // 2NT showed 18-19; this hand has 12: the quiet auction's 4♠ would follow from a hand I do not hold.
+  assert.notEqual(r.call, '4S');
+  assert.equal(r.call, 'P');
+  assert.notEqual(r.fallback, 'quiet');
+  // The right call earlier is the support double, with its explanation.
+  const x = advise(parseHand('654 A43 A83 A532'), { dealer: 'S', vul: 'EW', calls: calls.slice(0, 4) });
+  assert.equal(x.call, 'X');
+  assert.match(x.meaning, /exactly 3/);
+  // With a genuine 18-19 the quiet reading is still used.
+  const big = advise(parseHand('K54 AQ3 A83 AQ52'), { dealer: 'S', vul: 'EW', calls });
+  assert.equal(big.call, '4S');
+});

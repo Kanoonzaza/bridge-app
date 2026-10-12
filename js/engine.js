@@ -284,6 +284,13 @@ const told = (auction, call, entries) => {
   return { meaning: t?.meaning ?? 'Natural.', notes: t?.notes ?? 'competitive-bidding-tier-0' };
 };
 
+// Does the hand fit what a call showed (about 1 HCP of slack; suit lengths exactly)?
+function fitsHand(e, shows) {
+  if (!shows) return true;
+  if (shows.hcp && (e.hcp < shows.hcp[0] - 1 || e.hcp > shows.hcp[1] + 1)) return false;
+  return Object.entries(shows.len ?? {}).every(([suit, [lo, hi]]) => e.len[suit] >= lo && e.len[suit] <= hi);
+}
+
 function fallback(hand, auction, entries) {
   const n = auction.calls.length;
   const s = situationAt(auction, n);
@@ -339,9 +346,12 @@ function fallback(hand, auction, entries) {
     const real = explain(auction, entries);
     const calm = explain(quiet, entries);
     const same = real.every((row, i) => sideOf(row.seat) !== side || row.call === 'P' || sameShape(row.shows, calm[i].shows));
+    // My own earlier calls must also describe this hand: if I bid 2NT (18-19) with 12 HCP, the quiet auction's
+    // advice would follow from a hand I do not hold.
+    const honest = real.every((row, i) => row.seat !== s.actor || row.call === 'P' || fitsHand(e, calm[i].shows));
     const lastBid = auction.calls.map((c, i) => [c, i]).filter(([c]) => /^[1-7]/.test(c)).at(-1);
     const theyOutbid = lastBid && sideOf(seatAt(auction, lastBid[1])) !== side;
-    if (same && r && !r.notCovered && !r.fallback && !theyOutbid && legalCalls(auction).includes(r.call)) {
+    if (same && honest && r && !r.notCovered && !r.fallback && !theyOutbid && legalCalls(auction).includes(r.call)) {
       return { ...r, reasons: [...r.reasons, "the opponents' bids took none of our room: bid as if they had passed"], fallback: 'quiet' };
     }
   }
