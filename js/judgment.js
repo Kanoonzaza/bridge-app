@@ -207,5 +207,20 @@ export function judge(e, auction, rows, summary, key) {
     const inv = isMajor(T) ? `3${T}` : '2N';
     if (legal.has(inv)) return { call: inv, why: [...why, 'invite game'] };
   }
-  return { call: 'P', why: [...why, theyBidLast ? 'not enough to compete further: pass' : 'no game: pass'] };
+  return { call: 'P', why: [...why, ...passReasons({ e, T, theyBidLast, theirs, combined, auction, side })] };
+}
+
+// Why we do not go on: say what is missing (a fit, the points, safety), not just "not enough".
+function passReasons({ e, T, theyBidLast, theirs, combined, auction, side }) {
+  if (!theyBidLast) return ['no game: pass'];
+  const out = [];
+  const by = {};
+  for (const r of theirs) if (isBid(r.call) && r.call[1] !== 'N') (by[r.call[1]] ??= new Set()).add(r.seat);
+  const fit = Object.entries(by).find(([, seats]) => seats.size >= 2)?.[0];
+  if (fit) out.push(`they have a fit in ${NAME[fit]} (both of them bid it), so their contract will often make`);
+  if (!T) out.push('no 8-card fit of our own is known, so competing would be a guess');
+  const v = relativeVul(auction.vul, side);
+  if (v === 'we' || v === 'both') out.push('we are vulnerable: a failed push costs 100–300 or more');
+  out.push(combined >= 23 ? 'close to game strength, but no clear action: pass' : `${combined} points between us is below game, and nothing here is worth the risk of competing: pass`);
+  return out;
 }

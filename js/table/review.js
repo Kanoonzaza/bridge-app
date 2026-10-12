@@ -1,7 +1,32 @@
 // After a board: compare the table's auction with what the Advisor would bid, call by call.
 import { advise, explain } from '../engine.js';
+import { evaluate } from '../cards.js';
+import { NAME } from '../cards.js';
 import { addCall, isComplete, nextSeat, seatAt, sideOf, isBid } from '../auction.js';
 import { auctionOf, handOf } from './model.js';
+
+// Why a player's own call does not describe their hand: strength, length, balance, or a stopper the call claims.
+const SYM_SUIT = { '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C' };
+export function misfit(hand, row) {
+  const e = evaluate(hand);
+  const out = [];
+  const sh = row.shows ?? {};
+  const call = row.call;
+  if (sh.hcp && e.hcp < sh.hcp[0]) out.push(`${call === 'X' ? 'the double' : 'it'} shows ${sh.hcp[0]}+ HCP; you have ${e.hcp}`);
+  else if (sh.hcp && sh.hcp[1] < 37 && e.hcp > sh.hcp[1]) out.push(`it shows at most ${sh.hcp[1]} HCP; you have ${e.hcp}`);
+  for (const [suit, [lo]] of Object.entries(sh.len ?? {})) {
+    if (lo >= 4 && e.len[suit] < lo) out.push(`it shows ${lo}+ ${NAME[suit]}; you have ${e.len[suit]}`);
+  }
+  if (sh.balanced && !e.balanced) out.push(`it shows a balanced hand; yours is ${e.pattern.join('-')}`);
+  const st = /stopper in (♠|♥|♦|♣)/.exec(row.meaning ?? '');
+  if (st) {
+    const x = SYM_SUIT[st[1]];
+    const h = hand[x];
+    const stopped = /A/.test(h) || (/K/.test(h) && h.length >= 2) || (/Q/.test(h) && h.length >= 3) || (/J/.test(h) && h.length >= 4);
+    if (!stopped) out.push(`it claims a ${st[1]} stopper; you hold ${h ? [...h].join('') : 'no cards'} in ${NAME[x]}`);
+  }
+  return out;
+}
 
 // The whole auction as the Advisor would bid it, with the table's opponents
 // (robots bid by the engine, always-pass seats pass, human opponents are bid by the engine too).
@@ -33,7 +58,7 @@ export function reviewRows(b, seats) {
     }
     const differs = !!advisor && advisor.call !== row.call;
     if (differs) departed.add(seat);
-    return { ...row, seat, human, advisor, differs, skipped };
+    return { ...row, seat, human, advisor, differs, skipped, misfit: differs && row.call !== 'P' ? misfit(handOf(b, seat), row) : [] };
   });
 }
 

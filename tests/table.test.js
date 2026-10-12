@@ -178,3 +178,17 @@ test('the review compares only a player\'s first difference', () => {
   assert.equal(rows[1].differs, false);
   assert.match(boardReport(t, 'S'), /first difference only/);
 });
+
+test('the review says why the player\'s own call does not fit their hand (board 21)', async () => {
+  const { misfit } = await import('../js/table/review.js');
+  const { explain } = await import('../js/engine.js');
+  const hand = unpackHand('AK843.J8.862.543');
+  const rows = explain({ dealer: 'N', vul: 'NS', calls: ['1C', '1D', '1S', '2D', 'P', 'P', '2N'] }, undefined, { general: true });
+  const why = misfit(hand, rows.at(-1));
+  assert.deepEqual(why, ['it claims a ♦ stopper; you hold 862 in diamonds']);
+  // A call that fits says nothing.
+  assert.deepEqual(misfit(hand, rows[2]), []);
+  // Strength: a 2/1 forcing response with 8 HCP.
+  const gf = explain({ dealer: 'N', calls: ['1S', 'P', '2C'] }).at(-1);
+  assert.match(misfit(unpackHand('KJ4.J8.862.A5432'), gf).join(' '), /shows 12\+ HCP; you have 9/);
+});
