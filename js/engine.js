@@ -96,7 +96,28 @@ function indexOf(entries) {
   return idx;
 }
 
+// Partner's direct 1NT overcall plays "systems on": from there, read the auction as if we had opened 1NT.
+function systemsOn(situation) {
+  const k = situation.key;
+  if (k.length < 2 || !/^\(1[CDHS]\)$/.test(k[0]) || k[1] !== '1N') return null;
+  const rest = k.slice(1);
+  const ours = rest.filter((t) => !t.startsWith('('));
+  return {
+    ...situation,
+    key: rest,
+    ctx: { ...situation.ctx, opened: 'us', role: ours.length % 2 === 0 ? 'opener' : 'responder', responderPassed: false, competitive: rest.some((t) => t.startsWith('(')) },
+  };
+}
+
 export function candidates(situation, entries = ALL, onlyPickable = false) {
+  const own = candidatesFor(situation, entries, onlyPickable);
+  const alias = systemsOn(situation);
+  if (!alias) return own;
+  const have = new Set(own.map((c) => c.call));
+  return [...own, ...candidatesFor(alias, entries, onlyPickable).filter((c) => !have.has(c.call))];
+}
+
+function candidatesFor(situation, entries, onlyPickable) {
   const best = new Map();
   const idx = indexOf(entries);
   for (const entry of [...(idx.byLen.get(situation.key.length) ?? []), ...idx.tails]) {

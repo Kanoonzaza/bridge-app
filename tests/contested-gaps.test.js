@@ -55,3 +55,31 @@ test('the Pass explains why: the forcing 1NT is off after their bid', () => {
   assert.match(r.meaning, /ended the forcing 1NT/);
   assert.match(r.reasons.join(' '), /no sixth spade/);
 });
+
+// Errors fixed after the batch-3 review.
+const FIXES = [
+  // Partner's direct 1NT overcall: systems on
+  ['W', ['1C', '1N', 'P'], 'KJ852 Q4 973 J82', '2H', 'transfer to spades'],
+  ['W', ['1C', '1N', 'P'], 'KJ85 Q4 Q73 J82', '2C', 'Stayman'],
+  ['W', ['1D', '1N', 'P'], 'Q73 J84 952 10632', 'P', 'weak: pass'],
+  ['W', ['1C', '1N', 'P', '2H', 'P'], 'A4 KQ5 AJ74 K1092', '2S', 'complete the transfer'],
+  // Advancing a balancing double: bid, do not leave it in
+  ['W', ['1C', 'P', 'P', 'X', 'P'], 'Q73 J842 K95 1063', '1H', 'best suit'],
+  ['W', ['2H', 'P', 'P', 'X', 'P'], 'Q73 J84 K952 1063', '3D', 'best suit over a weak two'],
+  ['W', ['1C', 'P', 'P', 'X', 'P'], 'Q7 J84 95 AQJ1063', 'P', 'long strong clubs: defend'],
+  ['W', ['1D', 'P', 'P', 'X', 'P'], 'K73 AQ42 95 Q1063', '2H', '11 HCP: jump'],
+];
+for (const [dealer, calls, hand, want, why] of FIXES) {
+  test(`${calls.join(' ')} (dealer ${dealer}): ${hand} → ${want} (${why})`, () => {
+    const r = ask(dealer, calls, hand);
+    assert.equal(r.call, want);
+    assert.equal(r.fallback, undefined);
+  });
+}
+
+test('the Decoder reads the 1NT overcall auction with our 1NT meanings', async () => {
+  const { explain } = await import('../js/engine.js');
+  const rows = explain({ dealer: 'W', calls: ['1C', '1N', 'P', '2D', 'P', '2H'] });
+  assert.match(rows[3].meaning, /Transfer/);
+  assert.match(rows[5].meaning, /Completes the transfer/);
+});

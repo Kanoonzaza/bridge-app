@@ -1074,4 +1074,44 @@ for (const o of SUITS4) {
   }
 }
 
+// ---------- Advancing a balancing double ----------
+const BAL = 'competitive-bidding-tier-0'; // section #takeout-doubles
+
+// Advancing partner's balancing double: (1x)–P–(P)–X–(P). Partner may be light, and we passed once:
+// we must bid (pass only to defend with long, strong trumps), and need a little more to jump.
+export function advanceBalancingDouble(e, x, lv) {
+  const h = e.hcp;
+  const L = e.len;
+  const their = `${lv}${x}`;
+  if ((L[x] >= 5 && top3(e, x) >= 2) || (L[x] >= 4 && top3(e, x) >= 2 && h >= 10)) return R('P', [`${L[x]} ${nm(x)} with two top honors: pass to defend`]);
+  const cue = `${lv + 1}${x}`;
+  if (h >= 13) return R(cue, [`${h} HCP: cue-bid, game interest`]);
+  const majors = MAJORS.filter((s) => s !== x && L[s] >= 4);
+  const best = majors.length ? longestOf(e, majors) : null;
+  const nt = cheapest(their, 'N');
+  if (!best && stopper(e, x) && h >= 10) return R(h >= 12 && nt + 1 <= 3 ? `${nt + 1}N` : `${nt}N`, [`${h} HCP with a ${nm(x)} stopper`]);
+  const s = best ?? longestOf(e, SUITS4.filter((t) => t !== x));
+  const sl = cheapest(their, s);
+  if (h >= 11 && sl + 1 <= 3) return R(`${sl + 1}${s}`, [`${L[s]} ${nm(s)}, ${h} HCP: jump`]);
+  return R(`${sl}${s}`, [`${L[s]} ${nm(s)}`, `${h} HCP: bid your best suit (passing would defend their contract doubled)`]);
+}
+for (const x of SUITS4) {
+  for (const lv of x === 'C' ? [1] : [1, 2]) {
+    const their = `${lv}${x}`;
+    const k = [`(${their})`, 'P', 'X'];
+    def(k, 'P', `Penalty pass: long, strong ${nm(x)}.`, { len: { [x]: [4, 13] } }, BAL);
+    def(k, `${lv + 1}${x}`, 'Cue-bid: 13+, game interest.', { hcp: [13, 37], force: 'round' }, BAL);
+    for (const t of SUITS4.filter((u) => u !== x)) {
+      const sl = cheapest(their, t);
+      def(k, `${sl}${t}`, `Best suit (usually 4+ ${nm(t)}), 0–10.`, { hcp: [0, 10] }, BAL);
+      if (sl + 1 <= 3) def(k, `${sl + 1}${t}`, `Jump: 4+ ${nm(t)}, 11–12.`, { hcp: [11, 12], len: { [t]: [4, 13] } }, BAL);
+    }
+    const nt = cheapest(their, 'N');
+    def(k, `${nt}N`, `${nt === 1 ? '10–11' : '10–12'} with a ${nm(x)} stopper.`, { hcp: [10, 12] }, BAL);
+    if (nt + 1 <= 3) def(k, `${nt + 1}N`, `12 with a ${nm(x)} stopper: invitational.`, { hcp: [12, 12] }, BAL);
+    advise(k, (e) => advanceBalancingDouble(e, x, lv), [{ dealer: 'W', calls: [their, 'P', 'P', 'X', 'P'] }]);
+  }
+}
+
+
 export { SAMPLES };
