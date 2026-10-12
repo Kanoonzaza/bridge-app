@@ -66,3 +66,12 @@ test('board 44: 1♠ (1NT) 2♥ is limited and not forcing; opener with a heart 
   assert.equal(advise(unpackHand('6.Q97642.T96.K43'), { dealer: 'W', vul: 'none', calls: calls.slice(0, 3) }).call, '2H');
   assert.equal(advise(unpackHand('KQJT43..J872.AJ6'), { dealer: 'W', vul: 'NS', calls: [...calls, 'P'] }).call, '2S');
 });
+
+test('board 56: after Drury and opener\'s light 2♠, the passed hand passes (not a 2/1 fast arrival)', async () => {
+  const { advise } = await import('../js/engine.js');
+  const north = unpackHand('QJ83.KQ.J65.Q973');
+  assert.equal(advise(unpackHand('AK962.9872.Q97.K'), { dealer: 'W', calls: ['P', 'P', 'P', '1S', 'P', '2C', 'P'] }).call, '2S');
+  assert.equal(advise(north, { dealer: 'W', calls: ['P', 'P', 'P', '1S', 'P', '2C', 'P', '2S', 'P'] }).call, 'P');
+  // An unpassed 2/1 still uses fast arrival.
+  assert.equal(advise(north, { dealer: 'N', calls: ['1S', 'P', '2C', 'P', '2S', 'P'] }).call, '4S');
+});

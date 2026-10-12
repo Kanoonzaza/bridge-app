@@ -6,7 +6,8 @@ import { buildAuction } from '../js/advisor-model.js';
 import { SITUATIONS } from '../js/system/round3.js';
 import { mulberry32 } from './helpers.js';
 
-const auctionFor = (calls) => buildAuction({ opener: calls.length % 2 ? 'partner' : 'me', seat: 1, ourCalls: calls });
+// seat 3: the opening comes after a pass by responder (a passed hand), as Drury needs.
+const auctionFor = (calls, ctx) => buildAuction({ opener: calls.length % 2 ? 'partner' : 'me', seat: ctx?.responderPassed ? 3 : 1, ourCalls: calls });
 const ask = (calls, hand) => advise(parseHand(hand), auctionFor(calls));
 const askFull = (dealer, calls, hand) => advise(parseHand(hand), { dealer, calls });
 
@@ -45,7 +46,7 @@ test('negative double: accept the jump with 9+', () => {
 test('round 3 sweep', () => {
   const rng = mulberry32(61);
   for (const sit of SITUATIONS) {
-    const auction = auctionFor(sit.after);
+    const auction = auctionFor(sit.after, sit.ctx);
     assert.equal(auction.calls.filter((c) => c !== 'P').join(' '), sit.after.join(' '), `auction for ${sit.after}`);
     for (let i = 0; i < 60; i++) {
       const hand = randomHand(rng);

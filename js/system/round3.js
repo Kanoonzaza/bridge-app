@@ -12,6 +12,9 @@ const XYZ = 'xyz-tier-1';
 const FSF = 'fourth-suit-forcing-tier-1';
 const FNT = 'forcing-1nt-response-tier-0';
 const SLAM = 'rkcb-1430-and-slam-tools-tier-1';
+const DRURY = 'drury-tier-1';
+const UNPASSED = { responderPassed: false };
+const PASSED = { responderPassed: true };
 
 const RANK = { C: 0, D: 1, H: 2, S: 3, N: 4 };
 const isMajor = (s) => s === 'H' || s === 'S';
@@ -23,8 +26,9 @@ const R = (call, why, extra = {}) => ({ call, why, ...extra });
 
 const SITUATIONS = [];
 // calls: [call, meaning, notes?, shows?][]; decide(e) must return one of them.
-const sit = (after, calls, decide, notes = REBID) => SITUATIONS.push({
+const sit = (after, calls, decide, notes = REBID, ctx) => SITUATIONS.push({
   after,
+  ctx,
   calls: Object.fromEntries(calls.map(([c, m, n, sh]) => [c, { meaning: m, shows: sh ?? {}, notes: n ?? notes }])),
   decide,
 });
@@ -135,7 +139,7 @@ for (const [o, r] of [['S', 'C'], ['S', 'D'], ['S', 'H'], ['H', 'C'], ['H', 'D']
   for (const z of rebids) {
     const calls = [];
     const add = (c, m) => { if (above(c, z) && !calls.some((x) => x[0] === c)) calls.push([c, m]); };
-    if (z === `4${r}`) { sit([`1${o}`, `2${r}`, z], [['P', 'To play.'], ['4N', 'RKCB: slam interest.', SLAM]], (e) => (e.hcp >= 18 ? R('4N', [`${e.hcp} HCP opposite a minimum: still slam`]) : R('P', ['opener is minimum'])), GF); continue; }
+    if (z === `4${r}`) { sit([`1${o}`, `2${r}`, z], [['P', 'To play.'], ['4N', 'RKCB: slam interest.', SLAM]], (e) => (e.hcp >= 18 ? R('4N', [`${e.hcp} HCP opposite a minimum: still slam`]) : R('P', ['opener is minimum'])), GF, UNPASSED); continue; }
     if (isMajor(o)) { add(`3${o}`, `3+ ${nm(o)}, slam interest (slow).`); add(`4${o}`, `3+ ${nm(o)}, minimum (fast arrival).`); }
     if (z !== `3${r}` && z !== '2N') { add('2N', 'Balanced, stoppers in the unbid suits.'); }
     add('3N', 'To play, no slam interest.');
@@ -161,8 +165,27 @@ for (const [o, r] of [['S', 'C'], ['S', 'D'], ['S', 'H'], ['H', 'C'], ['H', 'D']
       if (has('2N') && unbid.every((s) => stopper(e, s)) && h <= 14) return R('2N', ['balanced with the unbid suits stopped']);
       if (isMajor(r) && L[r] >= 6 && has(`4${r}`)) return R(`4${r}`, [`${L[r]} ${nm(r)}`]);
       return R('3N', [`${h} HCP: game`]);
-    }, GF);
+    }, GF, UNPASSED);
   }
+}
+
+// ---------- After Drury (a passed hand's 2♣): responder's second bid ----------
+// 2M = a light opening: pass. 4M = a full opening: pass (game already bid).
+for (const M of ['H', 'S']) {
+  sit([`1${M}`, '2C', `2${M}`], [['P', 'Opener is light: no game.']], () => R('P', ['opener showed a light opening: no game opposite a passed hand']), DRURY, PASSED);
+  sit([`1${M}`, '2C', `4${M}`], [['P', 'To play.']], () => R('P', ['opener bid game']), DRURY, PASSED);
+}
+
+// ---------- A passed hand's 2-level new suit (natural, 10–11): responder's second bid ----------
+// (1M–2♣ by a passed hand is Drury, above.)
+for (const [o, r] of [['S', 'D'], ['S', 'H'], ['H', 'D'], ['D', 'C']]) {
+  sit([`1${o}`, `2${r}`, `2${o}`], [['P', 'Content: no game.'], [`3${r}`, `6+ ${nm(r)}: to play.`]],
+    (e) => (e.len[r] >= 6 && e.len[o] <= 1 ? R(`3${r}`, [`${e.len[r]} ${nm(r)} and a misfit: play in your suit`]) : R('P', ['opener is minimum (or has nothing more to show): no game'])), GF, PASSED);
+  const accept = isMajor(o) ? [[`4${o}`, 'Accept: game.']] : [];
+  sit([`1${o}`, `2${r}`, `3${o}`], [['P', 'Decline: a minimum without help.'], ...accept, ['3N', 'Accept in notrump: the other suits stopped.']],
+    (e) => (isMajor(o) && e.len[o] >= 2 && (e.hcp >= 10 || /[AKQ]/.test(e.hand[o])) ? R(`4${o}`, [`${e.len[o]} ${nm(o)} and ${e.hcp} HCP opposite 14+: game`])
+      : e.hcp >= 11 && SUITS.filter((s) => s !== o && s !== r).every((s) => stopper(e, s)) ? R('3N', [`${e.hcp} HCP, the other suits stopped`])
+        : R('P', [`${e.len[o]} ${nm(o)}: decline`])), GF, PASSED);
 }
 
 // ---------- Opener after notrump sequences ----------
@@ -386,6 +409,7 @@ for (const M of ['H', 'S']) {
 
 const entries = SITUATIONS.flatMap((s) => Object.entries(s.calls).map(([call, c]) => ({
   after: s.after,
+  ...(s.ctx && { ctx: s.ctx }),
   call,
   meaning: c.meaning,
   shows: c.shows,

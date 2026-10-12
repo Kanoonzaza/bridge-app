@@ -377,10 +377,17 @@ export function afterPassedNewSuit(e, o, r) {
   if (e.hcp <= 13) return e.len[o] >= 6 ? R(`2${o}`, [`${e.len[o]} ${NAME[o]}`, 'minimum']) : R('P', [`${e.hcp} HCP opposite a passed hand: no game`]);
   if (e.len[r] >= 3) return R(`3${r}`, [`${e.len[r]}-card ${NAME[r]} support`, `${e.hcp} HCP: invite`]);
   if (e.balanced) return R('2N', [`${e.hcp} HCP, balanced: invite`]);
+  if (e.len[o] >= 6) return R(`3${o}`, [`${e.len[o]} ${NAME[o]}`, `${e.hcp} HCP: invite`]);
+  const side = SUITS.filter((s) => s !== o && s !== r && e.len[s] >= 4).sort(byLength(e))[0];
+  if (side) return R(newSuitOver(r, side), [`${e.len[side]} ${NAME[side]}`, `${e.hcp} HCP: show the second suit (forcing one round)`]);
   return R(`2${o}`, [`${e.len[o]} ${NAME[o]}`]);
 }
 
+// The cheapest bid of s over partner's 2-level r.
+const newSuitOver = (r, s) => `${RANK[s] > RANK[r] ? 2 : 3}${s}`;
+
 function passedNewSuitSituation(o, r) {
+  const sides = Object.fromEntries(SUITS.filter((s) => s !== o && s !== r).map((s) => [newSuitOver(r, s), { meaning: `4+ ${NAME[s]}, 14+: natural, forcing one round.`, shows: { hcp: [14, 21], len: { [s]: [4, 13] }, force: 'round' }, notes: GF }]));
   return {
     after: [`1${o}`, `2${r}`],
     ctx: PASSED,
@@ -389,6 +396,8 @@ function passedNewSuitSituation(o, r) {
       [`2${o}`]: { meaning: `6+ ${NAME[o]} with a minimum; or 5 with extras and nothing better to bid. Not forcing.`, shows: { len: { [o]: [5, 13] } }, notes: GF },
       '2N': { meaning: '14+ balanced: invites game.', shows: { hcp: [14, 21], balanced: true }, notes: GF },
       [`3${r}`]: { meaning: `3+ ${NAME[r]}, 14+: invites game.`, shows: { hcp: [14, 21], len: { [r]: [3, 13] } }, notes: GF },
+      [`3${o}`]: { meaning: `6+ ${NAME[o]}, 14+: invites game.`, shows: { hcp: [14, 21], len: { [o]: [6, 13] } }, notes: GF },
+      ...sides,
     },
     decide: (e) => afterPassedNewSuit(e, o, r),
   };
