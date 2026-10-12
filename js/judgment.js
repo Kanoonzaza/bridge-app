@@ -125,7 +125,7 @@ export function judge(e, auction, rows, summary, key) {
       // No suit worth bidding (the best unbid suit is a doubleton): defend.
       if (suit && e.len[suit] <= 2) return { call: 'P', why: [`no unbid suit longer than ${e.len[suit]} cards: defend`] };
       const nt = cheapest('N');
-      if (!majors.length && t !== 'N' && stopper(e, t) && e.hcp >= 8 && nt && Number(nt[0]) <= 2) return { call: nt, why: [`${e.hcp} HCP with a ${NAME[t]} stopper: answer partner's takeout double in notrump`] };
+      if (!majors.length && !(suit && e.len[suit] >= 5) && t !== 'N' && stopper(e, t) && e.hcp >= 8 && nt && Number(nt[0]) <= 2) return { call: nt, why: [`${e.hcp} HCP with a ${NAME[t]} stopper: answer partner's takeout double in notrump`] };
       const c = suit && cheapest(suit);
       if (c) {
         const jump = e.hcp >= 10 && Number(c[0]) + 1 <= 3 && legal.has(`${Number(c[0]) + 1}${suit}`);

@@ -84,3 +84,10 @@ test('board 62: a 21-count opener does not sell out to their 2♠ after Michaels
   assert.deepEqual(calls.slice(0, 6), ['P', '1D', '2D', 'P', '2S', 'X']);
   assert.ok(calls.includes('3N'), calls.join(' '));
 });
+
+test('board 66: over 1♥–(P)–2♠ (weak jump shift) a 13-count with both minors doubles; partner answers in the 5-card suit', async () => {
+  const { advise } = await import('../js/engine.js');
+  assert.equal(advise(unpackHand('A3.AJT6.Q8753.76'), { dealer: 'E', vul: 'NS', calls: ['1H'] }).call, 'P');
+  assert.equal(advise(unpackHand('J8.K9.AT942.KQT2'), { dealer: 'E', vul: 'NS', calls: ['1H', 'P', '2S'] }).call, 'X');
+  assert.equal(advise(unpackHand('A3.AJT6.Q8753.76'), { dealer: 'E', vul: 'NS', calls: ['1H', 'P', '2S', 'X', 'P'] }).call, '3D');
+});

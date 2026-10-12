@@ -572,19 +572,20 @@ export function overTheirResponse(e, x, resp) {
   const own = unbid.filter((s) => L[s] >= 5 && (top3(e, s) >= 2 || L[s] >= 6)).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a])[0];
   if (own) {
     const lv = cheapest(resp, own);
-    if ((lv === 1 && h >= 9) || (lv === 2 && h >= 11)) return R(`${lv}${own}`, [`${L[own]} good ${nm(own)}, ${h} HCP`]);
+    if ((lv === 1 && h >= 9) || (lv === 2 && h >= 11) || (lv === 3 && (L[own] >= 6 ? h >= 12 : h >= 15))) return R(`${lv}${own}`, [`${L[own]} good ${nm(own)}, ${h} HCP`]);
   }
   if (h >= 12 && unbid.every((s) => L[s] >= 4) && theirs.every((s) => L[s] <= 2)) return R('X', [`${h} HCP, 4+ in both unbid suits: takeout`]);
   return R('P', [`${h} HCP: they have the values; pass`]);
 }
 for (const x of SUITS4) {
-  const resps = [...SUITS4.filter((s) => RANK[s] > RANK[x]).map((s) => `1${s}`), '1N', `2${x}`];
+  // Their 1-level responses, 1NT, the raise, and a weak jump shift (2 of a higher suit).
+  const resps = [...SUITS4.filter((s) => RANK[s] > RANK[x]).map((s) => `1${s}`), '1N', `2${x}`, ...SUITS4.filter((s) => RANK[s] > RANK[x]).map((s) => `2${s}`)];
   for (const resp of resps) {
     const k = [`(1${x})`, 'P', `(${resp})`];
     const theirs = [x, resp[1]].filter((s) => s !== 'N');
     const unbid = SUITS4.filter((s) => !theirs.includes(s));
     def(k, 'P', 'Pass.');
-    def(k, 'X', `Takeout: the unbid suits (${unbid.map(nm).join(' and ')}), 12+.`, { hcp: [12, 37] });
+    def(k, 'X', `Takeout: 4+ in each unbid suit (${unbid.map(nm).join(' and ')}), 12+.`, { hcp: [12, 37], ...(unbid.length === 2 && { len: Object.fromEntries(unbid.map((s) => [s, [4, 13]])) }) });
     for (const s of unbid) def(k, `${cheapest(resp, s)}${s}`, `Natural: good 5+ ${nm(s)}.`, { len: { [s]: [5, 13] } });
     advise(k, (e) => overTheirResponse(e, x, resp), [{ dealer: 'W', calls: [`1${x}`, 'P', resp] }]);
   }
