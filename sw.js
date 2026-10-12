@@ -1,4 +1,4 @@
-const CACHE = 'bc-40b0820f';
+const CACHE = 'bc-6741f0f9';
 const FILES = [
   './',
   'index.html',
@@ -44,6 +44,7 @@ const FILES = [
   'js/ui/theme.js',
   'js/ui/copy.js',
   'js/ui/notes.js',
+  'js/proposed.js',
   'js/confidence.js',
   'js/ui/conf.js',
   'js/report.js',

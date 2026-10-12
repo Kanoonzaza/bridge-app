@@ -2,131 +2,169 @@
  {
   "id": "how-to-use-these-notes",
   "title": "How to use these notes",
-  "tier": ""
+  "tier": "",
+  "part": "Part 1 · Basics"
  },
  {
   "id": "opening-bids-tier-0",
   "title": "Opening bids",
-  "tier": "Tier 0"
- },
- {
-  "id": "21-game-forcing-tier-0",
-  "title": "2/1 Game Forcing",
-  "tier": "Tier 0"
- },
- {
-  "id": "forcing-1nt-response-tier-0",
-  "title": "Forcing 1NT response",
-  "tier": "Tier 0"
- },
- {
-  "id": "raising-partners-major-tier-0",
-  "title": "Raising partner's major",
-  "tier": "Tier 0"
- },
- {
-  "id": "responding-to-1-1-tier-0",
-  "title": "Responding to 1♣ / 1♦",
-  "tier": "Tier 0"
- },
- {
-  "id": "openers-rebids-tier-0",
-  "title": "Opener's rebids",
-  "tier": "Tier 0"
- },
- {
-  "id": "reverses-tier-0",
-  "title": "Reverses",
-  "tier": "Tier 0"
+  "tier": "Tier 0",
+  "part": "Part 2 · Opening the bidding"
  },
  {
   "id": "1nt-opening-and-responses-tier-0",
   "title": "1NT opening and responses",
-  "tier": "Tier 0"
- },
- {
-  "id": "weak-twos-and-ogust-tier-0",
-  "title": "Weak twos and Ogust",
-  "tier": "Tier 0"
- },
- {
-  "id": "preempts-tier-0",
-  "title": "Preempts",
-  "tier": "Tier 0"
- },
- {
-  "id": "competitive-bidding-tier-0",
-  "title": "Competitive bidding",
-  "tier": "Tier 0"
- },
- {
-  "id": "defense-leads-and-signals-tier-0",
-  "title": "Defense: leads and signals",
-  "tier": "Tier 0"
- },
- {
-  "id": "inverted-minor-raises-tier-1",
-  "title": "Inverted minor raises",
-  "tier": "Tier 1"
- },
- {
-  "id": "xyz-tier-1",
-  "title": "XYZ",
-  "tier": "Tier 1"
- },
- {
-  "id": "fourth-suit-forcing-tier-1",
-  "title": "Fourth suit forcing",
-  "tier": "Tier 1"
- },
- {
-  "id": "drury-tier-1",
-  "title": "Drury",
-  "tier": "Tier 1"
- },
- {
-  "id": "jordan-2nt-tier-1",
-  "title": "Jordan 2NT",
-  "tier": "Tier 1"
- },
- {
-  "id": "dont-against-their-1nt-tier-1",
-  "title": "DONT against their 1NT",
-  "tier": "Tier 1"
- },
- {
-  "id": "rkcb-1430-and-slam-tools-tier-1",
-  "title": "RKCB 1430 and slam tools",
-  "tier": "Tier 1"
- },
- {
-  "id": "support-doubles-and-redoubles-tier-2",
-  "title": "Support doubles and redoubles",
-  "tier": "Tier 2"
+  "tier": "Tier 0",
+  "part": "Part 2 · Opening the bidding"
  },
  {
   "id": "smolen-tier-2",
   "title": "Smolen",
-  "tier": "Tier 2"
- },
- {
-  "id": "lebensohl-tier-2",
-  "title": "Lebensohl",
-  "tier": "Tier 2"
+  "tier": "Tier 2",
+  "part": "Part 2 · Opening the bidding"
  },
  {
   "id": "strong-2-opening-tier-2",
   "title": "Strong 2♣ opening",
-  "tier": "Tier 2"
+  "tier": "Tier 2",
+  "part": "Part 2 · Opening the bidding"
+ },
+ {
+  "id": "weak-twos-and-ogust-tier-0",
+  "title": "Weak twos and Ogust",
+  "tier": "Tier 0",
+  "part": "Part 2 · Opening the bidding"
+ },
+ {
+  "id": "preempts-tier-0",
+  "title": "Preempts",
+  "tier": "Tier 0",
+  "part": "Part 2 · Opening the bidding"
+ },
+ {
+  "id": "responding-to-1-1-tier-0",
+  "title": "Responding to 1♣ / 1♦",
+  "tier": "Tier 0",
+  "part": "Part 3 · Responding to a 1-level suit opening"
+ },
+ {
+  "id": "inverted-minor-raises-tier-1",
+  "title": "Inverted minor raises",
+  "tier": "Tier 1",
+  "part": "Part 3 · Responding to a 1-level suit opening"
+ },
+ {
+  "id": "raising-partners-major-tier-0",
+  "title": "Raising partner's major",
+  "tier": "Tier 0",
+  "part": "Part 3 · Responding to a 1-level suit opening"
+ },
+ {
+  "id": "drury-tier-1",
+  "title": "Drury",
+  "tier": "Tier 1",
+  "part": "Part 3 · Responding to a 1-level suit opening"
+ },
+ {
+  "id": "21-game-forcing-tier-0",
+  "title": "2/1 Game Forcing",
+  "tier": "Tier 0",
+  "part": "Part 3 · Responding to a 1-level suit opening"
+ },
+ {
+  "id": "forcing-1nt-response-tier-0",
+  "title": "Forcing 1NT response",
+  "tier": "Tier 0",
+  "part": "Part 3 · Responding to a 1-level suit opening"
+ },
+ {
+  "id": "openers-rebids-tier-0",
+  "title": "Opener's rebids",
+  "tier": "Tier 0",
+  "part": "Part 4 · Opener's rebid and later rounds"
+ },
+ {
+  "id": "reverses-tier-0",
+  "title": "Reverses",
+  "tier": "Tier 0",
+  "part": "Part 4 · Opener's rebid and later rounds"
+ },
+ {
+  "id": "xyz-tier-1",
+  "title": "XYZ",
+  "tier": "Tier 1",
+  "part": "Part 4 · Opener's rebid and later rounds"
+ },
+ {
+  "id": "fourth-suit-forcing-tier-1",
+  "title": "Fourth suit forcing",
+  "tier": "Tier 1",
+  "part": "Part 4 · Opener's rebid and later rounds"
+ },
+ {
+  "id": "rkcb-1430-and-slam-tools-tier-1",
+  "title": "RKCB 1430 and slam tools",
+  "tier": "Tier 1",
+  "part": "Part 4 · Opener's rebid and later rounds"
+ },
+ {
+  "id": "competitive-bidding-tier-0",
+  "title": "Competitive bidding: when they open",
+  "tier": "Tier 0",
+  "part": "Part 5 · Competitive bidding"
+ },
+ {
+  "id": "dont-against-their-1nt-tier-1",
+  "title": "DONT against their 1NT",
+  "tier": "Tier 1",
+  "part": "Part 5 · Competitive bidding"
+ },
+ {
+  "id": "when-we-open-and-they-compete",
+  "title": "Competitive bidding: when we open and they compete",
+  "tier": "Tier 0",
+  "part": "Part 5 · Competitive bidding"
+ },
+ {
+  "id": "jordan-2nt-tier-1",
+  "title": "Jordan 2NT",
+  "tier": "Tier 1",
+  "part": "Part 5 · Competitive bidding"
+ },
+ {
+  "id": "support-doubles-and-redoubles-tier-2",
+  "title": "Support doubles and redoubles",
+  "tier": "Tier 2",
+  "part": "Part 5 · Competitive bidding"
+ },
+ {
+  "id": "lebensohl-tier-2",
+  "title": "Lebensohl",
+  "tier": "Tier 2",
+  "part": "Part 5 · Competitive bidding"
+ },
+ {
+  "id": "competitive-judgment",
+  "title": "Competitive judgment: doubles and how high to go",
+  "tier": "Tier 0",
+  "part": "Part 5 · Competitive bidding"
+ },
+ {
+  "id": "defense-leads-and-signals-tier-0",
+  "title": "Defense: leads and signals",
+  "tier": "Tier 0",
+  "part": "Part 6 · Defense"
  },
  {
   "id": "new-agreements-proposed",
-  "title": "New agreements (proposed, Oct 2026)",
-  "tier": "Tier 1"
+  "title": "Proposed agreements to confirm",
+  "tier": "Proposed",
+  "part": "Part 7 · Checklists"
  },
  {
   "id": "danger-zones-the-most-common-mistakes",
   "title": "Danger zones: the most common mistakes",
-  "tier": ""
+  "tier": "",
+  "part": "Part 7 · Checklists"
  }
 ]

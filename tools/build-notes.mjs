@@ -48,19 +48,32 @@ export function buildPage(name, source) {
   ].join('\n');
 }
 
-// The notes' top-level sections, for the Notes tab: [{ id, title, proposed }].
+// The notes' top-level sections, for the Notes tab: [{ id, title, tier, part }].
 export function contents(source) {
-  return [...source.matchAll(/<h2 id="([^"]+)">([\s\S]*?)<\/h2>/g)].map(([, id, inner]) => ({
-    id,
-    title: inner.replace(/<span class="tier[^"]*">[^<]*<\/span>/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
-    tier: (inner.match(/class="tier[^"]*">([^<]*)</) ?? [])[1] ?? '',
-  }));
+  const out = [];
+  let part = '';
+  for (const m of source.matchAll(/<p class="part" id="[^"]+">([^<]*)<\/p>|<h2 id="([^"]+)">([\s\S]*?)<\/h2>/g)) {
+    if (m[1] !== undefined) { part = m[1].trim(); continue; }
+    const [, , id, inner] = m;
+    out.push({
+      id,
+      title: inner.replace(/<span class="tier[^"]*">[^<]*<\/span>/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
+      tier: (inner.match(/class="tier[^"]*">([^<]*)</) ?? [])[1] ?? '',
+      part,
+    });
+  }
+  return out;
 }
+
+// Every section and subsection id: the places a rule's "Read more" link may point to.
+export const anchors = (source) => [...source.matchAll(/<h[23] id="([^"]+)"/g)].map((m) => m[1]);
 
 export function outputs(root) {
   const out = {};
   for (const name of Object.keys(PAGES)) out[`guide/${name}`] = buildPage(name, readFileSync(join(root, 'notes', name), 'utf8'));
-  out['data/notes-toc.json'] = `${JSON.stringify(contents(readFileSync(join(root, 'notes/system-notes.html'), 'utf8')), null, 1)}\n`;
+  const notes = readFileSync(join(root, 'notes/system-notes.html'), 'utf8');
+  out['data/notes-toc.json'] = `${JSON.stringify(contents(notes), null, 1)}\n`;
+  out['data/notes-anchors.json'] = `${JSON.stringify(anchors(notes), null, 1)}\n`;
   return out;
 }
 

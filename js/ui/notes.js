@@ -20,8 +20,12 @@ export function notesView(root) {
 
   fetch('data/notes-toc.json')
     .then((r) => r.json())
-    .then((toc) => list.replaceChildren(...toc.map((s) => el('a', { class: `toc-row${s.id === 'new-agreements-proposed' ? ' proposed' : ''}`, href: `${NOTES}#${s.id}` },
-      el('span', {}, s.title),
-      s.id === 'new-agreements-proposed' ? el('span', { class: 'chip warn' }, 'Confirm with partner') : s.tier ? el('span', { class: 'chip' }, s.tier) : null))))
+    .then((toc) => list.replaceChildren(...toc.flatMap((s, i) => [
+      // A heading for each part of the notes (Opening the bidding, Competitive bidding, ...).
+      s.part && s.part !== toc[i - 1]?.part ? el('div', { class: 'toc-part' }, s.part) : null,
+      el('a', { class: `toc-row${s.id === 'new-agreements-proposed' ? ' proposed' : ''}`, href: `${NOTES}#${s.id}` },
+        el('span', {}, s.title),
+        s.id === 'new-agreements-proposed' ? el('span', { class: 'chip warn' }, 'Confirm with partner') : s.tier ? el('span', { class: 'chip' }, s.tier) : null),
+    ].filter(Boolean))))
     .catch(() => list.replaceChildren(el('p', { class: 'muted' }, 'The contents could not be loaded. Open the system notes above.')));
 }

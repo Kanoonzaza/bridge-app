@@ -22,7 +22,9 @@ const cheapest = (last, s) => Number(last[0]) + (RANK[s] > RANK[last[1]] ? 0 : 1
 const above = (a, b) => (Number(a[0]) - Number(b[0])) * 5 + RANK[a[1]] - RANK[b[1]] > 0;
 
 const entries = [];
-const def = (after, call, meaning, shows = {}, notes = COMP, extra = {}) => {
+// Contested auctions after our 1-level suit opening are explained in their own notes section.
+const OURS = 'when-we-open-and-they-compete';
+const def = (after, call, meaning, shows = {}, notes = /^1[CDHS]$/.test(after[0]) ? OURS : COMP, extra = {}) => {
   if (entries.some((e) => !e.tail && JSON.stringify(e.after) === JSON.stringify(after) && e.call === call && JSON.stringify(e.ctx ?? {}) === JSON.stringify(extra.ctx ?? {}))) return;
   entries.push({ after, call, meaning, shows, notes, ...extra });
 };
@@ -221,7 +223,7 @@ for (const o of SUITS4) {
     else if (!(s === 'C' && isMajor(o))) def(k, `2${s}`, `Natural: 5+ ${nm(s)}, weak, not forcing.`, { len: { [s]: [5, 13] } });
   }
   if (isMajor(o)) {
-    def(k, '2C', 'Natural: 5+ clubs, weak, not forcing.', { len: { C: [5, 13] } }, COMP, { ctx: { responderPassed: false } });
+    def(k, '2C', 'Natural: 5+ clubs, weak, not forcing.', { len: { C: [5, 13] } }, OURS, { ctx: { responderPassed: false } });
     def(k, '2C', `Drury: 3-card ${nm(o)} support, 10–11 (Jordan 2NT shows 4).`, { len: { [o]: [3, 3] } }, DRURY, { ctx: { responderPassed: true } });
   }
 }

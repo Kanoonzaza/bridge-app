@@ -50,7 +50,7 @@ test('every suggestion says how firm it is: agreed system, proposed agreement or
   assert.equal(confidence(open).level, 'agreed');
   assert.match(advisorReport(hand, { dealer: 'S', calls: [] }, open), /Suggested: 1♠ \[Agreed system\]/);
   assert.equal(confidence({ call: '3C', fallback: 'judgment' }).label, 'General judgment');
-  assert.equal(confidence({ call: '3S', notes: 'new-agreements-proposed' }).level, 'proposed');
+  assert.equal(confidence({ call: '3S', notes: 'leaping-michaels' }).level, 'proposed');
   assert.equal(confidence({ notCovered: true }), null);
 });
 

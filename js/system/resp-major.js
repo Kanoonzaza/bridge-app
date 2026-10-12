@@ -260,7 +260,7 @@ function oneNtWhy(e, M) {
   return r;
 }
 
-const NEW = 'new-agreements-proposed';
+const NEW = '1m3nt';
 entries.push(
   {
     ...MAJ, ctx: UNPASSED, call: '3N', priority: 19, notes: NEW,

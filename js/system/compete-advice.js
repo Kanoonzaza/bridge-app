@@ -499,7 +499,7 @@ for (const o of SUITS4) {
   for (const their of [`2${o}`, '2N', '1N']) {
     const k = [`1${o}`, `(${their})`];
     const cue = theirCue(o, their);
-    if (cue) def(k, cue, `Cue-bid of their suit: limit raise or better in ${nm(o)} (10+${isMajor(o) ? ' points counting shortness' : ''}). (Proposed.)`, { hcp: [10, 37], len: { [o]: [3, 13] }, force: 'round', ...(isMajor(o) && { pts: o }) }, 'new-agreements-proposed');
+    if (cue) def(k, cue, `Cue-bid of their suit: limit raise or better in ${nm(o)} (10+${isMajor(o) ? ' points counting shortness' : ''}). (Proposed.)`, { hcp: [10, 37], len: { [o]: [3, 13] }, force: 'round', ...(isMajor(o) && { pts: o }) }, 'their-two-suiters');
     def(k, 'X', their === '1N' ? 'Penalty: 9+ HCP.' : 'Values (10+), usually short in our suit: interest in penalizing them.', { hcp: [their === '1N' ? 9 : 10, 37] });
     def(k, 'P', 'Pass.');
     const lv = their === '1N' ? 2 : 3;
@@ -624,21 +624,20 @@ for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']
 
 
 // ---------- New agreements (proposed, Oct 2026) ----------
-const LEAD = 'new-agreements-proposed';
 const goodSuit = (e, s) => e.len[s] >= 5 && top3(e, s) >= 2 || (e.len[s] >= 4 && top3(e, s) === 3);
 
 // Lead-directing doubles of their artificial bids (Stayman and transfers over their notrump).
 for (const [nt, arts] of [['1N', ['2C', '2D', '2H']], ['2N', ['3C', '3D', '3H']]]) {
   for (const a of arts) {
     const k = [`(${nt})`, 'P', `(${a})`];
-    def(k, 'X', `Lead-directing: a good ${nm(a[1])} suit, please lead it.`, { len: { [a[1]]: [4, 13] } }, LEAD);
-    def(k, 'P', 'Pass.', {}, LEAD);
+    def(k, 'X', `Lead-directing: a good ${nm(a[1])} suit, please lead it.`, { len: { [a[1]]: [4, 13] } }, 'lead-directing-doubles');
+    def(k, 'P', 'Pass.', {}, 'lead-directing-doubles');
     advise(k, (e) => (goodSuit(e, a[1]) ? R('X', [`good ${nm(a[1])}: ask partner to lead it`]) : R('P', ['no lead to suggest: pass'])), [{ dealer: 'W', calls: [nt, 'P', a] }]);
   }
 }
 // Lead-directing double of their RKCB reply.
 entries.push(...SUITS4.map((s) => ({
-  tail: true, after: ['(4N)', 'P', `(5${s})`], call: 'X', notes: LEAD, meaning: `Lead-directing: lead ${nm(s)}.`, shows: { len: { [s]: [4, 13] } },
+  tail: true, after: ['(4N)', 'P', `(5${s})`], call: 'X', notes: 'lead-directing-doubles', meaning: `Lead-directing: lead ${nm(s)}.`, shows: { len: { [s]: [4, 13] } },
 })));
 
 // Defense against their strong 2♣.
@@ -659,13 +658,13 @@ for (const after2D of [false, true]) {
   const k = after2D ? ['(2C)', 'P', '(2D)'] : ['(2C)'];
   const last = after2D ? '2D' : '2C';
   const lead = after2D ? 'D' : 'C';
-  def(k, 'X', `Lead-directing: a good ${nm(lead)} suit.`, { len: { [lead]: [4, 13] } }, LEAD);
-  def(k, 'P', 'Pass.', {}, LEAD);
-  def(k, '2N', 'Both minors (5-5), preemptive.', { len: { C: [5, 13], D: [5, 13] } }, LEAD);
+  def(k, 'X', `Lead-directing: a good ${nm(lead)} suit.`, { len: { [lead]: [4, 13] } }, 'against-their-strong-2');
+  def(k, 'P', 'Pass.', {}, 'against-their-strong-2');
+  def(k, '2N', 'Both minors (5-5), preemptive.', { len: { C: [5, 13], D: [5, 13] } }, 'against-their-strong-2');
   for (const t of SUITS4.filter((u) => !(after2D && u === 'D'))) {
     const lv = cheapest(last, t);
-    def(k, `${lv}${t}`, `Natural: 5+ ${nm(t)}, preemptive.`, { len: { [t]: [5, 13] } }, LEAD);
-    def(k, `${lv + 1}${t}`, `Preemptive jump: 7+ ${nm(t)}.`, { len: { [t]: [7, 13] } }, LEAD);
+    def(k, `${lv}${t}`, `Natural: 5+ ${nm(t)}, preemptive.`, { len: { [t]: [5, 13] } }, 'against-their-strong-2');
+    def(k, `${lv + 1}${t}`, `Preemptive jump: 7+ ${nm(t)}.`, { len: { [t]: [7, 13] } }, 'against-their-strong-2');
   }
   advise(k, (e) => overStrong2C(e, after2D), [after2D ? { dealer: 'W', calls: ['2C', 'P', '2D'] } : { dealer: 'E', calls: ['2C'] }]);
 }
@@ -698,7 +697,7 @@ for (const x of SUITS4) {
       const unbid = SUITS4.filter((t) => t !== x && t !== pc[1]);
       def(k, 'X', pc === 'X'
         ? `Responsive double: values (8+), both unbid ${MAJORS.includes(x) ? 'suits' : 'majors'}.`
-        : `Responsive double: values (8+), the unbid suits (${unbid.map(nm).join(' and ')}).`, { hcp: [8, 37] }, LEAD);
+        : `Responsive double: values (8+), the unbid suits (${unbid.map(nm).join(' and ')}).`, { hcp: [8, 37] }, 'responsive-doubles');
       def(k, 'P', 'Pass.');
       const raiseCall = pc === 'X' ? null : `${cheapest(theirRaise, pc[1])}${pc[1]}`;
       if (raiseCall) def(k, raiseCall, `Raise: competing in ${nm(pc[1])}.`, { len: { [pc[1]]: [3, 13] } });
@@ -729,16 +728,15 @@ const BELOW = { S: 'H', H: 'D', D: 'C' };
 for (const [o, them] of [['H', 'D'], ['S', 'H'], ['H', 'C'], ['S', 'C'], ['S', 'D']]) {
   for (const k of [[`1${o}`, `(2${them})`, `2${o}`, `(3${them})`], [`1${o}`, `2${o}`, `(3${them})`]]) {
     const maximal = BELOW[o] === them;
-    def(k, 'X', maximal ? `Maximal double: a game try in ${nm(o)} (no room for anything else).` : 'Penalty: they have no fit and we have the values.', {}, LEAD);
-    def(k, `3${o}`, maximal ? 'Competitive only: not a game try.' : 'Competing (or a mild invitation).', {}, COMP);
-    def(k, `4${o}`, 'Game.', {}, COMP);
-    def(k, 'P', 'Pass: content to defend.', {}, COMP);
+    def(k, 'X', maximal ? `Maximal double: a game try in ${nm(o)} (no room for anything else).` : 'Penalty: they have no fit and we have the values.', {}, 'competing-at-the-3-level');
+    def(k, `3${o}`, maximal ? 'Competitive only: not a game try.' : 'Competing (or a mild invitation).', {}, 'competing-at-the-3-level');
+    def(k, `4${o}`, 'Game.', {}, 'competing-at-the-3-level');
+    def(k, 'P', 'Pass: content to defend.', {}, 'competing-at-the-3-level');
   }
 }
 
 
 // ---------- Second batch of proposed agreements (gaps 5–8) ----------
-const NEW = 'new-agreements-proposed';
 
 // Leaping Michaels over their weak two: 5-5, game values.
 export function leapingMichaels(e, x) {
@@ -756,11 +754,11 @@ export function leapingMichaels(e, x) {
 for (const x of ['D', 'H', 'S']) {
   for (const k of [[`(2${x})`], [`(2${x})`, 'P']]) {
     if (x === 'D') {
-      def(k, '4D', 'Leaping Michaels: 5-5 in the majors, game values. (Proposed.)', { hcp: [11, 37], len: { H: [5, 13], S: [5, 13] } }, NEW);
-      def(k, '4C', 'Leaping Michaels: 5+ clubs and a 5+ major, game values. (Proposed.)', { hcp: [11, 37], len: { C: [5, 13] } }, NEW);
+      def(k, '4D', 'Leaping Michaels: 5-5 in the majors, game values. (Proposed.)', { hcp: [11, 37], len: { H: [5, 13], S: [5, 13] } }, 'leaping-michaels');
+      def(k, '4C', 'Leaping Michaels: 5+ clubs and a 5+ major, game values. (Proposed.)', { hcp: [11, 37], len: { C: [5, 13] } }, 'leaping-michaels');
     } else {
       const om = x === 'H' ? 'S' : 'H';
-      for (const m of ['C', 'D']) def(k, `4${m}`, `Leaping Michaels: 5+ ${nm(m)} and 5+ ${nm(om)}, game values. (Proposed.)`, { hcp: [11, 37], len: { [m]: [5, 13], [om]: [5, 13] } }, NEW);
+      for (const m of ['C', 'D']) def(k, `4${m}`, `Leaping Michaels: 5+ ${nm(m)} and 5+ ${nm(om)}, game values. (Proposed.)`, { hcp: [11, 37], len: { [m]: [5, 13], [om]: [5, 13] } }, 'leaping-michaels');
     }
     advise(k, (e) => overWeakTwo(e, x, 2, k.length === 2), []); // re-attach so the new calls are pickable
   }
@@ -802,15 +800,15 @@ export function advanceFourLevelDouble(e, x) {
 }
 for (const x of SUITS4) {
   for (const k of [[`(4${x})`], [`(4${x})`, 'P']]) {
-    def(k, 'X', x === 'S' ? 'Values (14+): partner usually passes. (Proposed.)' : `Takeout: short in ${nm(x)}, 13+. (Proposed.)`, { hcp: [13, 37] }, NEW);
-    def(k, 'P', 'Pass.', {}, NEW);
-    if (x === 'S') def(k, '4N', 'Takeout for two suits (5-5). (Proposed.)', {}, NEW);
-    for (const s of SUITS4.filter((t) => t !== x)) def(k, `${cheapest(`4${x}`, s)}${s}`, `Natural: good 6+ ${nm(s)}.`, { len: { [s]: [6, 13] } }, NEW);
+    def(k, 'X', x === 'S' ? 'Values (14+): partner usually passes. (Proposed.)' : `Takeout: short in ${nm(x)}, 13+. (Proposed.)`, { hcp: [13, 37] }, 'doubling-their-4-level-preempts');
+    def(k, 'P', 'Pass.', {}, 'doubling-their-4-level-preempts');
+    if (x === 'S') def(k, '4N', 'Takeout for two suits (5-5). (Proposed.)', {}, 'doubling-their-4-level-preempts');
+    for (const s of SUITS4.filter((t) => t !== x)) def(k, `${cheapest(`4${x}`, s)}${s}`, `Natural: good 6+ ${nm(s)}.`, { len: { [s]: [6, 13] } }, 'doubling-their-4-level-preempts');
     advise(k, (e) => overFourLevel(e, x), [k.length === 2 ? { dealer: 'W', calls: [`4${x}`, 'P', 'P'] } : { dealer: 'E', calls: [`4${x}`] }]);
   }
   const a = [`(4${x})`, 'X'];
-  def(a, 'P', x === 'S' ? 'Defend: partner showed values.' : `Penalty pass: length and strength in ${nm(x)}.`, {}, NEW);
-  for (const s of SUITS4.filter((t) => t !== x)) def(a, `${cheapest(`4${x}`, s)}${s}`, `Our best suit.`, {}, NEW);
+  def(a, 'P', x === 'S' ? 'Defend: partner showed values.' : `Penalty pass: length and strength in ${nm(x)}.`, {}, 'doubling-their-4-level-preempts');
+  for (const s of SUITS4.filter((t) => t !== x)) def(a, `${cheapest(`4${x}`, s)}${s}`, `Our best suit.`, {}, 'doubling-their-4-level-preempts');
   advise(a, (e) => advanceFourLevelDouble(e, x), [{ dealer: 'W', calls: [`4${x}`, 'X', 'P'] }]);
 }
 
@@ -825,7 +823,7 @@ for (const lv of [6, 7]) {
     for (const after of [[`(${lv}${x})`], [`(${lv}${x})`, 'P']]) {
       for (const call of ['X', 'P']) {
         entries.push({
-          tail: true, after, call, variant: `${lv}${x}`, notes: NEW, shows: {}, priority: 10,
+          tail: true, after, call, variant: `${lv}${x}`, notes: 'lightner-double', shows: {}, priority: 10,
           meaning: call === 'X' ? 'Lightner double: do not lead our suit; make an unusual lead (often dummy\'s first suit). (Proposed.)' : 'Pass.',
           when: (key) => key.some((t) => t.startsWith('(')) && !key.some((t) => !t.startsWith('(') && /^[67]/.test(t)),
           pick: (e) => lightner(e, x).call === call,
@@ -960,10 +958,10 @@ export function advanceAfterResponse(e, x, ov, rb, vul = 'none') {
 
 // All four live in the proposed section (#opener-after-1m-1nt-and-their-overcall, #opener-reopening-double,
 // #support-doubles-after-their-overcall, #advancing-after-their-response).
-const OPEN_AFTER = NEW;
-const REOPEN = NEW;
-const SUPPORT_LATE = NEW;
-const ADVANCE_LATE = NEW;
+const OPEN_AFTER = 'opener-after-1m-1nt-and-their-overcall';
+const REOPEN = 'opener-reopening-double';
+const SUPPORT_LATE = 'support-doubles-after-their-overcall';
+const ADVANCE_LATE = 'advancing-after-their-response';
 
 const answerDefs = (k, o, ov, notes) => {
   const y = ov[1];
@@ -1127,16 +1125,16 @@ for (const o of SUITS4) {
       for (let rl = lv + 1; rl <= 3; rl++) {
         const rz = `${rl}${y}`;
         const k = [`1${o}`, `(${ov})`, 'X', `(${rz})`];
-        def(k, 'P', 'Minimum: nothing more to say.', {}, NEW);
-        def(k, 'X', 'Cooperative double: extra values (17+). Partner passes with their suit, or bids.', { hcp: [17, 37] }, NEW);
-        def(k, '3N', `To play: 17+ with a ${nm(y)} stopper.`, { hcp: [17, 37] }, NEW);
+        def(k, 'P', 'Minimum: nothing more to say.', {}, 'opener-after-negative-double-and-their-raise');
+        def(k, 'X', 'Cooperative double: extra values (17+). Partner passes with their suit, or bids.', { hcp: [17, 37] }, 'opener-after-negative-double-and-their-raise');
+        def(k, '3N', `To play: 17+ with a ${nm(y)} stopper.`, { hcp: [17, 37] }, 'opener-after-negative-double-and-their-raise');
         for (const u of MAJORS.filter((t) => t !== o && t !== y)) {
           const c = cheapest(rz, u);
-          if (c <= 3) def(k, `${c}${u}`, `4 ${nm(u)}: the major partner showed.`, { len: { [u]: [4, 13] } }, NEW);
-          if (c <= 4) def(k, `4${u}`, `4 ${nm(u)}, 16+: game.`, { hcp: [16, 37], len: { [u]: [4, 13] } }, NEW);
+          if (c <= 3) def(k, `${c}${u}`, `4 ${nm(u)}: the major partner showed.`, { len: { [u]: [4, 13] } }, 'opener-after-negative-double-and-their-raise');
+          if (c <= 4) def(k, `4${u}`, `4 ${nm(u)}, 16+: game.`, { hcp: [16, 37], len: { [u]: [4, 13] } }, 'opener-after-negative-double-and-their-raise');
         }
         const ol = cheapest(rz, o);
-        if (ol <= 3) def(k, `${ol}${o}`, `6+ ${nm(o)}: competing.`, { len: { [o]: [6, 13] } }, NEW);
+        if (ol <= 3) def(k, `${ol}${o}`, `6+ ${nm(o)}: competing.`, { len: { [o]: [6, 13] } }, 'opener-after-negative-double-and-their-raise');
         advise(k, (e) => afterNegXRaise(e, o, ov, rz), [{ dealer: 'S', calls: [`1${o}`, ov, 'X', rz] }]);
       }
     }
