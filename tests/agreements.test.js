@@ -71,3 +71,30 @@ test('their Michaels or Unusual 2NT: cue-bid of their cheaper suit = limit raise
   assert.match(meaning('N', ['1H', '2H', '2S']), /limit raise or better in hearts/);
   assert.match(meaning('N', ['1C', '2N', '3D']), /limit raise or better in clubs/);
 });
+
+test('Leaping Michaels over their weak two', () => {
+  assert.equal(ask('E', ['2S'], '4 AQJ93 5 KQJ862').call, '4C');
+  assert.equal(ask('E', ['2D'], 'AKJ93 KQJ86 5 62').call, '4D');
+  assert.match(meaning('E', ['2H', '4D']), /Leaping Michaels: 5\+ diamonds and 5\+ spades/);
+});
+
+test('doubles of their 4-level preempts', () => {
+  assert.equal(ask('E', ['4H'], 'AQ93 5 KJ84 AQ62').call, 'X');
+  assert.equal(ask('E', ['4S'], 'A93 K5 AJ84 KQ62').call, 'X');
+  assert.match(meaning('E', ['4S', 'X']), /partner usually passes/);
+  assert.equal(ask('W', ['4H', 'X', 'P'], 'KJ84 75 Q942 J62').call, '4S');
+  assert.equal(ask('W', ['4S', 'X', 'P'], 'J84 975 Q942 J62').call, 'P');
+});
+
+test('strong minor hands over our 1NT', () => {
+  assert.equal(advise(parseHand('A4 K3 KQ984 AJ62'), buildAuction({ opener: 'partner', seat: 1, ourCalls: ['1N'] })).call, '3S');
+  assert.equal(advise(parseHand('A4 K3 82 AKQJ862'), buildAuction({ opener: 'partner', seat: 1, ourCalls: ['1N'] })).call, '2S');
+  assert.equal(advise(parseHand('A4 K3 82 AKQJ862'), buildAuction({ opener: 'partner', seat: 1, ourCalls: ['1N', '2S', '3C'] })).call, '4C');
+  assert.match(meaning('N', ['1N', 'P', '3S']), /Both minors/);
+});
+
+test('Lightner double of their slam', () => {
+  assert.equal(ask('W', ['1S', 'P', '6S', 'P', 'P'], '984 - AJ9842 Q632').call, 'X');
+  assert.equal(ask('W', ['1S', 'P', '6S', 'P', 'P'], '984 72 AJ98 Q632').call, 'P');
+  assert.match(meaning('W', ['1S', 'P', '6S', 'X']), /Lightner/);
+});

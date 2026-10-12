@@ -20,3 +20,12 @@ Engine: `auction.vul` ('none' | 'NS' | 'EW' | 'both'); `situation.ctx.vul` is re
 | Passed-hand jump shift = fit-showing (good 5+ suit, 4+ support, 10–11); no weak jump shifts by a passed hand | `resp-major.js` (`fitJump`, PASSED entries) |
 | RKCB in a minor only with 2+ own key cards, else 5m (6m with 35+) | `judgment.js` |
 | Over their Michaels / Unusual 2NT: cue of their cheaper known suit = limit raise+, X = 10+ penalty interest | `compete-advice.js` (`theirCue`) |
+
+## Third batch (gaps 5–8)
+
+| Agreement | Where |
+|---|---|
+| Leaping Michaels over their weak two (5-5, game values) | `compete-advice.js` (`leapingMichaels`, used by `overWeakTwo`) |
+| Doubles of 4-level preempts: takeout over 4♣/4♦/4♥, values over 4♠ (4NT = two suits); advancing | `compete-advice.js` (`overFourLevel`, `advanceFourLevelDouble`) |
+| Strong minors over our 1NT: 1NT–3♠ both minors; 1NT–2♠–3♣–4m slam try; opener's answers | `notrump.js` |
+| Lightner double of their freely bid slam (Advisor: with a side void and an ace) | `compete-advice.js` (tail entries) |

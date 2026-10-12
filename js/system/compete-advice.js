@@ -220,6 +220,8 @@ export function overWeakTwo(e, x, lv, balancing) {
   const others = SUITS4.filter((s) => s !== x);
   const stop = stopper(e, x);
   const minX = (lv === 3 ? 13 : 12) - (balancing ? 2 : 0);
+  const leap = lv === 2 ? leapingMichaels(e, x) : null;
+  if (leap) return leap;
   if (lv === 2 && e.balanced && stop && h >= 15 && h <= 18) return R('2N', [`${h} HCP balanced, ${nm(x)} stopped`]);
   if (stop && h >= (lv === 2 ? 19 : 16) && e.balanced) return R('3N', [`${h} HCP, ${nm(x)} stopped`]);
   if ((L[x] <= 2 && others.every((s) => L[s] >= 3) && h >= minX) || h >= 17) return R('X', [`${h} HCP`, 'takeout double']);
@@ -675,6 +677,106 @@ for (const [o, them] of [['H', 'D'], ['S', 'H'], ['H', 'C'], ['S', 'C'], ['S', '
     def(k, `3${o}`, maximal ? 'Competitive only: not a game try.' : 'Competing (or a mild invitation).', {}, COMP);
     def(k, `4${o}`, 'Game.', {}, COMP);
     def(k, 'P', 'Pass: content to defend.', {}, COMP);
+  }
+}
+
+
+// ---------- Second batch of proposed agreements (gaps 5–8) ----------
+const NEW = 'new-agreements-proposed';
+
+// Leaping Michaels over their weak two: 5-5, game values.
+export function leapingMichaels(e, x) {
+  const L = e.len;
+  if (e.hcp < 11) return null;
+  if (x === 'D') {
+    if (L.H >= 5 && L.S >= 5) return R('4D', ['5-5 in the majors, game values: Leaping Michaels']);
+    if (L.C >= 5 && (L.H >= 5 || L.S >= 5)) return R('4C', ['clubs and a major, game values: Leaping Michaels']);
+    return null;
+  }
+  const om = x === 'H' ? 'S' : 'H';
+  const m = ['C', 'D'].filter((t) => L[t] >= 5).sort((a, b) => L[b] - L[a])[0];
+  return L[om] >= 5 && m ? R(`4${m}`, [`5+ ${nm(m)} and 5+ ${nm(om)}, game values: Leaping Michaels`]) : null;
+}
+for (const x of ['D', 'H', 'S']) {
+  for (const k of [[`(2${x})`], [`(2${x})`, 'P']]) {
+    if (x === 'D') {
+      def(k, '4D', 'Leaping Michaels: 5-5 in the majors, game values. (Proposed.)', { hcp: [11, 37], len: { H: [5, 13], S: [5, 13] } }, NEW);
+      def(k, '4C', 'Leaping Michaels: 5+ clubs and a 5+ major, game values. (Proposed.)', { hcp: [11, 37], len: { C: [5, 13] } }, NEW);
+    } else {
+      const om = x === 'H' ? 'S' : 'H';
+      for (const m of ['C', 'D']) def(k, `4${m}`, `Leaping Michaels: 5+ ${nm(m)} and 5+ ${nm(om)}, game values. (Proposed.)`, { hcp: [11, 37], len: { [m]: [5, 13], [om]: [5, 13] } }, NEW);
+    }
+    advise(k, (e) => overWeakTwo(e, x, 2, k.length === 2), []); // re-attach so the new calls are pickable
+  }
+}
+
+// Doubles of their 4-level preempts: over 4♣/4♦/4♥ takeout; over 4♠ values (partner usually passes); 4NT over 4♠ = two suits.
+export function overFourLevel(e, x) {
+  const h = e.hcp;
+  const L = e.len;
+  const good6 = (s) => L[s] >= 6 && top3(e, s) >= 2;
+  if (x === 'S') {
+    const two = ['C', 'D', 'H'].filter((s) => L[s] >= 5);
+    if (two.length >= 2 && h >= 12) return R('4N', [`5-5 in ${two.slice(0, 2).map(nm).join(' and ')}: takeout for two suits`]);
+    const s = ['H', 'D', 'C'].find(good6);
+    if (s && h >= 13) return R(`5${s}`, [`good ${L[s]}-card ${nm(s)}`]);
+    if (h >= 14) return R('X', [`${h} HCP: show the values; partner usually passes`]);
+    return R('P', [`${h} HCP: pass`]);
+  }
+  const majors = MAJORS.filter((s) => s !== x);
+  const nat = SUITS4.filter((s) => s !== x && good6(s)).sort((a, b) => RANK[b] - RANK[a])[0];
+  if (nat && h >= 13) return R(`${cheapest(`4${x}`, nat)}${nat}`, [`good ${L[nat]}-card ${nm(nat)}`]);
+  if ((L[x] <= 2 && majors.every((s) => L[s] >= 4) && h >= 13) || h >= 17) return R('X', [`${h} HCP, short in ${nm(x)}: takeout double`]);
+  return R('P', [`${h} HCP: pass`]);
+}
+export function advanceFourLevelDouble(e, x) {
+  const L = e.len;
+  if (x === 'S') {
+    const s = ['H', 'D', 'C'].find((t) => L[t] >= 6) ;
+    return s && L.S <= 1 ? R(`5${s}`, [`${L[s]} ${nm(s)} and a singleton spade: pull the double`]) : R('P', ['partner showed values: defend 4♠ doubled']);
+  }
+  if (L[x] >= 4 && /[AKQ]/.test(e.hand[x])) return R('P', [`${L[x]} ${nm(x)}: pass for penalty`]);
+  if (x !== 'H' && x !== 'S') {
+    const M = MAJORS.filter((t) => L[t] >= 4).sort((a, b) => L[b] - L[a])[0];
+    if (M) return R(`4${M}`, [`${L[M]} ${nm(M)}`]);
+  }
+  if (x === 'H' && L.S >= 4) return R('4S', [`${L.S} spades`]);
+  const s = SUITS4.filter((t) => t !== x).sort((a, b) => L[b] - L[a])[0];
+  return R(`${cheapest(`4${x}`, s)}${s}`, [`${L[s]} ${nm(s)}: the best suit`]);
+}
+for (const x of SUITS4) {
+  for (const k of [[`(4${x})`], [`(4${x})`, 'P']]) {
+    def(k, 'X', x === 'S' ? 'Values (14+): partner usually passes. (Proposed.)' : `Takeout: short in ${nm(x)}, 13+. (Proposed.)`, { hcp: [13, 37] }, NEW);
+    def(k, 'P', 'Pass.', {}, NEW);
+    if (x === 'S') def(k, '4N', 'Takeout for two suits (5-5). (Proposed.)', {}, NEW);
+    for (const s of SUITS4.filter((t) => t !== x)) def(k, `${cheapest(`4${x}`, s)}${s}`, `Natural: good 6+ ${nm(s)}.`, { len: { [s]: [6, 13] } }, NEW);
+    advise(k, (e) => overFourLevel(e, x), [k.length === 2 ? { dealer: 'W', calls: [`4${x}`, 'P', 'P'] } : { dealer: 'E', calls: [`4${x}`] }]);
+  }
+  const a = [`(4${x})`, 'X'];
+  def(a, 'P', x === 'S' ? 'Defend: partner showed values.' : `Penalty pass: length and strength in ${nm(x)}.`, {}, NEW);
+  for (const s of SUITS4.filter((t) => t !== x)) def(a, `${cheapest(`4${x}`, s)}${s}`, `Our best suit.`, {}, NEW);
+  advise(a, (e) => advanceFourLevelDouble(e, x), [{ dealer: 'W', calls: [`4${x}`, 'X', 'P'] }]);
+}
+
+// Lightner double of their freely bid slam: asks for an unusual lead (usually to get a ruff).
+export function lightner(e, x) {
+  const voids = SUITS4.filter((s) => s !== x && e.len[s] === 0);
+  const aces = SUITS4.filter((s) => e.hand[s].includes('A')).length;
+  return voids.length && aces >= 1 ? R('X', [`void in ${nm(voids[0])} and an ace: ask for an unusual lead`]) : R('P', ['no Lightner double: pass']);
+}
+for (const lv of [6, 7]) {
+  for (const x of SUITS4) {
+    for (const after of [[`(${lv}${x})`], [`(${lv}${x})`, 'P']]) {
+      for (const call of ['X', 'P']) {
+        entries.push({
+          tail: true, after, call, variant: `${lv}${x}`, notes: NEW, shows: {}, priority: 10,
+          meaning: call === 'X' ? 'Lightner double: do not lead our suit; make an unusual lead (often dummy\'s first suit). (Proposed.)' : 'Pass.',
+          when: (key) => key.some((t) => t.startsWith('(')) && !key.some((t) => !t.startsWith('(') && /^[67]/.test(t)),
+          pick: (e) => lightner(e, x).call === call,
+          why: (e) => lightner(e, x).why,
+        });
+      }
+    }
   }
 }
 

@@ -39,6 +39,8 @@ export function respond1NT(e) {
   const minor = ['C', 'D'].find((m) => e.len[m] >= 6);
   if (minor && e.len[minor] === 6 && top3(e, minor) >= 2 && h >= 6 && h <= 9) return R(`3${minor}`, [`good 6-card ${NAME[minor]}`, 'invites 3NT']);
   if (minor && h <= 7) return R('2S', [`${e.len[minor]} ${NAME[minor]}, weak`], { plan: minor === 'C' ? 'Opener bids 3♣: pass.' : 'Opener bids 3♣: bid 3♦ to play.' });
+  if (h >= 14 && ((C >= 5 && D >= 4) || (D >= 5 && C >= 4))) return R('3S', ['both minors', `${h} HCP: slam interest`], { plan: 'Opener shows a minor fit (4♣/4♦) or bids 3NT without one.' });
+  if (minor && h >= 14 && h <= 19) return R('2S', [`${e.len[minor]} ${NAME[minor]}`, `${h} HCP: slam try in the minor`], { plan: `After 3♣, bid 4${SYMBOL[minor]} (slam try).` });
   if (h >= 20) return R('4C', [`${h} HCP: slam values`, 'Gerber: ask for aces']);
   if (h >= 18) return R('6N', [`${h} HCP opposite 15–17: small slam`]);
   if (h >= 16) return R('4N', [`${h} HCP: invite 6NT`]);
@@ -55,7 +57,8 @@ const ONE_NT = callTable([
   ['2C', 'Stayman: asks for a 4-card major (garbage Stayman allowed).', {}],
   ['2D', 'Transfer: 5+ hearts.', { len: { H: [5, 13] } }],
   ['2H', 'Transfer: 5+ spades.', { len: { S: [5, 13] } }],
-  ['2S', 'Minor puppet: opener must bid 3♣ (weak with a long minor).', {}],
+  ['2S', 'Minor puppet: opener must bid 3♣. Weak with a long minor, or (then 4♣/4♦) a slam try in that minor.', {}],
+  ['3S', 'Both minors (5-4 or longer), slam interest. (Proposed.)', { len: { C: [4, 13], D: [4, 13] } }],
   ['2N', '8–9 balanced, invitational.', { hcp: [8, 9] }],
   ['3C', 'Good 6-card clubs, invites 3NT.', { len: { C: [6, 6] } }],
   ['3D', 'Good 6-card diamonds, invites 3NT.', { len: { D: [6, 6] } }],
@@ -234,8 +237,14 @@ add(['1N', '2D', '2H'], transferFollowTable('H', '2H', false), (e) => afterTrans
 add(['1N', '2H', '2S'], transferFollowTable('S', '2S', false), (e) => afterTransfer(e, 'S', '2S', 15));
 add(['1N', '2D', '3H'], transferFollowTable('H', '3H', true), (e) => afterTransfer(e, 'H', '3H', 15));
 add(['1N', '2H', '3S'], transferFollowTable('S', '3S', true), (e) => afterTransfer(e, 'S', '3S', 15));
-add(['1N', '2S', '3C'], callTable([['P', 'Long clubs: to play.', {}], ['3D', 'Long diamonds: to play.', {}]]),
-  (e) => (e.len.D > e.len.C ? R('3D', ['long diamonds: to play']) : R('P', ['long clubs: to play'])));
+add(['1N', '3S'], callTable([['3N', 'No 4-card minor: no slam.', {}], ['4C', '4+ clubs: slam interest.', { len: { C: [4, 13] } }], ['4D', '4+ diamonds: slam interest.', { len: { D: [4, 13] } }]]),
+  (e) => (e.len.C >= 4 || e.len.D >= 4 ? (e.len.D > e.len.C ? R('4D', [`${e.len.D} diamonds: a fit`]) : R('4C', [`${e.len.C} clubs: a fit`])) : R('3N', ['no 4-card minor'])));
+for (const m of ['C', 'D']) {
+  add(['1N', '2S', '3C', `4${m}`], callTable([[`5${m}`, 'Minimum or no fit: game.', {}], [`6${m}`, 'Maximum with a fit: slam.', {}]]),
+    (e) => (e.hcp >= 16 && e.len[m] >= 3 ? R(`6${m}`, [`${e.hcp} HCP and ${e.len[m]} ${NAME[m]}: accept the slam try`]) : R(`5${m}`, ['decline the slam try: game in the minor'])));
+}
+add(['1N', '2S', '3C'], callTable([['P', 'Long clubs: to play.', {}], ['3D', 'Long diamonds: to play.', {}], ['4C', '6+ clubs: slam try. (Proposed.)', {}], ['4D', '6+ diamonds: slam try. (Proposed.)', {}]]),
+  (e) => (e.hcp >= 14 ? R(e.len.D > e.len.C ? '4D' : '4C', ['strong long minor: slam try']) : e.len.D > e.len.C ? R('3D', ['long diamonds: to play']) : R('P', ['long clubs: to play'])));
 
 // 2NT and 2♣–2♦–2NT
 for (const [pre, min] of [[['2N'], 20], [['2C', '2D', '2N'], 22]]) {
