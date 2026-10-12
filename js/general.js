@@ -66,6 +66,10 @@ export function describeCall(auction, i, rows) {
     if (ours.some((r) => r.call === 'XX')) return P("our redouble already showed values");
     if (Number(lb[0]) >= 4) return P('they are at the 4-level: values and tricks in their suit (partner pulls only with an unusual hand)');
     const unbid = SUITS.filter((s) => !theirSuits.has(s) && !pardSuits.has(s) && !mySuits.has(s));
+    // Opener doubles after partner has only passed.
+    if (opened?.seat === me && !pardActed) {
+      return general('Double by opener (partner has passed), for takeout: short in their suit with opening values, or a strong hand (about 18+) with no clear bid. Partner bids, or passes with length in their suit.', 'penalty-or-takeout-the-general-rule', { hcp: [13, 37] });
+    }
     if (!iActed && !pardActed) {
       return general(`Takeout double: short in their suit, ${unbid.length ? `support for ${list(unbid)}` : 'support for the unbid suits'}, opening values or more.`, 'takeout-doubles', { hcp: [11, 37] });
     }

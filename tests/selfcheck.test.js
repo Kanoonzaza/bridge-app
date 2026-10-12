@@ -75,3 +75,12 @@ test('board 56: after Drury and opener\'s light 2♠, the passed hand passes (no
   // An unpassed 2/1 still uses fast arrival.
   assert.equal(advise(north, { dealer: 'N', calls: ['1S', 'P', '2C', 'P', '2S', 'P'] }).call, '4S');
 });
+
+test('board 62: a 21-count opener does not sell out to their 2♠ after Michaels', async () => {
+  const { systemAuction } = await import('../js/table/review.js');
+  const hands = { N: '52.K87542.KT.J54', E: '973.T.Q532.AT986', S: 'AK8.A.AJ8764.KQ3', W: 'QJT64.QJ963.9.72' };
+  const seats = Object.fromEntries(['N', 'E', 'S', 'W'].map((s) => [s, { kind: 'robot' }]));
+  const calls = systemAuction({ dealer: 'E', vul: 'none', hands, calls: '' }, seats).calls;
+  assert.deepEqual(calls.slice(0, 6), ['P', '1D', '2D', 'P', '2S', 'X']);
+  assert.ok(calls.includes('3N'), calls.join(' '));
+});

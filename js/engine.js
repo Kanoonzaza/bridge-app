@@ -328,6 +328,14 @@ function fallback(hand, auction, entries) {
     if (lastTheirs && Number(lastTheirs[0]) <= 2 && e.len[lastTheirs[1]] <= 1 && e.hcp >= 13 && legal.includes('X')) {
       return { call: 'X', ...told(auction, 'X', entries), reasons: [`${e.len[lastTheirs[1]]} card${e.len[lastTheirs[1]] === 1 ? '' : 's'} in their suit, ${e.hcp} HCP`, 'takeout double: partner chooses'], plan: null, close: null, fallback: 'compete' };
     }
+    // A strong opener (18+) does not sell out at a low level: double to show the values (partner passes for
+    // penalty or bids); with 15–17 and a 6-card suit, compete at the 3-level.
+    if (lastTheirs && Number(lastTheirs[0]) <= 3 && e.hcp >= 18 && legal.includes('X')) {
+      return { call: 'X', ...told(auction, 'X', entries), reasons: [`${e.hcp} HCP: far too strong to let them play a part-score`, 'double shows the extra values: partner passes for penalty or bids'], plan: 'Next: notrump with stoppers in their suits, or your long suit.', close: null, fallback: 'compete' };
+    }
+    if (call && e.len[o] >= 6 && Number(call[0]) <= 3 && e.hcp >= 15) {
+      return { call, ...told(auction, call, entries), reasons: [`${e.len[o]}-card suit and ${e.hcp} HCP`, 'extra values: compete at the 3-level'], plan: null, close: null, fallback: 'compete' };
+    }
     if (e.hcp <= 16) return pass([`${e.hcp} HCP and partner passed: let them play`]);
   }
   // We opened, I (responder) have only passed so far, and they compete: raise to the 2-level with support, or pass.

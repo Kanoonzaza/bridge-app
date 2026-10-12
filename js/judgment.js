@@ -133,6 +133,12 @@ export function judge(e, auction, rows, summary, key) {
       }
     }
   }
+  // I doubled with a big hand and partner's answer was forced: bid again (3NT with their suits stopped, or my long suit).
+  if (pAns && !theyBidLast && e.hcp >= 19 && pMin <= 5 && mRows.some((r) => r.call === 'X')) {
+    if (stopsAll && legal.has('3N')) return { call: '3N', why: [`${e.hcp} HCP: the double showed a big hand`, 'their suits stopped: 3NT'] };
+    const own = SUITS.filter((s) => !theirSuits.has(s) && e.len[s] >= 6).map(cheapest).find((c) => c && Number(c[0]) <= 4);
+    if (own) return { call: own, why: [`${e.hcp} HCP: the double showed a big hand`, `${e.len[own[1]]} ${NAME[own[1]]}: show the long suit`] };
+  }
   // Slam with a fit: ask for key cards.
   if (T && combined >= 33 && !mRows.some((r) => r.call === '4N') && !pRows.some((r) => r.call === '4N')) {
     // In a minor, 4NT only with 2+ key cards of our own: a low reply could already pass 5 of the minor (proposed).
