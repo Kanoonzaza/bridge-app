@@ -131,3 +131,12 @@ test('opener after partner\'s pass and their balancing double (board 15)', () =>
   const row = explain({ dealer: 'S', vul: 'NS', calls: ['1D', 'P', 'P', 'X', '2D'] }).at(-1);
   assert.match(row.meaning, /6\+ diamonds/);
 });
+
+test('a pass over their opening says why no overcall (board 16)', () => {
+  const r = advise(parseHand('KQ A94 632 AJ863'), { dealer: 'W', vul: 'EW', calls: ['P', 'P', '1D'] });
+  assert.equal(r.call, 'P');
+  const why = r.reasons.join(' | ');
+  assert.match(why, /5 clubs with A: a 2-level overcall needs a good suit/);
+  assert.match(why, /3 diamonds: too many in their suit for a takeout double/);
+  assert.ok(r.close, 'flagged as a close call');
+});
