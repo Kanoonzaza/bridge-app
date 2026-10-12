@@ -119,6 +119,14 @@ export function dummyPoints(e, trump) {
   return n;
 }
 
+// The strength a call's range is measured in: HCP, or points with a trump fit.
+// pts 'S' = dummy points with spades as trumps (shortness counts); 'len:S' = HCP plus spade length beyond five.
+export function pointsFor(e, pts) {
+  if (!pts) return e.hcp;
+  if (pts.startsWith('len:')) return e.hcp + Math.max(0, e.len[pts[4]] - 5);
+  return dummyPoints(e, pts);
+}
+
 export function quality(e, { fit = false } = {}) {
   let score = 0;
   const reasons = [];

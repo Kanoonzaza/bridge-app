@@ -45,6 +45,10 @@ export function describeCall(auction, i, rows) {
   const opened = prior.find((r) => isBid(r.call));
   const weOpened = opened && sideOf(opened.seat) === side;
   const competitive = theirs.some((r) => r.call !== 'P');
+  // Partner's takeout (or competitive) double was the last action: a suit bid answers it.
+  const answering = lastAct && lastAct.seat === pard && lastAct.call === 'X' && /takeout/i.test(lastAct.meaning ?? '') && !/penalty/i.test(lastAct.meaning ?? '');
+  // Partner's last call was a forcing bid and they passed: we had to bid something.
+  const forced = lastAct && lastAct.seat === pard && isBid(lastAct.call) && ['round', 'game'].includes(lastAct.shows?.force);
 
   if (call === 'XX') {
     if (lastBid && !theyBidLast && GAME(lastBid.call)) return general('Redouble: to play. We expect to make it doubled.', 'penalty-or-takeout-the-general-rule');
@@ -116,11 +120,13 @@ export function describeCall(auction, i, rows) {
     return general(`Preference or raise: support for partner's ${SYMBOL[s]}.`, 'which-game', { len: { [s]: [need, 13] } });
   }
 
-  // My own suit again.
+  // My own suit again. Answering partner's double, or bidding over partner's forcing bid, it need not be longer than shown.
   if (mySuits.has(s) && !pardSuits.has(s)) {
     if (L >= 6) return general(`To play: slam in ${SYMBOL[s]}.`, 'rkcb-1430-and-slam-tools-tier-1');
     if (GAME(call)) return general(`To play: game in my ${SYMBOL[s]}, a long, strong suit.`, 'which-game', { len: { [s]: [6, 13] } });
     const had = Math.max(...ours.filter((r) => r.seat === me).map((r) => r.shows?.len?.[s]?.[0] ?? 5));
+    if (answering) return general(`Answer to partner's double: back to my ${SYMBOL[s]} (${had}+ cards), the best of the suits. Not forcing.`, 'takeout-doubles', { len: { [s]: [had, 13] } });
+    if (forced) return general(`Rebid of my ${SYMBOL[s]} over partner's forcing bid: nothing better to show (${had}+ cards).`, 'openers-rebids-tier-0', { len: { [s]: [had, 13] } });
     const n = Math.max(6, had);
     return general(`Rebid of my ${SYMBOL[s]}: ${n}+ cards${theyActedLast ? ', competing for the part-score' : ''}. Not forcing.`, theyActedLast ? 'competing-at-the-3-level' : 'openers-rebids-tier-0', { len: { [s]: [n, 13] } });
   }
@@ -135,6 +141,9 @@ export function describeCall(auction, i, rows) {
   }
 
   // A new suit.
+  if (answering && !agreed && !GAME(call)) {
+    return general(`Answer to partner's double: my best unbid suit, usually 4+ ${SYMBOL[s]}${jump ? ', with some values (a jump)' : ''}. Not forcing.`, 'takeout-doubles', { ...(jump && { hcp: [9, 37] }), len: { [s]: [isMajor(s) ? 4 : 3, 13] } });
+  }
   if (agreed && L >= 4 && !GAME(call)) return general(`Control bid: a slam try in ${SYMBOL[agreed]}, with first- or second-round control of ${SYMBOL[s]}.`, 'control-bids-cue-bids');
   if (agreed) return general(`Game try in ${SYMBOL[agreed]}: values in ${SYMBOL[s]} (also tells partner what to lead if they buy the contract).`, 'competing-at-the-3-level');
   if (L >= 6) return general(`To play: slam in ${SYMBOL[s]}.`, 'rkcb-1430-and-slam-tools-tier-1', { len: { [s]: [6, 13] } });

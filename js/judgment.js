@@ -10,7 +10,7 @@ const SUITS = ['S', 'H', 'D', 'C'];
 const isMajor = (s) => s === 'H' || s === 'S';
 const RANK = { C: 0, D: 1, H: 2, S: 3, N: 4 };
 const rank = (c) => (Number(c[0]) - 1) * 5 + RANK[c[1]];
-const stopper = (e, s) => /A/.test(e.hand[s]) || (/K/.test(e.hand[s]) && e.len[s] >= 2) || (/Q/.test(e.hand[s]) && e.len[s] >= 3);
+const stopper = (e, s) => /A/.test(e.hand[s]) || (/K/.test(e.hand[s]) && e.len[s] >= 2) || (/Q/.test(e.hand[s]) && e.len[s] >= 3) || (/J/.test(e.hand[s]) && e.len[s] >= 4);
 
 // Cheapest level for strain s over the bid `last`.
 const cheapest2 = (last, s) => Number(last[0]) + (RANK[s] > RANK[last[1]] ? 0 : 1);
@@ -65,7 +65,8 @@ export function judge(e, auction, rows, summary, key) {
   const mustBid = !theyBidLast && pLast && pLast.seat === pard && isBid(pLast.call) && (pLast.shows?.force === 'round' || pLast.shows?.force === 'game');
 
   // Our suits and a fit: partner's shown length plus ours reaches 8.
-  const theirSuits = new Set(theirs.filter((r) => isBid(r.call)).map((r) => r.call[1]));
+  // Their suits: what their calls show (a Michaels cue-bid shows the other suits), or the suit named.
+  const theirSuits = new Set(theirs.filter((r) => isBid(r.call)).flatMap((r) => (r.shows?.len ? SUITS.filter((s) => (r.shows.len[s]?.[0] ?? 0) >= 3) : r.call[1] === 'N' ? [] : [r.call[1]])));
   const ourBidSuits = new Set(ours.filter((r) => isBid(r.call) && r.shows?.len).flatMap((r) => Object.keys(r.shows.len).filter((s) => r.shows.len[s][0] >= 4)));
   const fits = SUITS.filter((s) => !theirSuits.has(s) && P.len[s][0] + e.len[s] >= 8);
   const agreed = agreedSuit(key);
@@ -78,6 +79,13 @@ export function judge(e, auction, rows, summary, key) {
   const cheapest = (s) => [...legal].filter((c) => /^[1-7]/.test(c) && c[1] === s).sort((a, b) => rank(a) - rank(b))[0];
   const gameCall = (s) => (s === 'N' ? '3N' : isMajor(s) ? `4${s}` : `5${s}`);
   const why = [`partner has shown about ${pMin}+ HCP`, `${combined} combined points`];
+  // 3NT promises a stopper in each suit they have shown.
+  // Partner's natural notrump after they bid a suit already promised a stopper there.
+  const pardStops = (s) => pRows.some((r) => isBid(r.call) && r.call[1] === 'N' && /stopper|balanced/i.test(r.meaning ?? '')
+    && theirs.some((t) => t.i < r.i && isBid(t.call) && t.call[1] === s));
+  const stopsAll = [...theirSuits].every((s) => stopper(e, s) || pardStops(s));
+  // Without a stopper: game in a 6-card suit of our own instead of 3NT.
+  const longGame = () => SUITS.filter((s) => !theirSuits.has(s) && e.len[s] >= 6).map(gameCall).find((c) => legal.has(c));
 
   // They redoubled partner's takeout double: run to our best suit.
   if (auction.calls.at(-1) === 'XX' || (auction.calls.at(-2) === 'XX' && auction.calls.at(-1) === 'P')) {
@@ -108,8 +116,8 @@ export function judge(e, auction, rows, summary, key) {
       // Game values opposite the double: bid game rather than the cheapest suit (12+ over a 3-level double).
       if (e.hcp >= (Number(lastBid[0]) >= 3 ? 12 : 13)) {
         const M = majors.sort((a, b) => e.len[b] - e.len[a])[0];
-        const g = M && legal.has(`4${M}`) ? `4${M}` : t !== 'N' && stopper(e, t) && legal.has('3N') ? '3N'
-          : unbid.find((x) => !isMajor(x) && e.len[x] >= 6 && legal.has(`5${x}`)) ? `5${unbid.find((x) => !isMajor(x) && e.len[x] >= 6)}` : legal.has('3N') ? '3N' : null;
+        const g = M && legal.has(`4${M}`) ? `4${M}` : stopsAll && legal.has('3N') ? '3N'
+          : unbid.find((x) => !isMajor(x) && e.len[x] >= 6 && legal.has(`5${x}`)) ? `5${unbid.find((x) => !isMajor(x) && e.len[x] >= 6)}` : null;
         if (g) return { call: g, why: [`${e.hcp} HCP opposite partner's takeout double: game values`, g === '3N' ? 'game in notrump' : `game in ${NAME[g[1]]}`] };
       }
       // No suit worth bidding (the best unbid suit is a doubleton): defend.
@@ -146,9 +154,12 @@ export function judge(e, auction, rows, summary, key) {
   if (theyBidLast && combined >= 25 && rank(lastBid) >= rank('4H')) return R('X', [...why, 'they bid over our game: double for penalty']) ?? { call: 'P', why };
   // Game.
   if (combined >= 25) {
-    const g = T && (isMajor(T) || combined >= 28) ? gameCall(T) : stopper(e, [...theirSuits][0] ?? 'S') || !theirSuits.size ? '3N' : T ? gameCall(T) : '3N';
-    if (legal.has(g)) return { call: g, why: [...why, T ? `${trumps}-card ${NAME[T]} fit: game` : 'game in notrump'] };
-    if (rank(lastBid) >= rank(g) && !theyBidLast) return { call: 'P', why: [...why, 'we are already at game'] };
+    // No fit, no stopper and no long suit: double them when they bid last, rather than a blind 3NT.
+    // A minor-suit game needs about 28; with less, 3NT if we have the stoppers.
+    // Over partner's forcing bid, bid the minor cheaply: partner goes on with extras.
+    const g = T && (isMajor(T) || combined >= 28) ? gameCall(T) : stopsAll ? '3N' : T ? (mustBid ? null : gameCall(T)) : longGame() ?? (theyBidLast || mustBid || gameForced ? null : '3N');
+    if (g && legal.has(g)) return { call: g, why: [...why, T ? `${trumps}-card ${NAME[T]} fit: game` : 'game in notrump'] };
+    if (rank(lastBid) >= rank(g ?? (T ? gameCall(T) : '3N')) && !theyBidLast) return { call: 'P', why: [...why, 'we are already at game'] };
   }
   // No fit but the balance of strength, and they are still low: double (takeout below the 4-level), partner decides.
   if (theyBidLast && !T && !gameForced && (combined >= 25 || (e.hcp >= 17 && e.len[lastBid[1]] <= 2)) && Number(lastBid[0]) <= 3 && lastBid[1] !== 'N') {
@@ -179,17 +190,24 @@ export function judge(e, auction, rows, summary, key) {
   }
   // Forcing auctions must go on.
   if (gameForced || mustBid) {
-    if (gameForced && legal.has('3N') && stopper(e, [...theirSuits][0] ?? 'S')) return { call: '3N', why: ['game forcing: 3NT'] };
+    if (gameForced && legal.has('3N') && stopsAll) return { call: '3N', why: ['game forcing: 3NT'] };
     const long = SUITS.filter((s) => !theirSuits.has(s) && e.len[s] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
     const c = long && cheapest(long);
     if (c && Number(c[0]) <= 4) return { call: c, why: ['forcing: show your longest suit'] };
-    if (legal.has('3N')) return { call: '3N', why: ['forcing: 3NT'] };
+    if (legal.has('3N') && stopsAll) return { call: '3N', why: ['forcing: 3NT'] };
     const any = [...ourBidSuits].map(cheapest).filter(Boolean)[0];
     if (any) return { call: any, why: ['forcing: return to a suit already bid'] };
     // Partner's cue-bid raise: bid the suit partner supports at the cheapest level (minimum).
     const pSuit = SUITS.filter((s) => !theirSuits.has(s) && P.len[s][0] >= 3).sort((a, b) => P.len[b][0] - P.len[a][0])[0];
     const back = pSuit && cheapest(pSuit);
     if (back && Number(back[0]) <= 5) return { call: back, why: [`forcing: bid ${NAME[pSuit]}, the suit partner supports, at the cheapest level`] };
+    // A suit I named before, or my longest unbid suit, rather than notrump without a stopper.
+    const mine2 = SUITS.filter((s) => !theirSuits.has(s) && (mRows.some((r) => isBid(r.call) && r.call[1] === s) || e.len[s] >= 4)).sort((a, b) => e.len[b] - e.len[a]);
+    const own = mine2.map(cheapest).find((c) => c && Number(c[0]) <= 4);
+    if (!stopsAll && own) return { call: own, why: [`forcing: bid ${NAME[own[1]]} (no stopper in their suit for notrump)`] };
+    // They bid over our game force: a pass is forcing, partner bids again.
+    if (gameForced && theyBidLast && !stopsAll) return { call: 'P', why: ['game forcing: after their bid a pass is forcing, so partner will bid again'] };
+    if (legal.has('3N')) return { call: '3N', why: ['forcing: 3NT'] };
   }
   // A free bid with a long suit of our own.
   if (theyBidLast) {

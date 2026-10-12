@@ -55,7 +55,7 @@ export function afterTheirOvercall(e, o, ov) {
   if (L[o] >= fitNeed && !majorFirst) {
     const dp = isMajor(o) ? dummyPoints(e, o) : h;
     const why = [`${L[o]} ${nm(o)}`, `${dp} ${isMajor(o) ? 'dummy points' : 'HCP'}`];
-    if (dp >= 13 && isMajor(o) && lv >= 3 && r <= 4) return R(`${r}${o}`, [...why, 'game values: bid game directly']);
+    if (dp >= 13 && isMajor(o) && lv >= 3 && r <= 4) return R(`4${o}`, [...why, 'game values: bid game directly']);
     if (dp >= 10) return R(`${lv + 1}${y}`, [...why, 'a limit raise or better goes through the cue-bid'], { plan: dp >= 13 ? 'You have game values: bid game next even if opener signs off.' : 'If opener signs off in 3 of the suit, pass.' });
     if (h <= 7 && r + 1 <= 4 && (L[o] >= fitNeed + 2 || (L[o] >= fitNeed + 1 && shortness(e, o)))) return R(`${r + 1}${o}`, [...why, 'weak with extra trumps: jump to take their room']);
     if (dp >= 6 && r <= 3) return R(`${r}${o}`, [...why, 'raise: support comes first']);
@@ -81,7 +81,7 @@ export function afterTheirOvercall(e, o, ov) {
     const s = SUITS4.find((t) => t !== o && t !== y && L[t] >= 6 && cheapest(ov, t) + 1 <= 3);
     if (s) return R(`${cheapest(ov, s) + 1}${s}`, [`${L[s]} ${nm(s)}, ${h} HCP: weak jump shift`]);
   }
-  if (h >= min) return R('X', [`${h} HCP and no good bid: the negative double keeps the auction open`]);
+  if (h >= min && (lv >= 2 || unbid.every((s) => L[s] >= 3))) return R('X', [`${h} HCP and no good bid: the negative double keeps the auction open`]);
   if (L[y] >= 4 && top3(e, y) >= 2) return R('P', [`${nm(y)} length: pass and hope opener reopens with a double`]);
   return R('P', [`${h} HCP: too weak to act`]);
 }
@@ -127,6 +127,7 @@ export function afterNegativeDouble(e, o, ov) {
   if (h >= 18) return R(`${lv + 1}${y}`, [`${h} HCP: a big hand`]);
   if (lv === 1 && e.balanced && stopper(e, y)) return R('1N', [`${h} HCP balanced with a ${nm(y)} stopper`]);
   const ol = cheapest(ov, o);
+  if (L[o] >= 6 && h >= 16 && ol + 1 <= 3) return R(`${ol + 1}${o}`, [`${L[o]} ${nm(o)}`, `${h} HCP: jump to invite`]);
   if (L[o] >= 6 && ol <= 3) return R(`${ol}${o}`, [`${L[o]} ${nm(o)}`]);
   const other = SUITS4.filter((s) => s !== o && s !== y && !isMajor(s) && L[s] >= 4 && cheapest(ov, s) <= 3);
   if (other.length) return R(`${cheapest(ov, other[0])}${other[0]}`, [`${L[other[0]]} ${nm(other[0])}`]);
@@ -493,7 +494,7 @@ for (const o of SUITS4) {
   for (const their of [`2${o}`, '2N', '1N']) {
     const k = [`1${o}`, `(${their})`];
     const cue = theirCue(o, their);
-    if (cue) def(k, cue, `Cue-bid of their suit: limit raise or better in ${nm(o)} (10+). (Proposed.)`, { hcp: [10, 37], len: { [o]: [3, 13] }, force: 'round' }, 'new-agreements-proposed');
+    if (cue) def(k, cue, `Cue-bid of their suit: limit raise or better in ${nm(o)} (10+${isMajor(o) ? ' points counting shortness' : ''}). (Proposed.)`, { hcp: [10, 37], len: { [o]: [3, 13] }, force: 'round', ...(isMajor(o) && { pts: o }) }, 'new-agreements-proposed');
     def(k, 'X', their === '1N' ? 'Penalty: 9+ HCP.' : 'Values (10+), usually short in our suit: interest in penalizing them.', { hcp: [their === '1N' ? 9 : 10, 37] });
     def(k, 'P', 'Pass.');
     const lv = their === '1N' ? 2 : 3;
@@ -536,7 +537,7 @@ for (const o of SUITS4) {
       for (const z of answers) {
         const k = [`1${o}`, `(${ov})`, 'X', z];
         if (z[1] === y) {
-          for (const u of MAJORS.filter((s) => s !== o && s !== y)) def(k, `${cheapest(z, u)}${u}`, `4+ ${nm(u)}, as promised.`);
+          for (const u of MAJORS.filter((s) => s !== o && s !== y)) def(k, `${cheapest(z, u)}${u}`, `4+ ${nm(u)}, as promised.`, { len: { [u]: [4, 13] } });
           if (above('3N', z)) def(k, '3N', `To play, ${nm(y)} stopped.`);
           def(k, `${cheapest(z, o)}${o}`, `${nm(o)} support.`);
         }
@@ -1076,10 +1077,10 @@ for (const x of SUITS4) {
       const theirs = rb === 'X' || rb[1] === 'N' ? [x] : [x, rb[1]];
       const c = cheapest(last, y);
       def(k, 'P', 'Pass: no fit and nothing to add.', {}, ADVANCE_LATE);
-      if (c <= 3) def(k, `${c}${y}`, c <= 2 ? `Raise: 3+ ${nm(y)}, 6–9 (4+ ${nm(y)} on less).` : `Raise to the 3-level: 4+ ${nm(y)} and 6–9, or 3 ${nm(y)} and 8–9 (9 vulnerable).`, { hcp: [4, 9], len: { [y]: [3, 13] } }, ADVANCE_LATE);
+      if (c <= 3) def(k, `${c}${y}`, c <= 2 ? `Raise: 3+ ${nm(y)}, 6–9 (4+ ${nm(y)} on less).` : `Raise to the 3-level: 4+ ${nm(y)} and 6–9, or 3 ${nm(y)} and 8–9 (9 vulnerable).`, { hcp: [4, 9], len: { [y]: [3, 13] }, pts: y }, ADVANCE_LATE);
       if (c + 1 <= 4) def(k, `${c + 1}${y}`, `Preemptive jump raise: 4+ ${nm(y)}, weak.`, { hcp: [0, 7], len: { [y]: [4, 13] } }, ADVANCE_LATE);
       const cue = cheapest(last, x);
-      if (cue <= 3) def(k, `${cue}${x}`, `Cue-bid: 10+ with 3+ ${nm(y)} (limit raise or better).`, { hcp: [10, 37], len: { [y]: [3, 13] }, force: 'round' }, ADVANCE_LATE);
+      if (cue <= 3) def(k, `${cue}${x}`, `Cue-bid: 10+ points counting shortness, with 3+ ${nm(y)} (limit raise or better).`, { hcp: [10, 37], len: { [y]: [3, 13] }, force: 'round', pts: y }, ADVANCE_LATE);
       if (rb === 'X') def(k, 'XX', '11+ HCP, usually no fit for partner. From here our doubles are for penalty.', { hcp: [11, 37] }, ADVANCE_LATE);
       const nt = cheapest(last, 'N');
       if (nt === 1) def(k, '1N', `8–11 with stoppers in ${theirs.map(nm).join(' and ')}.`, { hcp: [8, 11] }, ADVANCE_LATE);
@@ -1161,7 +1162,7 @@ for (const x of SUITS4) {
     def(k, `${lv + 1}${x}`, 'Cue-bid: 13+, game interest.', { hcp: [13, 37], force: 'round' }, BAL);
     for (const t of SUITS4.filter((u) => u !== x)) {
       const sl = cheapest(their, t);
-      def(k, `${sl}${t}`, `Best suit (usually 4+ ${nm(t)}), 0–10.`, { hcp: [0, 10] }, BAL);
+      def(k, `${sl}${t}`, `Best suit (usually 4+ ${nm(t)}), 0–10.`, { hcp: [0, 10], len: { [t]: [isMajor(t) ? 4 : 3, 13] } }, BAL);
       if (sl + 1 <= 3) def(k, `${sl + 1}${t}`, `Jump: 4+ ${nm(t)}, 11–12.`, { hcp: [11, 12], len: { [t]: [4, 13] } }, BAL);
     }
     const nt = cheapest(their, 'N');

@@ -1,4 +1,4 @@
-import { SYMBOL, SUITS, evaluate } from './cards.js';
+import { SYMBOL, SUITS, evaluate, pointsFor } from './cards.js';
 import { legalCalls, seatAt, situationAt, partnerOf, isComplete, sideOf } from './auction.js';
 import ALL from './system/index.js';
 import { judge } from './judgment.js';
@@ -287,7 +287,9 @@ const told = (auction, call, entries) => {
 // Does the hand fit what a call showed (about 1 HCP of slack; suit lengths exactly)?
 function fitsHand(e, shows) {
   if (!shows) return true;
-  if (shows.hcp && (e.hcp < shows.hcp[0] - 1 || e.hcp > shows.hcp[1] + 1)) return false;
+  const v = pointsFor(e, shows.pts);
+  const lo = shows.light ? Math.min(shows.hcp?.[0] ?? 0, 10) : shows.hcp?.[0];
+  if (shows.hcp && (v < lo - 1 || v > shows.hcp[1] + 1)) return false;
   return Object.entries(shows.len ?? {}).every(([suit, [lo, hi]]) => e.len[suit] >= lo && e.len[suit] <= hi);
 }
 

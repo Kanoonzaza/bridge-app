@@ -1,9 +1,10 @@
 // After a board: compare the table's auction with what the Advisor would bid, call by call.
 import { advise, explain } from '../engine.js';
-import { evaluate } from '../cards.js';
+import { evaluate, pointsFor } from '../cards.js';
 import { NAME } from '../cards.js';
 import { addCall, isComplete, nextSeat, seatAt, sideOf, isBid } from '../auction.js';
 import { auctionOf, handOf } from './model.js';
+import { confidence } from '../confidence.js';
 
 // Why a player's own call does not describe their hand: strength, length, balance, or a stopper the call claims.
 const SYM_SUIT = { '♠': 'S', '♥': 'H', '♦': 'D', '♣': 'C' };
@@ -12,8 +13,12 @@ export function misfit(hand, row) {
   const out = [];
   const sh = row.shows ?? {};
   const call = row.call;
-  if (sh.hcp && e.hcp < sh.hcp[0]) out.push(`${call === 'X' ? 'the double' : 'it'} shows ${sh.hcp[0]}+ HCP; you have ${e.hcp}`);
-  else if (sh.hcp && sh.hcp[1] < 37 && e.hcp > sh.hcp[1]) out.push(`it shows at most ${sh.hcp[1]} HCP; you have ${e.hcp}`);
+  // Ranges in points count shortness (or length) with the fit; minimum rebids may be lighter after a light opening.
+  const v = pointsFor(e, sh.pts);
+  const unit = sh.pts ? 'points counting the fit' : 'HCP';
+  const floor = sh.light && e.hcp >= 9 ? Math.min(sh.hcp?.[0] ?? 0, e.hcp) : sh.hcp?.[0];
+  if (sh.hcp && v < floor) out.push(`${call === 'X' ? 'the double' : 'it'} shows ${sh.hcp[0]}+ ${unit}; you have ${v}`);
+  else if (sh.hcp && sh.hcp[1] < 37 && v > sh.hcp[1]) out.push(`it shows at most ${sh.hcp[1]} ${unit}; you have ${v}`);
   for (const [suit, [lo]] of Object.entries(sh.len ?? {})) {
     if (lo >= 4 && e.len[suit] < lo) out.push(`it shows ${lo}+ ${NAME[suit]}; you have ${e.len[suit]}`);
   }
@@ -54,7 +59,7 @@ export function reviewRows(b, seats) {
     if (human && departed.has(seat)) skipped = true;
     else if (human) {
       const r = advise(handOf(b, seat), { ...a, calls: a.calls.slice(0, row.i) });
-      advisor = r.notCovered ? null : { call: r.call, meaning: r.meaning, reasons: r.reasons, close: r.close ?? null };
+      advisor = r.notCovered ? null : { call: r.call, meaning: r.meaning, reasons: r.reasons, close: r.close ?? null, conf: confidence(r) };
     }
     const differs = !!advisor && advisor.call !== row.call;
     if (differs) departed.add(seat);

@@ -19,6 +19,8 @@ const S = (s) => SYMBOL[s];
 const top3 = (e, s) => ['A', 'K', 'Q'].filter((r) => e.hand[s].includes(r)).length;
 const byLength = (e) => (a, b) => e.len[b] - e.len[a] || RANK[b] - RANK[a];
 const R = (call, why, extra = {}) => ({ call, why, ...extra });
+// Opener's minimum-range rebids: fewer HCP are possible after a light (Rule of 20) opening.
+const light = (shows) => (shows?.hcp?.[0] === 12 ? { ...shows, light: true } : shows);
 
 // After 1o–1r: a new suit is a 1-level suit (ranks above r), a lower suit (ranks below o) or a reverse suit (between them).
 const kind = (o, r, s) => (RANK[s] > RANK[r] ? 'one' : RANK[s] < RANK[o] ? 'lower' : 'reverse');
@@ -50,6 +52,9 @@ export function afterOneLevel(e, o, r) {
   if (h >= 19) {
     const js = others.filter((s) => L[s] >= 4 && kind(o, r, s) !== 'reverse').sort(byLength(e))[0];
     if (js) return R(jumpShiftCall(o, r, js), [`${h} HCP: game forcing`, `${L[js]} ${NAME[js]}`]);
+    // A long suit and game values: game in the major, or 3NT with the other suits stopped.
+    if (L[o] >= 6 && isMajor(o)) return R(`4${o}`, [`${L[o]} ${NAME[o]}`, `${h} HCP: game values`]);
+    if (L[o] >= 6 && others.every((s) => stopper(e, s))) return R('3N', [`${L[o]} ${NAME[o]} and ${h} HCP`, `${others.map((s) => NAME[s]).join(' and ')} stopped: 3NT`]);
   }
   if (oneMajors.length) {
     const s = oneMajors.length === 2 && L.S > L.H ? 'S' : oneMajors[0];
@@ -57,7 +62,7 @@ export function afterOneLevel(e, o, r) {
   }
   if (r === 'D' && L.D >= 4) return R(h >= 16 ? '3D' : '2D', [`${L.D}-card diamond support`, `${h} HCP`]);
   if (L[o] >= 6 && !others.some((s) => L[s] >= 5)) {
-    if (h >= 16 && e.good[o]) return R(`3${o}`, [`good ${L[o]}-card ${NAME[o]}`, `${h} HCP: invitational`]);
+    if (h >= 16 && e.good[o]) return R(`3${o}`, [`good ${L[o]}-card ${NAME[o]}`, `${h} HCP: invitational`], { close: h >= 19 ? `${h} HCP: more than 3${S(o)} shows, but without stoppers 3NT is a guess. Partner should bid on with any help.` : null });
     return R(`2${o}`, [`${L[o]} ${NAME[o]}`, `${h} HCP`], { close: h >= 16 ? `${h} HCP but the suit is not good enough for a jump.` : null });
   }
   const rev = others.filter((s) => kind(o, r, s) === 'reverse' && L[s] >= 4).sort(byLength(e))[0];
@@ -74,16 +79,17 @@ export function afterOneLevel(e, o, r) {
 function oneLevelSituation(o, r) {
   const calls = {};
   const others = SUITS.filter((s) => s !== o && s !== r);
-  const put = (call, meaning, shows, notes = REBID) => { calls[call] = { meaning, shows, notes }; };
-  put('1N', '12–14 balanced.', { hcp: [12, 14] });
+  const put = (call, meaning, shows, notes = REBID) => { calls[call] = { meaning, shows: light(shows), notes }; };
+  put('1N', '12–14, balanced or nearly (no better rebid).', { hcp: [12, 14] });
   put('2N', '18–19 balanced. Invites game (not forcing).', { hcp: [18, 19], balanced: true });
-  put('3N', '20+ balanced, to play.', { hcp: [20, 21], balanced: true });
+  put('3N', 'To play: 20+ balanced, or 19+ with a long suit and the other suits stopped.', { hcp: [19, 21] });
   put(`2${o}`, `6+ ${NAME[o]}, minimum (12–15).`, { hcp: [12, 15], len: { [o]: [6, 13] } });
+  if (isMajor(o)) put(`4${o}`, `6+ good ${NAME[o]}, 19+: game. To play.`, { hcp: [19, 21], len: { [o]: [6, 13] } });
   put(`3${o}`, `6+ good ${NAME[o]}, 16–18. Invitational.`, { hcp: [16, 18], len: { [o]: [6, 13] } });
   if (isMajor(r)) {
     put(`2${r}`, `4 ${NAME[r]} (rarely 3 with a ruffing value), 12–15.`, { hcp: [12, 15], len: { [r]: [3, 13] } });
-    put(`3${r}`, `4 ${NAME[r]}, 16–18. Invitational.`, { hcp: [16, 18], len: { [r]: [4, 13] } });
-    put(`4${r}`, `4 ${NAME[r]}, 19–20. To play.`, { hcp: [19, 20], len: { [r]: [4, 13] } });
+    put(`3${r}`, `4 ${NAME[r]}, 16–18 points counting shortness. Invitational.`, { hcp: [16, 18], len: { [r]: [4, 13] }, pts: r });
+    put(`4${r}`, `4 ${NAME[r]}, 19+ points counting shortness. To play.`, { hcp: [19, 23], len: { [r]: [4, 13] }, pts: r });
   } else {
     put('2D', '4+ diamonds, 12–15.', { hcp: [12, 15], len: { D: [4, 13] } });
     put('3D', '4+ diamonds, 16–18. Invitational.', { hcp: [16, 18], len: { D: [4, 13] } });
@@ -124,7 +130,7 @@ export function afterMinorNT(e, o) {
 
 function minorNTSituation(o) {
   const calls = {};
-  const put = (call, meaning, shows, notes = REBID) => { calls[call] = { meaning, shows, notes }; };
+  const put = (call, meaning, shows, notes = REBID) => { calls[call] = { meaning, shows: light(shows), notes }; };
   put('P', 'Content: no game opposite 6–10.', {});
   put('2N', '17–18 balanced, invites 3NT.', { hcp: [17, 18], balanced: true });
   put('3N', '19+, to play.', { hcp: [19, 21] });
@@ -170,11 +176,11 @@ export function afterMajorNT(e, M, passed) {
 
 function majorNTSituation(M, passed) {
   const calls = {};
-  const put = (call, meaning, shows, notes = FNT) => { calls[call] = { meaning, shows, notes }; };
+  const put = (call, meaning, shows, notes = FNT) => { calls[call] = { meaning, shows: light(shows), notes }; };
   if (passed) put('P', 'Content to play 1NT opposite a passed hand.', {});
   put('2N', '18–19 balanced. Invites game.', { hcp: [18, 19], balanced: true });
   put('3N', '20+ balanced, to play.', { hcp: [20, 21] });
-  put(`2${M}`, `6+ ${NAME[M]}, minimum.`, { hcp: [12, 15], len: { [M]: [6, 13] } });
+  put(`2${M}`, `6+ ${NAME[M]}, minimum (5 only with no 3-card minor to bid).`, { hcp: [12, 15], len: { [M]: [5, 13] } });
   put(`3${M}`, `6+ good ${NAME[M]}, 16–18. Invitational.`, { hcp: [16, 18], len: { [M]: [6, 13] } });
   for (const s of SUITS.filter((t) => t !== M)) {
     if (RANK[s] < RANK[M]) {
@@ -205,12 +211,12 @@ export function afterSimpleRaise(e, M) {
 
 function simpleRaiseSituation(M) {
   const calls = {
-    P: { meaning: 'Minimum: no game.', shows: { hcp: [12, 14] }, notes: RAISE },
-    [`3${M}`]: { meaning: 'General game invitation (15–17). Partner bids game with a maximum.', shows: { hcp: [15, 17] }, notes: RAISE },
-    [`4${M}`]: { meaning: 'To play: 18+.', shows: { hcp: [18, 21] }, notes: RAISE },
+    P: { meaning: 'Minimum: no game.', shows: { hcp: [12, 14], light: true }, notes: RAISE },
+    [`3${M}`]: { meaning: 'General game invitation (15–17 points, counting length). Partner bids game with a maximum.', shows: { hcp: [15, 17], pts: `len:${M}` }, notes: RAISE },
+    [`4${M}`]: { meaning: 'To play: 18+ points, counting length.', shows: { hcp: [18, 23], pts: `len:${M}` }, notes: RAISE },
   };
   for (const s of SUITS.filter((t) => t !== M)) {
-    calls[`${M === 'H' && s === 'S' ? 2 : 3}${s}`] = { meaning: `Help-suit game try: 15–17, two or three losers in ${NAME[s]}. Partner bids game with help there.`, shows: { hcp: [15, 17], len: { [s]: [3, 13] } }, notes: RAISE };
+    calls[`${M === 'H' && s === 'S' ? 2 : 3}${s}`] = { meaning: `Help-suit game try: 15–17, two or three losers in ${NAME[s]}. Partner bids game with help there.`, shows: { hcp: [15, 17], len: { [s]: [3, 13] }, pts: `len:${M}` }, notes: RAISE };
   }
   return { after: [`1${M}`, `2${M}`], calls, decide: (e) => afterSimpleRaise(e, M) };
 }
@@ -219,8 +225,8 @@ function limitRaiseSituation(M) {
   return {
     after: [`1${M}`, `3${M}`],
     calls: {
-      P: { meaning: 'Minimum: decline the invitation.', shows: { hcp: [12, 13] }, notes: RAISE },
-      [`4${M}`]: { meaning: 'Accept: game.', shows: { hcp: [14, 21] }, notes: RAISE },
+      P: { meaning: 'Minimum: decline the invitation.', shows: { hcp: [12, 13], light: true, pts: `len:${M}` }, notes: RAISE },
+      [`4${M}`]: { meaning: 'Accept: game.', shows: { hcp: [14, 23], pts: `len:${M}` }, notes: RAISE },
     },
     decide: (e) => (pts(e, M) >= 14 ? R(`4${M}`, [`${pts(e, M)} points opposite 10–12: accept`])
       : R('P', [`${pts(e, M)} points: decline`], { close: pts(e, M) === 13 ? '13: accept with good trumps or a ruffing value.' : null })),
@@ -299,7 +305,7 @@ function invertedSituation(m) {
   const calls = {
     '2N': { meaning: '12–14 balanced. Not forcing.', shows: { hcp: [12, 14], balanced: true }, notes: INV },
     '3N': { meaning: '18–19 balanced.', shows: { hcp: [18, 19], balanced: true }, notes: INV },
-    [`3${m}`]: { meaning: 'Minimum, unbalanced. Not forcing.', shows: { hcp: [12, 14] }, notes: INV },
+    [`3${m}`]: { meaning: 'Minimum, unbalanced. Not forcing.', shows: { hcp: [12, 14], light: true }, notes: INV },
   };
   for (const s of SUITS.filter((t) => RANK[t] > RANK[m])) calls[`2${s}`] = { meaning: `Stopper in ${NAME[s]}, natural, forcing: heading for 3NT.`, shows: {}, notes: INV };
   return { after: [`1${m}`, `2${m}`], calls, decide: (e) => afterInverted(e, m) };
@@ -380,7 +386,7 @@ function passedNewSuitSituation(o, r) {
     ctx: PASSED,
     calls: {
       P: { meaning: 'Minimum: content.', shows: {}, notes: GF },
-      [`2${o}`]: { meaning: `6+ ${NAME[o]}, minimum.`, shows: { len: { [o]: [6, 13] } }, notes: GF },
+      [`2${o}`]: { meaning: `6+ ${NAME[o]} with a minimum; or 5 with extras and nothing better to bid. Not forcing.`, shows: { len: { [o]: [5, 13] } }, notes: GF },
       '2N': { meaning: '14+ balanced: invites game.', shows: { hcp: [14, 21], balanced: true }, notes: GF },
       [`3${r}`]: { meaning: `3+ ${NAME[r]}, 14+: invites game.`, shows: { hcp: [14, 21], len: { [r]: [3, 13] } }, notes: GF },
     },

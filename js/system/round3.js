@@ -22,10 +22,10 @@ const above = (a, b) => (Number(a[0]) - Number(b[0])) * 5 + RANK[a[1]] - RANK[b[
 const R = (call, why, extra = {}) => ({ call, why, ...extra });
 
 const SITUATIONS = [];
-// calls: [call, meaning, notes?][]; decide(e) must return one of them.
+// calls: [call, meaning, notes?, shows?][]; decide(e) must return one of them.
 const sit = (after, calls, decide, notes = REBID) => SITUATIONS.push({
   after,
-  calls: Object.fromEntries(calls.map(([c, m, n]) => [c, { meaning: m, shows: {}, notes: n ?? notes }])),
+  calls: Object.fromEntries(calls.map(([c, m, n, sh]) => [c, { meaning: m, shows: sh ?? {}, notes: n ?? notes }])),
   decide,
 });
 
@@ -218,8 +218,8 @@ for (const [o, r, z] of XYZ_AUCTIONS) {
   sit([...pre, '2N'], [['3C', 'Forced.']], () => R('3C', ['the 2NT puppet forces 3♣']), XYZ);
   const unbid = SUITS.filter((s) => ![o, r, z].includes(s));
   const calls = [];
-  if (isMajor(r)) calls.push([`2${r}`, `3-card ${nm(r)} support.`]);
-  for (const s of ['H', 'S']) if (s !== r && s !== o && s !== z && !calls.some((c) => c[0] === `2${s}`)) calls.push([`2${s}`, `4 ${nm(s)}.`]);
+  if (isMajor(r)) calls.push([`2${r}`, `3-card ${nm(r)} support.`, undefined, { len: { [r]: [3, 13] } }]);
+  for (const s of ['H', 'S']) if (s !== r && s !== o && s !== z && !calls.some((c) => c[0] === `2${s}`)) calls.push([`2${s}`, `4 ${nm(s)}.`, undefined, { len: { [s]: [4, 13] } }]);
   calls.push(['2N', 'Stopper in the unbid suit.'], [`3${o}`, `Long ${nm(o)}, nothing else to show.`]);
   sit([...pre, '2D'], calls, (e) => {
     if (isMajor(r) && e.len[r] >= 3) return R(`2${r}`, [`${e.len[r]} ${nm(r)}: support first`]);
@@ -233,12 +233,12 @@ for (const [o, r, z] of [['D', 'H', 'C'], ['D', 'S', 'C'], ['H', 'S', 'C'], ['H'
   const w = SUITS.find((s) => ![o, r, z].includes(s));
   const fsf = `${RANK[w] > RANK[z] ? 2 : 3}${w}`;
   const calls = [];
-  const add = (c, m) => { if (above(c, fsf) && !calls.some((x) => x[0] === c)) calls.push([c, m]); };
-  add(`${RANK[r] > RANK[w] ? Number(fsf[0]) : Number(fsf[0]) + 1}${r}`, `3-card ${nm(r)} support.`);
+  const add = (c, m, sh) => { if (above(c, fsf) && !calls.some((x) => x[0] === c)) calls.push([c, m, undefined, sh]); };
+  add(`${RANK[r] > RANK[w] ? Number(fsf[0]) : Number(fsf[0]) + 1}${r}`, `3-card ${nm(r)} support.`, { len: { [r]: [3, 13] } });
   add(fsf[0] === '2' ? '2N' : '3N', `Stopper in ${nm(w)}.`);
   add(`${RANK[o] > RANK[w] ? Number(fsf[0]) : Number(fsf[0]) + 1}${o}`, `Extra length in ${nm(o)}.`);
   add(`${RANK[z] > RANK[w] ? Number(fsf[0]) : Number(fsf[0]) + 1}${z}`, `Extra length in ${nm(z)}.`);
-  add(`${Number(fsf[0]) + 1}${w}`, `4 ${nm(w)}.`);
+  add(`${Number(fsf[0]) + 1}${w}`, `4 ${nm(w)}.`, { len: { [w]: [4, 13] } });
   sit([`1${o}`, `1${r}`, `2${z}`, fsf], calls, (e) => {
     const c = (prefix) => calls.find((x) => x[1].startsWith(prefix))?.[0];
     if (e.len[r] >= 3) return R(c('3-card'), [`${e.len[r]} ${nm(r)}: support first`]);

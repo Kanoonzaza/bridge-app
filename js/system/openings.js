@@ -121,8 +121,8 @@ const entries = [
   },
   {
     ...OPEN, call: '2C', priority: 6, notes: 'strong-2-opening-tier-2',
-    meaning: 'Strong and artificial: 22+ HCP, or about 9 playing tricks. Says nothing about clubs.',
-    shows: { hcp: [22, 37], force: 'game' },
+    meaning: 'Strong and artificial: 22+ HCP, or 18+ with about 9 playing tricks. Says nothing about clubs.',
+    shows: { hcp: [18, 37], force: 'game' },
     pick: (e) => isStrong(e),
     why: (e) => (e.hcp >= 22 ? [`${e.hcp} HCP`] : [`${e.hcp} HCP with a strong ${e.pattern[0]}-card ${NAME[longest(e)]} suit and only ${e.ltc} losers: about 9 playing tricks`]),
   },

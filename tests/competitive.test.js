@@ -5,7 +5,7 @@ import { explain, nextOptions } from '../js/engine.js';
 const last = (dealer, calls) => explain({ dealer, calls }).at(-1).meaning ?? '';
 
 const CASES = [
-  ['W', ['1C', '1H', 'P', '2C'], /Cue-bid: 10\+ with hearts support/, 'advancing an overcall: cue-bid raise'],
+  ['W', ['1C', '1H', 'P', '2C'], /Cue-bid: 10\+ points counting shortness, with hearts support/, 'advancing an overcall: cue-bid raise'],
   ['W', ['1C', '1H', 'P', '2H'], /Raise: 6–9/, 'advancing an overcall: simple raise'],
   ['N', ['1H', '2C', '3C'], /limit raise or better in hearts/, 'cue-bid raise after their overcall'],
   ['N', ['1H', '2C', '3H'], /Preemptive jump raise/, 'jump raise is preemptive'],

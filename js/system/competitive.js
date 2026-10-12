@@ -35,7 +35,8 @@ for (const x of SUITS4) {
     def(k, '1N', balancing ? `Balancing 1NT: 11–14 balanced with a ${nm(x)} stopper.` : `15–18 balanced with a ${nm(x)} stopper. Systems on.`, { hcp: balancing ? [11, 14] : [15, 18], balanced: true });
     for (const s of SUITS4.filter((t) => t !== x)) {
       const lv = cheapest(`1${x}`, s);
-      def(k, `${lv}${s}`, lv === 1 ? `Overcall: 5+ ${nm(s)}, 8–16.` : `Overcall: good 5+ ${nm(s)} (usually 6), 11–16.`, { hcp: lv === 1 ? [8, 16] : [11, 16], len: { [s]: [5, 13] } });
+      const lo = (lv === 1 ? 8 : 11) - (balancing ? 1 + (lv === 2) : 0);
+      def(k, `${lv}${s}`, `${balancing ? 'Balancing overcall' : 'Overcall'}: ${lv === 1 ? '' : 'good '}5+ ${nm(s)}${lv === 1 ? '' : ' (usually 6)'}, ${lo}–16.`, { hcp: [lo, 16], len: { [s]: [5, 13] } });
       if (!balancing) {
         const jumpLv = lv + 1;
         def(k, `${jumpLv}${s}`, jumpLv >= 3 ? `Weak jump overcall, like a weak three: 7 ${nm(s)}, 5–10.` : `Weak jump overcall: 6 ${nm(s)}, 5–10.`, { hcp: [5, 10], len: { [s]: jumpLv >= 3 ? [7, 7] : [6, 6] } });
@@ -79,7 +80,8 @@ for (const pre of [['(1N)'], ['(1N)', 'P']]) {
 // ---------- C. Their weak two and 3-level preempts ----------
 for (const x of ['D', 'H', 'S']) {
   for (const k of [[`(2${x})`], [`(2${x})`, 'P']]) {
-    def(k, 'X', `Takeout: opening values, short in ${nm(x)}.`, { hcp: [12, 37] });
+    const bal = k.length === 2;
+    def(k, 'X', bal ? `Takeout (balancing): short in ${nm(x)}, can be lighter (about 10+).` : `Takeout: opening values, short in ${nm(x)}.`, { hcp: [bal ? 10 : 12, 37] });
     def(k, '2N', `15–18 balanced with a ${nm(x)} stopper.`, { hcp: [15, 18], balanced: true });
     def(k, `3${x}`, `Asks partner for a ${nm(x)} stopper (for 3NT with a long running minor).`);
     def(k, '3N', 'To play.');
@@ -110,10 +112,10 @@ for (const x of SUITS4) {
     const ov = `${cheapest(`1${x}`, y)}${y}`;
     const k = [`(1${x})`, ov];
     const lv = Number(ov[0]);
-    def(k, `${lv + 1}${y}`, `Raise: 6–9, 3+ ${nm(y)}.`, { hcp: [6, 9], len: { [y]: [3, 13] } });
+    def(k, `${lv + 1}${y}`, `Raise: 6–9 points counting shortness, 3+ ${nm(y)}.`, { hcp: [6, 9], len: { [y]: [3, 13] }, pts: y });
     def(k, `${lv + 2}${y}`, `Preemptive jump raise: weak, 4+ ${nm(y)}.`, { len: { [y]: [4, 13] } });
     const cue = `${cheapest(ov, x)}${x}`;
-    def(k, cue, `Cue-bid: 10+ with ${nm(y)} support (limit raise or better).`, { hcp: [10, 37], len: { [y]: [3, 13] }, force: 'round' });
+    def(k, cue, `Cue-bid: 10+ points counting shortness, with ${nm(y)} support (limit raise or better).`, { hcp: [10, 37], len: { [y]: [3, 13] }, force: 'round', pts: y });
     if (lv === 1) def(k, '1N', `8–11 with a ${nm(x)} stopper.`, { hcp: [8, 11] });
     if (above('2N', ov)) def(k, '2N', `11–12 with a ${nm(x)} stopper.`, { hcp: [11, 12] });
     for (const z of SUITS4.filter((t) => t !== x && t !== y)) def(k, `${cheapest(ov, z)}${z}`, `Natural: 5+ ${nm(z)}, not forcing.`, { len: { [z]: [5, 13] } });
@@ -153,15 +155,16 @@ function negativeDouble(o, ov) {
   const unbid = MAJORS.filter((s) => s !== o && s !== y);
   const min = lv === 1 ? 6 : lv === 2 ? 8 : 10;
   let shape;
-  if (unbid.length === 2) shape = lv === 1 ? 'both majors, at least 4-4 (bid 1♥/1♠ with only one major)' : 'both majors, or one major without the strength to bid it at this level';
+  if (unbid.length === 2) shape = lv === 1 ? 'both majors, at least 4-4 (bid 1♥/1♠ with only one major); 3-3 only with values and no other good bid' : 'both majors, or one major without the strength to bid it at this level';
   else if (unbid.length === 1) {
     const u = unbid[0];
-    if (lv === 1 && u === 'S') shape = 'exactly 4 spades (1♠ would show 5+)';
-    else if (lv === 1 && u === 'H') shape = '4+ hearts (2♥ would show 5+ hearts and 10+)';
+    if (lv === 1 && u === 'S') shape = 'exactly 4 spades (1♠ would show 5+); 3 only with values and no other good bid';
+    else if (lv === 1 && u === 'H') shape = '4+ hearts (2♥ would show 5+ hearts and 10+); 3 only with values and no other good bid';
     else shape = `4 ${nm(u)} plus the other unbid suit, or a hand with values and no good bid`;
   } else shape = 'both minors, or a hand with values and no good bid';
-  // The majors it promises: both at the 1-level, or the one unbid major.
-  const len = unbid.length === 2 && lv === 1 ? { H: [4, 13], S: [4, 13] } : unbid.length === 1 ? { [unbid[0]]: [4, 13] } : undefined;
+  // The majors it promises at the 1-level (3+: a hand with values and no other bid may have only 3).
+  // Higher up it may be a hand with values and no good bid, so no length is promised.
+  const len = lv > 1 ? undefined : unbid.length === 2 ? { H: [3, 13], S: [3, 13] } : unbid.length === 1 ? { [unbid[0]]: [3, 13] } : undefined;
   return [`Negative double: ${shape}. ${min}+ HCP.`, len ? { hcp: [min, 37], len } : { hcp: [min, 37] }];
 }
 
@@ -174,10 +177,10 @@ for (const o of SUITS4) {
       def(k, 'X', neg, shows);
       const r = cheapest(ov, o);
       if (r <= 4) {
-        def(k, `${r}${o}`, `Simple raise: 6–9${isMajor(o) ? '' : ' (inverted minors are off)'}.`, { hcp: [6, 9], len: { [o]: [isMajor(o) ? 3 : 4, 13] } });
+        def(k, `${r}${o}`, `Simple raise: 6–9${isMajor(o) ? ' points counting shortness' : ' (inverted minors are off)'}.`, { hcp: [6, 9], len: { [o]: [isMajor(o) ? 3 : 4, 13] }, ...(isMajor(o) && { pts: o }) });
         if (r + 1 <= 4) def(k, `${r + 1}${o}`, `Preemptive jump raise: 4+ ${nm(o)}, weak.`, { len: { [o]: [4, 13] } });
       }
-      def(k, `${lv + 1}${y}`, `Cue-bid: limit raise or better in ${nm(o)} (10+).`, { hcp: [10, 37], len: { [o]: [3, 13] }, force: 'round' });
+      def(k, `${lv + 1}${y}`, `Cue-bid: limit raise or better in ${nm(o)} (10+${isMajor(o) ? ' points counting shortness' : ''}).`, { hcp: [10, 37], len: { [o]: [isMajor(o) ? 3 : o === 'D' ? 4 : 5, 13] }, force: 'round', ...(isMajor(o) && { pts: o }) });
       if (lv === 1) def(k, '1N', `Natural: about 8–10 with a ${nm(y)} stopper.`, { hcp: [8, 10] });
       for (const s of SUITS4.filter((t) => t !== o && t !== y)) {
         const sl = cheapest(ov, s);
@@ -196,20 +199,21 @@ for (const o of SUITS4) {
       def(k, 'P', `Penalty pass: a trump stack in ${nm(y)}.`, { len: { [y]: [4, 13] } });
       for (const u of MAJORS.filter((t) => t !== o && t !== y)) {
         const ul = cheapest(ov, u);
-        def(k, `${ul}${u}`, `4 ${nm(u)}, minimum (12–14).`, { hcp: [12, 14], len: { [u]: [4, 13] } });
+        def(k, `${ul}${u}`, `4 ${nm(u)}, minimum (12–14).`, { hcp: [12, 14], len: { [u]: [4, 13] }, light: true });
         if (ul + 1 <= 4) def(k, `${ul + 1}${u}`, `4 ${nm(u)}, 15–17: invitational jump.`, { hcp: [15, 17], len: { [u]: [4, 13] } });
       }
       def(k, `${lv + 1}${y}`, 'Cue-bid: a big hand (18+), forcing.', { hcp: [18, 37], force: 'round' });
       if (lv === 1) def(k, '1N', `12–14 balanced with a ${nm(y)} stopper.`, { hcp: [12, 14], balanced: true });
       const ol = cheapest(ov, o);
-      if (ol <= 3) def(k, `${ol}${o}`, `6+ ${nm(o)}, minimum, no 4-card unbid major.`, { hcp: [12, 15], len: { [o]: [6, 13] } });
+      if (ol <= 3) def(k, `${ol}${o}`, `6+ ${nm(o)} (5 with nothing better to bid), minimum, no 4-card unbid major.`, { hcp: [12, 15], len: { [o]: [5, 13] }, light: true });
+      if (ol + 1 <= 3) def(k, `${ol + 1}${o}`, `6+ ${nm(o)}, 16–17: invitational jump.`, { hcp: [16, 17], len: { [o]: [6, 13] } });
     }
   }
   // G. They doubled our opening.
   const k = [`1${o}`, '(X)'];
   def(k, 'XX', '10+ HCP, usually no fit: plans to double them or show a suit.', { hcp: [10, 37] });
   def(k, `2${o}`, `Weak raise: 6–9.`, { hcp: [6, 9], len: { [o]: [isMajor(o) ? 3 : 4, 13] } });
-  def(k, '2N', `Jordan 2NT: ${isMajor(o) ? '4+' : '5+'} ${nm(o)}, limit raise or better.`, { hcp: [10, 37], len: { [o]: [isMajor(o) ? 4 : 5, 13] } }, JORDAN);
+  def(k, '2N', `Jordan 2NT: ${isMajor(o) ? '4+' : '5+'} ${nm(o)}, limit raise or better (10+${isMajor(o) ? ' points counting shortness' : ''}).`, { hcp: [10, 37], len: { [o]: [isMajor(o) ? 4 : 5, 13] }, ...(isMajor(o) && { pts: o }) }, JORDAN);
   def(k, `3${o}`, `Preemptive raise: 4+ ${nm(o)}, weak.`, { len: { [o]: [4, 13] } });
   for (const s of SUITS4.filter((t) => t !== o)) {
     const lv = cheapest(`1${o}`, s);

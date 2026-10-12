@@ -10,6 +10,8 @@ import { handPicker } from './hand-picker.js';
 import { biddingBox } from './bidding-box.js';
 import { copyButton } from './copy.js';
 import { advisorReport } from '../report.js';
+import { confidence } from '../confidence.js';
+import { confRow } from './conf.js';
 
 const WHO = { S: 'You', N: 'Partner', E: 'Right', W: 'Left' };
 const OPP_NAME = { E: 'Right opponent', W: 'Left opponent' };
@@ -65,8 +67,9 @@ export function advisorView(root, store) {
           : el('p', {}, "The advisor doesn't cover this situation yet. More situations are coming in the next update."));
     }
     return el('div', { class: 'panel answer' },
-      el('div', { class: 'eyebrow' }, r.fallback ? 'Suggested bid (general rule)' : 'Suggested bid'),
+      el('div', { class: 'eyebrow' }, 'Suggested bid'),
       el('div', { class: 'big' }, callLabel(r.call)),
+      confRow(confidence(r)),
       r.reasons.length ? el('p', {}, el('b', {}, 'Why: '), `${r.reasons.join('; ')}.`) : null,
       el('p', {}, el('b', {}, 'Tells partner: '), r.meaning),
       r.plan ? el('p', {}, el('b', {}, 'Plan: '), r.plan) : null,

@@ -165,3 +165,5 @@ body.has-update{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 .toc-list{display:grid}
 .toc-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px solid var(--rule);color:var(--ink);text-decoration:none}
 .chip.warn{background:var(--warn-soft);color:var(--warn-ink)}
+.conf{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:6px 0;font-size:.85rem}
+.conf .chip{white-space:nowrap}

@@ -5,6 +5,7 @@ import { callLabel } from './format.js';
 import { SEATS } from './auction.js';
 import { auctionOf, handOf, packHand } from './table/model.js';
 import { reviewRows, systemAuction, contract } from './table/review.js';
+import { confidence } from './confidence.js';
 
 const COMPASS = { N: 'North', E: 'East', S: 'South', W: 'West' };
 const VUL = { none: 'None vulnerable', NS: 'N-S vulnerable', EW: 'E-W vulnerable', both: 'Both vulnerable' };
@@ -46,7 +47,7 @@ export function boardReport(t, me) {
     `The Advisor would bid: ${calls(sys.calls)} → ${kText(contract(sys))}`,
     '',
     rows.length ? 'Where the Advisor differs (each player\'s first difference only):' : 'Every player\'s call matched the Advisor.',
-    ...rows.map((r) => `- ${COMPASS[r.seat]} bid ${callLabel(r.call)}; Advisor: ${callLabel(r.advisor.call)} (${r.advisor.meaning}${r.advisor.reasons?.length ? `; ${r.advisor.reasons.join('; ')}` : ''})${r.advisor.close ? ` Close call: ${r.advisor.close}` : ''}${r.misfit?.length ? ` [Why ${callLabel(r.call)} does not fit the hand: ${r.misfit.join('; ')}]` : ''}`),
+    ...rows.map((r) => `- ${COMPASS[r.seat]} bid ${callLabel(r.call)}; Advisor: ${callLabel(r.advisor.call)}${r.advisor.conf ? ` [${r.advisor.conf.label}]` : ''} (${r.advisor.meaning}${r.advisor.reasons?.length ? `; ${r.advisor.reasons.join('; ')}` : ''})${r.advisor.close ? ` Close call: ${r.advisor.close}` : ''}${r.misfit?.length ? ` [Why ${callLabel(r.call)} does not fit the hand: ${r.misfit.join('; ')}]` : ''}`),
     '',
     'My question:',
     '',
@@ -66,7 +67,7 @@ export function advisorReport(hand, a, r) {
     '',
     r.notCovered
       ? 'The Advisor had no suggestion.'
-      : `Suggested: ${callLabel(r.call)}${r.fallback ? ' (general rule)' : ''}. Meaning: ${r.meaning}`,
+      : `Suggested: ${callLabel(r.call)} [${confidence(r).label}]. Meaning: ${r.meaning}`,
     ...(r.reasons?.length ? [`Why: ${r.reasons.join('; ')}`] : []),
     '',
     'My question:',
