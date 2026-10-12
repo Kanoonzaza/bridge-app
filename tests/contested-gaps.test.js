@@ -93,3 +93,22 @@ test('advancing at the 3-level needs real values (the 5-count raise to 3♦, bot
   assert.equal(a('none', '93 A1096 KJ9 Q1094'), '3H', '3 trumps, 10 HCP: cue-bid raise');
   assert.equal(a('both', '93 A1096 J93 Q1094'), 'P', '3 trumps, 7 HCP vulnerable: pass');
 });
+
+// Found by the level-versus-strength audit.
+const AUDIT = [
+  // Opener's 1-level new suit: responder passes only with a weak hand
+  ['N', ['1D', 'P', '1H', 'P', '1S', 'P'], 'J93 K10985 5 AQ98', '1N', '10 HCP: do not pass'],
+  ['N', ['1D', 'P', '1H', 'P', '1S', 'P'], 'AQ3 A7543 10962 9', '1N', '10 HCP: do not pass'],
+  ['N', ['1C', 'P', '1H', 'P', '1S', 'P'], '742 J8654 KQ96 5', 'P', '6 HCP and 3 spades: pass is fine'],
+  // Partner's cue-bid raise is forcing, not a contract
+  ['N', ['1S', '3H', '4H', 'P'], 'KQ765 J76 Q4 A54', '4S', 'minimum: back to spades'],
+  ['N', ['1D', '3C', '4C', 'P'], 'AKJ4 QJ63 J987 J', '4D', 'minimum: back to diamonds'],
+  // A raise to the 3-level needs real values
+  ['E', ['1S', '2C', 'P'], 'J3 J8642 K96 753', 'P', '5 HCP, 3 clubs: too thin for 3♣'],
+  ['E', ['1S', '2C', 'P'], 'J3 Q8642 K96 Q53', '3C', '8 HCP, 3 clubs: raise'],
+];
+for (const [dealer, calls, hand, want, why] of AUDIT) {
+  test(`${calls.join(' ')} (dealer ${dealer}): ${hand} → ${want} (${why})`, () => {
+    assert.equal(ask(dealer, calls, hand).call, want);
+  });
+}

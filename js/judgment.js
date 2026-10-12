@@ -134,6 +134,10 @@ export function judge(e, auction, rows, summary, key) {
     if (legal.has('3N')) return { call: '3N', why: ['forcing: 3NT'] };
     const any = [...ourBidSuits].map(cheapest).filter(Boolean)[0];
     if (any) return { call: any, why: ['forcing: return to a suit already bid'] };
+    // Partner's cue-bid raise: bid the suit partner supports at the cheapest level (minimum).
+    const pSuit = SUITS.filter((s) => !theirSuits.has(s) && P.len[s][0] >= 3).sort((a, b) => P.len[b][0] - P.len[a][0])[0];
+    const back = pSuit && cheapest(pSuit);
+    if (back && Number(back[0]) <= 5) return { call: back, why: [`forcing: bid ${NAME[pSuit]}, the suit partner supports, at the cheapest level`] };
   }
   // A free bid with a long suit of our own.
   if (theyBidLast) {

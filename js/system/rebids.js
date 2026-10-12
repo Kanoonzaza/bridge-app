@@ -90,7 +90,7 @@ function oneLevelSituation(o, r) {
   }
   for (const s of others) {
     const k = kind(o, r, s);
-    if (k === 'one') put(`1${s}`, `4+ ${NAME[s]}, 12–18. Forcing one round.`, { hcp: [12, 18], len: { [s]: [4, 13] }, force: 'round' });
+    if (k === 'one') put(`1${s}`, `4+ ${NAME[s]}, 12–18. Not forcing, but responder passes only with a weak hand (0–7) and support.`, { hcp: [12, 18], len: { [s]: [4, 13] } });
     if (k === 'lower') put(`2${s}`, `4+ ${NAME[s]}, 12–18. Not a reverse; not forcing.`, { hcp: [12, 18], len: { [s]: [4, 13] } });
     if (k === 'reverse') put(`2${s}`, `Reverse: 16+, 4+ ${NAME[s]}, ${NAME[o]} longer. Forcing one round.`, { hcp: [16, 37], len: { [s]: [4, 13], [o]: [5, 13] }, force: 'round' }, REV);
     if (k !== 'reverse') put(jumpShiftCall(o, r, s), `Jump shift: 19+, 4+ ${NAME[s]}. Game forcing.`, { hcp: [19, 37], len: { [s]: [4, 13] }, force: 'game' });

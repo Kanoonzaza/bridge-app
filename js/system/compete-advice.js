@@ -19,6 +19,13 @@ const stopper = (e, s) => /A/.test(e.hand[s]) || (/K/.test(e.hand[s]) && e.len[s
 const shortness = (e, trump) => SUITS4.some((s) => s !== trump && e.len[s] <= 1);
 const longestOf = (e, list) => [...list].sort((a, b) => e.len[b] - e.len[a] || RANK[b] - RANK[a])[0];
 const R = (call, why, extra = {}) => ({ call, why, ...extra });
+// A raise that has to go to the 3-level needs real values: 4 trumps and 6+ (7+ vulnerable),
+// or 3 trumps and 8+ dummy points with 7+ HCP (9+ / 8+ vulnerable).
+export function raiseAtThree(e, y, vul) {
+  const weVul = vul === 'we' || vul === 'both';
+  const dp = dummyPoints(e, y);
+  return e.len[y] >= 4 ? dp >= (weVul ? 7 : 6) : e.hcp >= (weVul ? 8 : 7) && dp >= (weVul ? 9 : 8);
+}
 
 const SAMPLES = [];
 function advise(after, decide, samples) {
@@ -221,7 +228,7 @@ export function overWeakTwo(e, x, lv, balancing) {
 }
 
 // ---------- Advancing ----------
-export function advanceOvercall(e, x, ov) {
+export function advanceOvercall(e, x, ov, vul = 'none') {
   const y = ov[1];
   const lv = Number(ov[0]);
   const h = e.hcp;
@@ -230,7 +237,7 @@ export function advanceOvercall(e, x, ov) {
     const dp = dummyPoints(e, y);
     if (dp >= 10) return R(`${cheapest(ov, x)}${x}`, [`${L[y]} ${nm(y)}, ${dp} points: cue-bid raise`]);
     if (h <= 7 && (L[y] >= 5 || (L[y] >= 4 && shortness(e, y)))) return R(`${lv + 2}${y}`, [`${L[y]} ${nm(y)}, weak: preemptive jump raise`]);
-    if (dp >= 5) return R(`${lv + 1}${y}`, [`${L[y]} ${nm(y)}: raise`, 'competitive: raise even when light']);
+    if (lv + 1 <= 2 ? dp >= 5 : raiseAtThree(e, y, vul)) return R(`${lv + 1}${y}`, [`${L[y]} ${nm(y)}: raise`, lv + 1 <= 2 ? 'competitive: raise even when light' : 'enough for a raise to the 3-level']);
   }
   if (stopper(e, x)) {
     if (lv === 1 && h >= 8 && h <= 11) return R('1N', [`${h} HCP with a ${nm(x)} stopper`]);
@@ -317,7 +324,7 @@ for (const x of SUITS4) {
     const k = [`(1${x})`, ov];
     def(k, 'P', 'Pass: no fit and nothing to add.');
     def(k, '3N', `13+ with a ${nm(x)} stopper: to play.`, { hcp: [13, 37] });
-    advise(k, (e) => advanceOvercall(e, x, ov), [{ dealer: 'W', calls: [`1${x}`, ov, 'P'] }]);
+    advise(k, (e, st) => advanceOvercall(e, x, ov, st.ctx.vul), [{ dealer: 'W', calls: [`1${x}`, ov, 'P'] }]);
   }
   advise([`(1${x})`, 'X'], (e) => advanceTakeout(e, x), [{ dealer: 'W', calls: [`1${x}`, 'X', 'P'] }]);
   advise([`(1${x})`, `2${x}`], (e) => advanceMichaels(e, x), [{ dealer: 'W', calls: [`1${x}`, `2${x}`, 'P'] }]);
@@ -644,12 +651,18 @@ for (const x of SUITS4) {
       const raiseCall = pc === 'X' ? null : `${cheapest(theirRaise, pc[1])}${pc[1]}`;
       if (raiseCall) def(k, raiseCall, `Raise: competing in ${nm(pc[1])}.`, { len: { [pc[1]]: [3, 13] } });
       for (const t of unbid) def(k, `${cheapest(theirRaise, t)}${t}`, `Natural: 5+ ${nm(t)}.`, { len: { [t]: [5, 13] } });
-      advise(k, (e) => {
+      advise(k, (e, st) => {
         const r = responsive(e, x, pc);
-        if (r.call === 'RAISE') return raiseCall && Number(raiseCall[0]) <= 3 ? R(raiseCall, r.why) : R('P', ['too high to compete']);
+        const tooThin = (why) => (e.hcp >= 10 ? R('X', [`${e.hcp} HCP: show the values with a responsive double`]) : R('P', [why]));
+        if (r.call === 'RAISE') {
+          if (!raiseCall || Number(raiseCall[0]) > 3) return R('P', ['too high to compete']);
+          if (raiseCall[0] === '3' && !raiseAtThree(e, pc[1], st.ctx.vul)) return tooThin(`${e.len[pc[1]]} ${nm(pc[1])} and ${e.hcp} HCP: too thin to raise at the 3-level`);
+          return R(raiseCall, r.why);
+        }
         if (r.call.startsWith('OWN:')) {
           const t = r.call.slice(4);
           const c = `${cheapest(theirRaise, t)}${t}`;
+          if (c[0] === '3' && e.hcp < 8 && e.len[t] < 6) return tooThin(`${e.len[t]} ${nm(t)} and ${e.hcp} HCP: too thin for a new suit at the 3-level`);
           if (Number(c[0]) <= 3) return R(c, r.why);
           return e.hcp >= 10 ? R('X', [`${e.hcp} HCP: too strong to pass, the suit is too high to bid: responsive double`]) : R('P', ['too high']);
         }
@@ -875,11 +888,9 @@ export function advanceAfterResponse(e, x, ov, rb, vul = 'none') {
     const cue = cheapest(last, x);
     if (dp >= 10 && cue <= 3) return R(`${cue}${x}`, [`${L[y]} ${nm(y)}, ${dp} points: cue-bid raise`]);
     if (h <= 7 && (L[y] >= 5 || (L[y] >= 4 && shortness(e, y))) && c + 1 <= 4) return R(`${c + 1}${y}`, [`${L[y]} ${nm(y)}, weak: preemptive jump raise`]);
-    // A 2-level raise is cheap; a 3-level raise needs real values with only 3 trumps (more when vulnerable).
+    // A 2-level raise is cheap; a 3-level raise needs real values.
     const weVul = vul === 'we' || vul === 'both';
-    const ok = c <= 2
-      ? dp >= 6 || (L[y] >= 4 && dp >= 4)
-      : c === 3 && (L[y] >= 4 ? dp >= (weVul ? 7 : 6) : h >= (weVul ? 8 : 7) && dp >= (weVul ? 9 : 8));
+    const ok = c <= 2 ? dp >= 6 || (L[y] >= 4 && dp >= 4) : c === 3 && raiseAtThree(e, y, vul);
     if (ok) return R(`${c}${y}`, [`${L[y]} ${nm(y)}, ${dp} points: raise${c === 3 ? ' to the 3-level' : ''}`]);
     if (c === 3) return R('P', [`${L[y]} ${nm(y)} but only ${h} HCP${weVul ? ', vulnerable' : ''}: too thin to raise at the 3-level`, 'their new suit is forcing: you can compete next round']);
   }

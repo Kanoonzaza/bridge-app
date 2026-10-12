@@ -47,7 +47,7 @@ export function afterXYZ(e, o, r, z) {
     return R('P', [`${h} HCP opposite 12–14: no game`]);
   }
   if (isMajor(r) && L[r] >= 6) return R(`2${r}`, [`${L[r]} ${NAME[r]}, weak: to play`]);
-  if (L[z] >= 3 && !e.balanced) return R('P', [`${h} HCP`, `${L[z]} ${NAME[z]}: play here`]);
+  if (L[z] >= 3 && !e.balanced && h <= 7) return R('P', [`${h} HCP`, `${L[z]} ${NAME[z]}: play here`]);
   if (h >= 6) return R('1N', [`${h} HCP: natural, weak`]);
   return R('P', [`${h} HCP: weak`]);
 }
@@ -55,7 +55,7 @@ export function afterXYZ(e, o, r, z) {
 function xyzSituation(o, r, z) {
   const calls = {};
   const put = (call, meaning, shows, force) => { calls[call] = { meaning, shows: { ...shows, ...(force ? { force } : {}) }, notes: XYZ }; };
-  put('P', z === 'N' ? 'Weak, content with 1NT.' : 'Weak, content here.', {});
+  put('P', z === 'N' ? 'Weak, content with 1NT.' : 'Weak (about 0–7), content here.', z === 'N' ? {} : { hcp: [0, 7] });
   if (z !== 'N') put('1N', 'Natural, weak (6–10).', { hcp: [6, 10] });
   if (z === 'H' && o === 'C' && r === 'D') put('1S', '4+ spades, natural (the fourth suit at the 1-level).', { len: { S: [4, 13] } }, 'round');
   put('2C', 'XYZ relay: opener must bid 2♦. Then pass (weak with diamonds) or an invitation.', {}, 'round');

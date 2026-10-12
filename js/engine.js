@@ -290,7 +290,8 @@ function fallback(hand, auction, entries) {
   const e = evaluate(hand);
   const last = s.key.at(-1) ?? '';
   // Partner placed the contract at game or higher and the opponents passed.
-  if (GAME.test(last) && e.hcp <= 19 && legalCalls(auction).includes('P')) return pass(['partner placed the contract: pass']);
+  const cueOfTheirs = s.key.some((t) => t.startsWith('(') && t[2] === last[1]);
+  if (GAME.test(last) && !cueOfTheirs && e.hcp <= 19 && legalCalls(auction).includes('P')) return pass(['partner placed the contract: pass']);
   const judged = () => {
     const rows = explain(auction, entries);
     const j = judge(e, auction, rows, (seat) => summarize(rows, seat), s.key);
