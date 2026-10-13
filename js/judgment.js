@@ -252,6 +252,18 @@ function maximalDouble(c) {
   return null;
 }
 
+// Partner overcalled and they bid and raised a suit: with the unbid major, double (responsive) rather than
+// raise, so partner can choose between our two suits.
+function responsiveDouble(c) {
+  const { e, legal, mRows, pFirst, pLast, opened, theyBidLast, lastBid, theirSuits } = c;
+  if (opened !== 'them' || !theyBidLast || !legal.has('X') || pLast !== pFirst || mRows.some((r) => r.call !== 'P')) return null;
+  if (!isBid(pFirst.call) || pFirst.call[1] === 'N' || Number(lastBid[0]) > 2 || lastBid[1] === 'N') return null;
+  const ps = pFirst.call[1];
+  const major = ['H', 'S'].find((s) => s !== ps && !theirSuits.has(s) && (e.len[s] >= 5 ? e.hcp >= 5 : e.len[s] >= 4 && e.hcp >= 8));
+  if (!major || e.len[ps] < 3 || e.len[lastBid[1]] > 2) return null;
+  return { call: 'X', why: [`${e.len[major]} ${NAME[major]} and ${e.len[ps]} ${NAME[ps]}`, `responsive double: partner picks ${NAME[major]} or ${NAME[ps]}`] };
+}
+
 // Compete with a fit, by the Law of Total Tricks.
 function competeByTotalTricks(c) {
   const { e, auction, side, P, theyBidLast, mustBid, T, mine, combined, trumps, cheapest, why } = c;
@@ -351,7 +363,7 @@ const STEPS = [
   runFromRedouble, answerTakeoutDouble, bigDoublerBidsAgain,
   slam, penaltyAfterOurRedouble, theyOutbidOurGame, game,
   balanceOfStrengthDouble, penaltyDoubleNoFit, maximalDouble,
-  competeByTotalTricks, keepForcingAuctionGoing, freeBidLongSuit, competeWithExtras,
+  responsiveDouble, competeByTotalTricks, keepForcingAuctionGoing, freeBidLongSuit, competeWithExtras,
   misfitRebid, invite,
 ];
 

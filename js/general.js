@@ -65,13 +65,19 @@ export function describeCall(auction, i, rows) {
     if (agreed) return P(`we have already agreed ${SYMBOL[agreed]}, so this shows values and length in their suit`);
     if (ours.some((r) => r.call === 'XX')) return P("our redouble already showed values");
     if (Number(lb[0]) >= 4) return P('they are at the 4-level: values and tricks in their suit (partner pulls only with an unusual hand)');
-    const unbid = SUITS.filter((s) => !theirSuits.has(s) && !pardSuits.has(s) && !mySuits.has(s));
+    // A suit they opened counts as theirs even when it promised only 3 cards.
+    const named = suitsBy(theirs, 3);
+    const unbid = SUITS.filter((s) => !theirSuits.has(s) && !named.has(s) && !pardSuits.has(s) && !mySuits.has(s));
     // Opener doubles after partner has only passed.
     if (opened?.seat === me && !pardActed) {
       return general('Double by opener (partner has passed), for takeout: short in their suit with opening values, or a strong hand (about 18+) with no clear bid. Partner bids, or passes with length in their suit.', 'penalty-or-takeout-the-general-rule', { hcp: [13, 37] });
     }
     if (!iActed && !pardActed) {
       return general(`Takeout double: short in their suit, ${unbid.length ? `support for ${list(unbid)}` : 'support for the unbid suits'}, opening values or more.`, 'takeout-doubles', { hcp: [11, 37] });
+    }
+    // Partner overcalled, they bid on, and this is my first action: responsive.
+    if (!iActed && pardActed && !weOpened) {
+      return general(`Responsive double (takeout): values and ${unbid.length ? `cards in ${list(unbid)} (often 5 with a weaker hand)` : 'no clear bid'}, usually some support for partner too. Partner picks the contract.`, 'responsive-doubles');
     }
     return general(`Competitive double (takeout): extra values and no clear bid, short in their suit${unbid.length ? `; usually cards in ${list(unbid)}` : ''}. Partner picks the contract, or passes with length in their suit.`, 'penalty-or-takeout-the-general-rule');
   }

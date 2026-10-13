@@ -91,3 +91,15 @@ test('board 66: over 1♥–(P)–2♠ (weak jump shift) a 13-count with both mi
   assert.equal(advise(unpackHand('J8.K9.AT942.KQT2'), { dealer: 'E', vul: 'NS', calls: ['1H', 'P', '2S'] }).call, 'X');
   assert.equal(advise(unpackHand('A3.AJT6.Q8753.76'), { dealer: 'E', vul: 'NS', calls: ['1H', 'P', '2S', 'X', 'P'] }).call, '3D');
 });
+
+test('board 74: with 5 hearts and club support, double (responsive) rather than raise; partner finds 4♥', async () => {
+  const { systemAuction } = await import('../js/table/review.js');
+  const hands = { N: 'A85.A743.2.AQT63', E: 'KJ63.J6.AKJT9.98', S: '7.T9852.Q84.KJ74', W: 'QT942.KQ.7653.52' };
+  const seats = Object.fromEntries(['N', 'E', 'S', 'W'].map((s) => [s, { kind: 'robot' }]));
+  const calls = systemAuction({ dealer: 'E', vul: 'both', hands, calls: '' }, seats).calls;
+  assert.deepEqual(calls.slice(0, 7), ['1D', 'P', '1S', '2C', '2S', 'X', 'P']);
+  assert.ok(calls.includes('4H'), calls.join(' '));
+  const x = explain({ dealer: 'E', calls: ['1D', 'P', '1S', '2C', '2S', 'X'] }, undefined, { general: true }).at(-1);
+  assert.match(x.meaning, /^Responsive double/);
+  assert.doesNotMatch(x.meaning, /♦/, 'their opened suit is not an unbid suit');
+});
