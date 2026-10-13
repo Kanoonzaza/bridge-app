@@ -124,3 +124,14 @@ test('board 80: after 1♠–1NT–2♦ a long suit below diamonds is shown at t
   assert.equal(advise(unpackHand('65.J4.A98.KQJ742'), { dealer: 'W', calls }).call, '3C');
   assert.equal(advise(unpackHand('65.K4.Q98.AKJ742'), { dealer: 'W', calls }).call, '2N');
 });
+
+test('board 88: over the cue-bid raise, a shapely overcaller (6 losers) bids game', async () => {
+  const { advise } = await import('../js/engine.js');
+  const { systemAuction } = await import('../js/table/review.js');
+  assert.equal(advise(unpackHand('Q872.J95.AT.Q872'), { dealer: 'W', calls: ['1D', '1S', 'X'] }).call, '2D');
+  assert.equal(advise(unpackHand('AKJT654.T.3.T643'), { dealer: 'W', calls: ['1D', '1S', 'X', '2D', '2H'] }).call, '4S');
+  assert.equal(advise(unpackHand('KQJ65.K72.43.Q72'), { dealer: 'W', calls: ['1D', '1S', 'P', '2D', 'P'] }).call, '2S');
+  const hands = { N: 'AKJT654.T.3.T643', E: '93.K743.8754.A95', S: 'Q872.J95.AT.Q872', W: '.AQ862.KQJ962.KJ' };
+  const seats = Object.fromEntries(['N', 'E', 'S', 'W'].map((s) => [s, { kind: 'robot' }]));
+  assert.ok(systemAuction({ dealer: 'W', vul: 'none', hands, calls: '' }, seats).calls.includes('4S'));
+});

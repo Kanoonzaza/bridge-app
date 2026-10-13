@@ -547,6 +547,58 @@ for (const x of SUITS4) {
   }
 }
 
+// ---------- Overcaller after advancer's cue-bid raise (major overcalls) ----------
+const CUE_RAISE = 'overcaller-after-the-cue-bid-raise';
+
+// A key (their calls in brackets, passes left out) as the auction it stands for, starting with their opening.
+// Overcaller's turn comes after five calls.
+const toCalls = (k) => k.reduce((calls, c) => {
+  const theirs = c.startsWith('(');
+  if ((calls.length % 2 === 0) !== theirs) calls.push('P');
+  calls.push(c.replace(/[()]/g, ''));
+  return calls;
+}, []);
+
+// The cue-bid shows a limit raise or better. With a hand that would accept a limit raise (15+ HCP, 5 losers or
+// fewer, or 6 losers with a 6+ card suit), bid game; otherwise sign off in the suit and let partner go on with game values.
+export function overcallerAfterCue(e, y, last, intervened) {
+  const h = e.hcp;
+  if (h >= 15 || e.ltc <= 5 || (e.ltc <= 6 && e.len[y] >= 6)) return R(`4${y}`, [`${h} HCP, ${e.len[y]} ${nm(y)}, ${e.ltc} losers`, 'opposite a limit raise that is enough for game']);
+  const c = cheapest(last, y);
+  // Over their call, by total tricks an 8-card fit competes to the 2-level only: with 5 cards, pass rather than bid at the 3-level.
+  if (intervened && (c >= 4 || (c === 3 && e.len[y] < 6))) return R('P', [`${h} HCP, ${e.ltc} losers: minimum overcall`, c >= 4 ? 'too high to compete further' : `${e.len[y]} ${nm(y)}: an 8-card fit competes only to the 2-level`]);
+  return R(`${c}${y}`, [`${h} HCP, ${e.ltc} losers: minimum overcall`, 'sign off; partner goes on with game values']);
+}
+
+for (const x of SUITS4) {
+  for (const y of MAJORS.filter((t) => t !== x)) {
+    const ov = `${cheapest(`1${x}`, y)}${y}`;
+    const paths = [[`(1${x})`, ov, `${cheapest(ov, x)}${x}`]];
+    const responses = ['X', ...(ov[0] === '1' ? ['1N'] : []), ...SUITS4.filter((u) => u !== x && u !== y && cheapest(ov, u) <= 2).map((u) => `${cheapest(ov, u)}${u}`)];
+    for (const rb of responses) {
+      const cue = cheapest(rb === 'X' ? ov : rb, x);
+      if (cue <= 3) paths.push([`(1${x})`, ov, `(${rb})`, `${cue}${x}`]);
+    }
+    for (const base of paths) {
+      const cue = base.at(-1);
+      if (!above(`4${y}`, cue)) continue;
+      const theirs = ['X'];
+      for (let lv = 2; lv <= 4; lv++) for (const z of [...SUITS4, 'N']) if (z !== y && above(`${lv}${z}`, cue) && above(`4${y}`, `${lv}${z}`)) theirs.push(`${lv}${z}`);
+      for (const t of [null, ...theirs]) {
+        const k = t ? [...base, `(${t})`] : base;
+        const last = t && t !== 'X' ? t : cue;
+        const c = cheapest(last, y);
+        if (c < 4) def(k, `${c}${y}`, `Minimum overcall: would pass a limit raise. Partner bids game with game values.`, { hcp: [7, 14] }, CUE_RAISE);
+        if (t) def(k, 'P', 'Minimum overcall: nothing more to say.', { hcp: [7, 14] }, CUE_RAISE);
+        def(k, `4${y}`, `Game: would accept a limit raise (15+ HCP, 5 losers or fewer, or 6 losers with 6+ ${nm(y)}).`, {}, CUE_RAISE);
+        const calls = toCalls(k);
+        while (calls.length < 5) calls.push('P');
+        advise(k, (e) => overcallerAfterCue(e, y, last, Boolean(t)), [{ dealer: 'E', calls }]);
+      }
+    }
+  }
+}
+
 // ---------- Advancing partner's balancing double ----------
 const BAL = 'competitive-bidding-tier-0'; // section #takeout-doubles
 
