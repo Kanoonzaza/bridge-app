@@ -111,3 +111,13 @@ test('board 76: a game-forcing auction stops at game (2♣ … 3NT is passed); 4
   const calls = systemAuction({ dealer: 'W', vul: 'NS', hands, calls: '' }, seats).calls;
   assert.equal(calls.join(' '), 'P P P 2C P 2D P 2N P 3C P 3D P 3N P P P');
 });
+
+test('board 80: after 1♠–1NT–2♦ a long suit below diamonds is shown at the 3-level, not 2NT with a singleton spade', async () => {
+  const { advise } = await import('../js/engine.js');
+  const calls = ['P', '1S', 'P', '1N', 'P', '2D', 'P'];
+  assert.equal(advise(unpackHand('6.65.AKJ.QJT7432'), { dealer: 'W', calls }).call, '3C');
+  assert.match(explain({ dealer: 'W', calls: [...calls, '3C'] }).at(-1).meaning, /^6\+ clubs, not forcing/);
+  assert.equal(advise(unpackHand('AJ8754.Q.T9762.K'), { dealer: 'W', calls: [...calls, '3C', 'P'] }).call, 'P');
+  // 11–12 with no singleton still invites with 2NT.
+  assert.equal(advise(unpackHand('J8.A6.QJ9654.A54'), { dealer: 'W', calls: ['P', '1S', 'P', '1N', 'P', '2H', 'P'] }).call, '2N');
+});
