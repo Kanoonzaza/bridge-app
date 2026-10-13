@@ -120,4 +120,7 @@ test('board 80: after 1♠–1NT–2♦ a long suit below diamonds is shown at t
   assert.equal(advise(unpackHand('AJ8754.Q.T9762.K'), { dealer: 'W', calls: [...calls, '3C', 'P'] }).call, 'P');
   // 11–12 with no singleton still invites with 2NT.
   assert.equal(advise(unpackHand('J8.A6.QJ9654.A54'), { dealer: 'W', calls: ['P', '1S', 'P', '1N', 'P', '2H', 'P'] }).call, '2N');
+  // Not without a stopper in the other unbid suit.
+  assert.equal(advise(unpackHand('65.J4.A98.KQJ742'), { dealer: 'W', calls }).call, '3C');
+  assert.equal(advise(unpackHand('65.K4.Q98.AKJ742'), { dealer: 'W', calls }).call, '2N');
 });

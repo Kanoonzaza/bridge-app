@@ -174,9 +174,9 @@ export function afterForcingNT(e, M, rb) {
     return h >= 10 ? R(`3${long}`, [`${L[long]} ${NAME[long]}`, `${h} HCP: invitational`]) : R(`2${long}`, [`${L[long]} ${NAME[long]}, weak: to play`]);
   }
   // A long suit below opener's second suit can only be shown at the 3-level: natural, not forcing.
-  // With 11–12 and no singleton, 2NT invites instead; with 3 cards in opener's second major, pass is a fit.
-  const short = SUITS.some((s) => L[s] <= 1);
-  if (long && (h >= 8 || L[long] >= 7) && (h <= 10 || short) && !(x === 'H' && L.H >= 3)) return R(`3${long}`, [`${L[long]} ${NAME[long]}`, `${h} HCP: no fit for ${NAME[M]}, play in my suit`]);
+  // 2NT invites instead only with 11–12, no singleton and both unbid suits stopped; with 3 cards in opener's second major, pass is a fit.
+  const ntHand = h >= 11 && SUITS.every((s) => L[s] >= 2) && SUITS.filter((s) => s !== M && s !== x && s !== long).every((s) => stopper(e, s));
+  if (long && (h >= 8 || L[long] >= 7) && !ntHand && !(x === 'H' && L.H >= 3)) return R(`3${long}`, [`${L[long]} ${NAME[long]}`, `${h} HCP: no fit for ${NAME[M]}, play in my suit`]);
   if (h >= 11) return R('2N', [`${h} HCP: invite`]);
   if (L[M] >= 2 && L[M] > L[x] - 2 && L[x] < 4) return R(`2${M}`, [`preference: ${L[M]} ${NAME[M]}`]);
   return R('P', [`${h} HCP`, `${L[x]} ${NAME[x]}: play here`]);
