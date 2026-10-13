@@ -174,7 +174,9 @@ export function overWeakTwo(e, x, lv, balancing) {
   const leap = lv === 2 ? leapingMichaels(e, x) : null;
   if (leap) return leap;
   if (lv === 2 && e.balanced && stop && h >= 15 && h <= 18) return R('2N', [`${h} HCP balanced, ${nm(x)} stopped`]);
-  if (stop && h >= (lv === 2 ? 19 : 16) && e.balanced) return R('3N', [`${h} HCP, ${nm(x)} stopped`]);
+  // With 4 cards in the other major, double is the alternative: it can find a 4-4 fit, but partner, often weak, may answer at the 4-level.
+  const om = x === 'S' ? 'H' : x === 'H' ? 'S' : null;
+  if (stop && h >= (lv === 2 ? 19 : 16) && e.balanced) return R('3N', [`${h} HCP, ${nm(x)} stopped`], { close: om && L[om] === 4 ? `With 4 ${nm(om)}, double is the alternative: it finds a 4-4 ${nm(om)} fit, but over a weak partner it often ends in a minor at the 4-level, so 3NT is usually better.` : null });
   if ((L[x] <= 2 && others.every((s) => L[s] >= 3) && h >= minX) || h >= 17) return R('X', [`${h} HCP`, 'takeout double']);
   const s = others.filter((t) => L[t] >= 5 && (top3(e, t) >= 2 || L[t] >= 6)).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a])[0];
   if (s && h >= minX) return R(`${cheapest(`${lv}${x}`, s)}${s}`, [`${L[s]} good ${nm(s)}, ${h} HCP`]);
