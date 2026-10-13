@@ -133,8 +133,10 @@ export function describeCall(auction, i, rows) {
   // My own suit again. Answering partner's double, or bidding over partner's forcing bid, it need not be longer than shown.
   if (mySuits.has(s) && !pardSuits.has(s)) {
     if (L >= 6) return general(`To play: slam in ${SYMBOL[s]}.`, 'rkcb-1430-and-slam-tools-tier-1');
-    if (GAME(call)) return general(`To play: game in my ${SYMBOL[s]}, a long, strong suit.`, 'which-game', { len: { [s]: [6, 13] } });
     const had = Math.max(...ours.filter((r) => r.seat === me).map((r) => r.shows?.len?.[s]?.[0] ?? 5));
+    // Partner raised it (e.g. after Lebensohl): game in the suit we now share.
+    if (GAME(call) && pardLast && isBid(pardLast.call) && pardLast.call[1] === s) return general(`To play: game in ${SYMBOL[s]}, the suit partner raised.`, 'which-game', { len: { [s]: [had, 13] } });
+    if (GAME(call)) return general(`To play: game in my ${SYMBOL[s]}, a long, strong suit.`, 'which-game', { len: { [s]: [6, 13] } });
     if (answering) return general(`Answer to partner's double: back to my ${SYMBOL[s]} (${had}+ cards), the best of the suits. Not forcing.`, 'takeout-doubles', { len: { [s]: [had, 13] } });
     if (forced) return general(`Rebid of my ${SYMBOL[s]} over partner's forcing bid: nothing better to show (${had}+ cards).`, 'openers-rebids-tier-0', { len: { [s]: [had, 13] } });
     const n = Math.max(6, had);

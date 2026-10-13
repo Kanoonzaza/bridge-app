@@ -103,3 +103,11 @@ test('board 74: with 5 hearts and club support, double (responsive) rather than 
   assert.match(x.meaning, /^Responsive double/);
   assert.doesNotMatch(x.meaning, /♦/, 'their opened suit is not an unbid suit');
 });
+
+test('board 76: a game-forcing auction stops at game (2♣ … 3NT is passed); 4♦ is not game', async () => {
+  const { systemAuction } = await import('../js/table/review.js');
+  const hands = { N: 'T864.QT6.Q6.9875', E: 'J32.8432.K75.J63', S: 'AQ7.AK.AT432.AQT', W: 'K95.J975.J98.K42' };
+  const seats = Object.fromEntries(['N', 'E', 'S', 'W'].map((s) => [s, { kind: 'robot' }]));
+  const calls = systemAuction({ dealer: 'W', vul: 'NS', hands, calls: '' }, seats).calls;
+  assert.equal(calls.join(' '), 'P P P 2C P 2D P 2N P 3C P 3D P 3N P P P');
+});

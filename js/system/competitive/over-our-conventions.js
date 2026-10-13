@@ -154,7 +154,7 @@ for (const y of SUITS4) {
   for (const x of SUITS4.filter((t) => t !== y)) {
     const k = ['1N', `(2${y})`, `3${x}`];
     if (isMajor(x)) def(k, `4${x}`, `Game in ${nm(x)}: support (3+), or no stopper in ${nm(y)}.`, {}, LEB);
-    else def(k, `4${x}`, `No ${nm(y)} stopper: raise the minor.`, {}, LEB);
+    else def(k, `4${x}`, `No ${nm(y)} stopper: raise the minor.`, { len: { [x]: [2, 13] } }, LEB);
     def(k, '3N', `A stopper in ${nm(y)}: 3NT.`, {}, LEB);
     advise(k, (e) => openerAfterGameForce(e, y, x), [{ dealer: 'N', calls: ['1N', `2${y}`, `3${x}`, 'P'] }]);
   }

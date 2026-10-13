@@ -14,6 +14,8 @@ const SUITS = ['S', 'H', 'D', 'C'];
 const isMajor = (s) => s === 'H' || s === 'S';
 const RANK = { C: 0, D: 1, H: 2, S: 3, N: 4 };
 const rank = (c) => (Number(c[0]) - 1) * 5 + RANK[c[1]];
+// A game (or slam) contract: 3NT, 4♥/4♠, 5♣/5♦ or higher.
+const isGame = (c) => /^(3N|4[HSN]|5[CDHSN]|[67][CDHSN])$/.test(c);
 const stopper = (e, s) => /A/.test(e.hand[s]) || (/K/.test(e.hand[s]) && e.len[s] >= 2) || (/Q/.test(e.hand[s]) && e.len[s] >= 3) || (/J/.test(e.hand[s]) && e.len[s] >= 4);
 
 // Cheapest level for strain s over the bid `last`.
@@ -165,6 +167,14 @@ function bigDoublerBidsAgain(c) {
   return null;
 }
 
+// We are in game, they passed, and slam is not on: pass (a forcing auction is over once game is reached).
+function stayInGame(c) {
+  const { theyBidLast, lastBid, theirSuits, why } = c;
+  // A game-level cue-bid of their suit is not a contract.
+  if (theyBidLast || !isGame(lastBid) || theirSuits.has(lastBid[1])) return null;
+  return { call: 'P', why: [...why, 'we are in game and slam is not in reach: pass'] };
+}
+
 // Slam with a fit (RKCB), or 6NT without one.
 function slam(c) {
   const { e, key, legal, pRows, mRows, T, combined, trumps, R, why } = c;
@@ -214,7 +224,7 @@ function game(c) {
     // Over partner's forcing bid, bid the minor cheaply: partner goes on with extras.
     const g = T && (isMajor(T) || combined >= 28) ? gameCall(T) : stopsAll ? '3N' : T ? (mustBid ? null : gameCall(T)) : longGame() ?? (theyBidLast || mustBid || gameForced ? null : '3N');
     if (g && legal.has(g)) return { call: g, why: [...why, T ? `${trumps}-card ${NAME[T]} fit: game` : 'game in notrump'] };
-    if (rank(lastBid) >= rank(g ?? (T ? gameCall(T) : '3N')) && !theyBidLast) return { call: 'P', why: [...why, 'we are already at game'] };
+    if (isGame(lastBid) && !theyBidLast) return { call: 'P', why: [...why, 'we are already at game'] };
   }
   return null;
 }
@@ -361,7 +371,7 @@ function invite(c) {
 // The decisions, in order: the first that answers decides; otherwise pass (and say why).
 const STEPS = [
   runFromRedouble, answerTakeoutDouble, bigDoublerBidsAgain,
-  slam, penaltyAfterOurRedouble, theyOutbidOurGame, game,
+  slam, stayInGame, penaltyAfterOurRedouble, theyOutbidOurGame, game,
   balanceOfStrengthDouble, penaltyDoubleNoFit, maximalDouble,
   responsiveDouble, competeByTotalTricks, keepForcingAuctionGoing, freeBidLongSuit, competeWithExtras,
   misfitRebid, invite,
