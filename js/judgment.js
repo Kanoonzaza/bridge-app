@@ -241,9 +241,16 @@ function balanceOfStrengthDouble(c) {
 }
 
 // Penalty double without a fit.
+// Combined points (with partner's shown minimum) to double their 1NT: they then hold 21 at most.
+const NTX = 19;
 function penaltyDoubleNoFit(c) {
   const { e, lastBid, theyBidLast, T, combined, R, why } = c;
-  // Penalty double without a fit: they are high, we have values and length in their suit.
+  // Their 1NT when we hold the balance of strength: double for penalty (a double of notrump is never takeout).
+  if (theyBidLast && lastBid === '1N' && combined >= NTX && e.hcp >= 13 && e.balanced) {
+    const r = R('X', [...why, 'we have the balance of strength: double their 1NT for penalty']);
+    if (r) return r;
+  }
+  // They are high, we have values and length in their suit.
   if (theyBidLast && !T && combined >= 23 && Number(lastBid[0]) >= 2 && e.len[lastBid[1]] >= 4 && /[AKQ]/.test(e.hand[lastBid[1]])) {
     const r = R('X', [...why, `${e.len[lastBid[1]]} ${NAME[lastBid[1]]}: penalty double`]);
     if (r) return r;

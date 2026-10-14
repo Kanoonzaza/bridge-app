@@ -161,3 +161,8 @@ test('board 102: at favourable vulnerability a weak jump overcall needs only two
   // Not vulnerable against not: still two of the top three.
   assert.equal(advise(unpackHand('T8.KQ9.JT98654.T'), { dealer: 'E', vul: 'none', calls: ['1S'] }).call, 'P');
 });
+
+test('board 118: after our negative double and their 1NT, a balanced 13-count opener doubles for penalty', async () => {
+  const { advise } = await import('../js/engine.js');
+  assert.equal(advise(unpackHand('J3.A76.J854.AK83'), { dealer: 'E', vul: 'EW', calls: ['P', '1D', '1H', 'X', '1N'] }).call, 'X');
+});
