@@ -124,7 +124,9 @@ export function overcall(e, x, balancing, vul = 'none') {
   if (!balancing) {
     const minWj = vul === 'we' || vul === 'both' ? 7 : vul === 'they' ? 4 : 5;
     // A jump that lands at the 2-level is like a weak two (6 cards); one that lands at the 3-level is like a weak three (7 cards).
-    const wj = others.find((s) => L[s] === (cheapest(`1${x}`, s) + 1 >= 3 ? 7 : 6) && top3(e, s) >= 2 && h >= minWj && h <= 10);
+    // Suit quality: two of the top three honours; at favourable vulnerability two of the top five (J109 counts).
+    const solid = (s) => (vul === 'they' ? [...'AKQJT'].filter((r) => e.hand[s].includes(r)).length : top3(e, s)) >= 2;
+    const wj = others.find((s) => L[s] === (cheapest(`1${x}`, s) + 1 >= 3 ? 7 : 6) && solid(s) && h >= minWj && h <= 10);
     if (wj) {
       const lvl = cheapest(`1${x}`, wj) + 1;
       return R(`${lvl}${wj}`, [`${L[wj]} good ${nm(wj)}, ${h} HCP: weak jump overcall`, lvl >= 3 ? 'at the 3-level it needs 7 cards, like a weak three' : 'a weak two-style jump: 6 cards']);

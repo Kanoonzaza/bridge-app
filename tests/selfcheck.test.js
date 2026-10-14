@@ -154,3 +154,10 @@ test('board 97: a 12-count with an 8-card suit is a good 12 (2/1), and asks for 
   // Two key cards are missing (♣A, ♥K): stop in 5♥.
   assert.equal(systemAuction({ dealer: 'N', vul: 'none', hands, calls: '' }, seats).calls.join(' '), '1S P 2H P 4H P 4N P 5C P 5H P P P');
 });
+
+test('board 102: at favourable vulnerability a weak jump overcall needs only two of the top five honours', async () => {
+  const { advise } = await import('../js/engine.js');
+  assert.equal(advise(unpackHand('T8.KQ9.JT98654.T'), { dealer: 'E', vul: 'EW', calls: ['1S'] }).call, '3D');
+  // Not vulnerable against not: still two of the top three.
+  assert.equal(advise(unpackHand('T8.KQ9.JT98654.T'), { dealer: 'E', vul: 'none', calls: ['1S'] }).call, 'P');
+});
