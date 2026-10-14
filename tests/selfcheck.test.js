@@ -171,3 +171,8 @@ test('board 119: 15 HCP is not a strong hand over their 1NT; no natural 2NT afte
   const { advise } = await import('../js/engine.js');
   assert.equal(advise(unpackHand('QJ3.AK964.A9.J86'), { dealer: 'S', vul: 'both', calls: ['P', 'P', '1N', 'P', '2H', 'P', '2S'] }).call, 'P');
 });
+
+test('board 130: with 8 spades of my own opposite partner\'s values, bid 4♠ over their 4♥', async () => {
+  const { advise } = await import('../js/engine.js');
+  assert.equal(advise(unpackHand('QJT98632.A7.AT.4'), { dealer: 'E', vul: 'NS', calls: ['P', '1S', '2S', 'X', '4H'] }).call, '4S');
+});

@@ -82,7 +82,8 @@ function readSituation(e, auction, rows, summary, key) {
   const agreed = agreedSuit(key);
   const T = (agreed && !theirSuits.has(agreed) ? agreed : null) ?? fits.sort((a, b) => isMajor(b) - isMajor(a) || P.len[b][0] + e.len[b] - P.len[a][0] - e.len[a])[0] ?? null;
   // The supporting hand counts shortness; the hand with the long trumps counts extra length.
-  const mine = !T ? e.hcp : e.len[T] <= P.len[T][0] ? Math.max(e.hcp, dummyPoints(e, T)) : e.hcp + Math.max(0, e.len[T] - 5);
+  // A 7+ card suit of my own counts every card beyond four (it plays for tricks almost opposite a void).
+  const mine = !T ? e.hcp : e.len[T] <= P.len[T][0] ? Math.max(e.hcp, dummyPoints(e, T)) : e.hcp + Math.max(0, e.len[T] - (e.len[T] >= 7 ? 4 : 5));
   const combined = mine + pMin;
   const trumps = T ? P.len[T][0] + e.len[T] : 0;
   const R = (call, why) => (legal.has(call) ? { call, why } : null);
@@ -208,7 +209,12 @@ function penaltyAfterOurRedouble(c) {
 
 // They outbid our game: double them.
 function theyOutbidOurGame(c) {
-  const { P, lastBid, theyBidLast, combined, R, why } = c;
+  const { e, P, lastBid, theyBidLast, combined, T, gameCall, R, why } = c;
+  // With a self-sufficient major of my own (7+ cards), bid our game over theirs rather than double.
+  if (theyBidLast && combined >= 25 && T && isMajor(T) && e.len[T] >= 7 && rank(gameCall(T)) > rank(lastBid)) {
+    const r = R(gameCall(T), [...why, `${e.len[T]} ${NAME[T]} of my own: bid our game`]);
+    if (r) return r;
+  }
   // They outbid our game: double for penalty.
   if (theyBidLast && combined >= 25 && rank(lastBid) >= rank('4H')) return R('X', [...why, 'they bid over our game: double for penalty']) ?? { call: 'P', why };
   return null;
