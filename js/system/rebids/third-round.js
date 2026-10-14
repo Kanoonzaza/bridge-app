@@ -139,7 +139,10 @@ for (const [o, r] of [['S', 'C'], ['S', 'D'], ['S', 'H'], ['H', 'C'], ['H', 'D']
   for (const z of rebids) {
     const calls = [];
     const add = (c, m) => { if (above(c, z) && !calls.some((x) => x[0] === c)) calls.push([c, m]); };
-    if (z === `4${r}`) { sit([`1${o}`, `2${r}`, z], [['P', 'To play.'], ['4N', 'RKCB: slam interest.', SLAM]], (e) => (e.hcp >= 18 ? R('4N', [`${e.hcp} HCP opposite a minimum: still slam`]) : R('P', ['opener is minimum'])), GF, UNPASSED); continue; }
+    if (z === `4${r}`) { sit([`1${o}`, `2${r}`, z], [['P', 'To play.'], ['4N', 'RKCB: slam interest.', SLAM]], (e) => (e.hcp >= 18 ? R('4N', [`${e.hcp} HCP opposite a minimum: still slam`])
+      // Playing strength counts too: a long suit with 4 losers or fewer can make slam opposite a minimum with the right key cards.
+      : e.len[r] >= 6 && e.ltc <= 4 ? R('4N', [`${e.len[r]} ${nm(r)}, ${e.ltc} losers: slam is possible opposite a minimum`, 'ask for key cards'])
+      : R('P', ['opener is minimum'])), GF, UNPASSED); continue; }
     if (isMajor(o)) { add(`3${o}`, `3+ ${nm(o)}, slam interest (slow).`); add(`4${o}`, `3+ ${nm(o)}, minimum (fast arrival).`); }
     if (z !== `3${r}` && z !== '2N') { add('2N', 'Balanced, stoppers in the unbid suits.'); }
     add('3N', 'To play, no slam interest.');

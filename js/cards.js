@@ -136,6 +136,8 @@ export function quality(e, { fit = false } = {}) {
   if (e.hcp && (e.hcp - aceKing) / e.hcp >= 0.5) { score -= 1; reasons.push('mostly queens and jacks'); }
   if (e.pattern.join('') === '4333') { score -= 1; reasons.push('flat 4-3-3-3 shape'); }
   if (e.pattern[0] >= 5 && e.pattern[1] >= 4) { score += 1; reasons.push('two-suited shape'); }
+  // A long suit takes tricks that HCP don't count: one more for a 6-card suit, two for 7+.
+  if (e.pattern[0] >= 6) { score += e.pattern[0] >= 7 ? 2 : 1; reasons.push(`${e.pattern[0] === 8 ? 'an' : 'a'} ${e.pattern[0]}-card suit`); }
   if (adjustedHcp(e) < e.hcp) { score -= 1; reasons.push('honors in short suits'); }
   if (fit) { score += 1; reasons.push('a fit for partner'); }
   return { score, good: score > 0, reasons };

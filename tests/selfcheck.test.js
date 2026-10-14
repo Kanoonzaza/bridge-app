@@ -146,3 +146,11 @@ test('board 95: after a double of Unusual 2NT, advancer picks a suit; our side f
   const row = explain({ dealer: 'S', calls: ['1C', '2N', 'X', '3D', 'P', 'P', '3S'] }).at(-1);
   assert.equal(row.shows.force, 'round');
 });
+
+test('board 97: a 12-count with an 8-card suit is a good 12 (2/1), and asks for key cards over the fast-arrival raise', async () => {
+  const { systemAuction } = await import('../js/table/review.js');
+  const hands = { N: 'T7654.AJ6..KQ754', E: 'K.2.KT986432.JT2', S: 'A.QT987543.AQ7.8', W: 'QJ9832.K.J5.A963' };
+  const seats = Object.fromEntries(['N', 'E', 'S', 'W'].map((s) => [s, { kind: 'robot' }]));
+  // Two key cards are missing (♣A, ♥K): stop in 5♥.
+  assert.equal(systemAuction({ dealer: 'N', vul: 'none', hands, calls: '' }, seats).calls.join(' '), '1S P 2H P 4H P 4N P 5C P 5H P P P');
+});
