@@ -7,11 +7,13 @@ import { fileURLToPath } from 'node:url';
 const PAGES = {
   'system-notes.html': { other: 'convention-card.html', otherTitle: 'Convention card' },
   'convention-card.html': { other: 'system-notes.html', otherTitle: 'System notes' },
+  'fundamentals.html': { other: 'system-notes.html', otherTitle: 'System notes' },
 };
 // claude.ai addresses of the published copies → the in-app pages.
 const LINKS = {
   'https://claude.ai/artifact/NrdCttHcwDpCv83CsLGpfd': 'system-notes.html',
   'https://claude.ai/artifact/E899gpbkkmxzkihMgyTzC5': 'convention-card.html',
+  'https://claude.ai/artifact/GJpjv5HpJMrhPYx6YcCgtP': 'fundamentals.html',
 };
 // Same as index.html: apply the theme chosen in the app before first paint.
 const THEME = "<script>try{var t=JSON.parse(localStorage.getItem('bc:theme')||'{}').theme;if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>";

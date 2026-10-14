@@ -1,9 +1,10 @@
 import { el } from './dom.js';
 
-// The Notes tab: the convention card, the full system notes, and the notes' contents.
+// The Notes tab: the convention card, the full system notes, the bridge fundamentals, and the notes' contents.
 // The pages live in guide/ (built from notes/ by `npm run stamp`) and open inside the app.
 const CARD = 'guide/convention-card.html';
 const NOTES = 'guide/system-notes.html';
+const BASICS = 'guide/fundamentals.html';
 
 export function notesView(root) {
   const list = el('div', { class: 'lines toc-list' }, el('p', { class: 'muted' }, 'Loading contents…'));
@@ -16,6 +17,10 @@ export function notesView(root) {
       el('div', { class: 'eyebrow' }, 'System notes'),
       el('div', { class: 'doc-title' }, 'Every agreement, explained'),
       el('p', { class: 'muted' }, 'What each bid means, why, and worked examples. The Advisor and Decoder link here.')),
+    el('a', { class: 'panel doc-link', href: BASICS, 'data-key': 'open-basics' },
+      el('div', { class: 'eyebrow' }, 'Bridge fundamentals'),
+      el('div', { class: 'doc-title' }, 'What every player uses'),
+      el('p', { class: 'muted' }, 'Points, losers, total tricks, game and slam targets, planning the play, leads and signals.')),
     el('div', {}, el('div', { class: 'label' }, 'Contents of the system notes'), list)));
 
   fetch('data/notes-toc.json')

@@ -1,4 +1,4 @@
-const CACHE = 'bc-d768b3de';
+const CACHE = 'bc-d1f5275f';
 const FILES = [
   './',
   'index.html',
@@ -10,6 +10,7 @@ const FILES = [
   'data/notes-toc.json',
   'guide/system-notes.html',
   'guide/convention-card.html',
+  'guide/fundamentals.html',
   'js/config.js',
   'js/cards.js',
   'js/format.js',
