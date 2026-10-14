@@ -149,6 +149,8 @@ const modestOverTheirOpening = ({ s, e }) => (s.ctx.opened === 'them' && e.hcp <
 function strongOverTheirOpening({ s, e, auction, entries }) {
   const firstBid = auction.calls.findIndex((x) => /^[1-7]/.test(x));
   const iBid = auction.calls.some((c, i) => seatAt(auction, i) === s.actor && /^[1-7]/.test(c) && i >= firstBid && sideOf(seatAt(auction, firstBid)) !== sideOf(s.actor));
+  // "Strong" is relative to their opening: over their 1NT, 2NT or strong 2♣, 15+ is not a strong hand.
+  if (['1N', '2N', '2C'].includes(auction.calls[firstBid])) return null;
   if (!(e.hcp >= 15 && !iBid && s.ctx.opened === 'them')) return null;
   const theirs = new Set(s.key.filter((t) => t.startsWith('(') && /\d/.test(t)).map((t) => t[2]));
   const legal = legalCalls(auction);

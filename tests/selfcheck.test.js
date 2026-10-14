@@ -166,3 +166,8 @@ test('board 118: after our negative double and their 1NT, a balanced 13-count op
   const { advise } = await import('../js/engine.js');
   assert.equal(advise(unpackHand('J3.A76.J854.AK83'), { dealer: 'E', vul: 'EW', calls: ['P', '1D', '1H', 'X', '1N'] }).call, 'X');
 });
+
+test('board 119: 15 HCP is not a strong hand over their 1NT; no natural 2NT after their transfer', async () => {
+  const { advise } = await import('../js/engine.js');
+  assert.equal(advise(unpackHand('QJ3.AK964.A9.J86'), { dealer: 'S', vul: 'both', calls: ['P', 'P', '1N', 'P', '2H', 'P', '2S'] }).call, 'P');
+});
