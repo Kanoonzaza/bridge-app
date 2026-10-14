@@ -86,21 +86,23 @@ for (const x of SUITS4) {
     def(k, `${lv}${s}`, `0–8, 4+ ${nm(s)}: the cheapest bid in your best suit.`, { hcp: [0, 8], len: { [s]: [4, 13] } });
     def(k, `${lv + 1}${s}`, `9–11, invitational: 4+ ${nm(s)}.`, { hcp: [9, 11], len: { [s]: [4, 13] } });
   }
-  // Michaels and Unusual 2NT
-  const m = [`(1${x})`, `2${x}`];
-  if (isMajor(x)) {
-    const o = x === 'H' ? 'S' : 'H';
-    def(m, '2N', 'Asks which minor partner holds.');
-    def(m, `${cheapest(`2${x}`, o)}${o}`, `Prefers ${nm(o)}: to play.`);
-    def(m, `${cheapest(`2${x}`, o) + 1}${o}`, `${cap(nm(o))}, invitational.`);
-  } else {
-    for (const s of MAJORS) {
-      def(m, `2${s}`, `Prefers ${nm(s)}: to play (weak).`);
-      def(m, `3${s}`, `Prefers ${nm(s)}: invitational.`);
+  // Michaels and Unusual 2NT. If they double, advancer still chooses: the same calls keep their meanings.
+  for (const dbl of [[], ['(X)']]) {
+    const m = [`(1${x})`, `2${x}`, ...dbl];
+    if (isMajor(x)) {
+      const o = x === 'H' ? 'S' : 'H';
+      def(m, '2N', 'Asks which minor partner holds.');
+      def(m, `${cheapest(`2${x}`, o)}${o}`, `Prefers ${nm(o)}: to play.`);
+      def(m, `${cheapest(`2${x}`, o) + 1}${o}`, `${cap(nm(o))}, invitational.`);
+    } else {
+      for (const s of MAJORS) {
+        def(m, `2${s}`, `Prefers ${nm(s)}: to play (weak).`);
+        def(m, `3${s}`, `Prefers ${nm(s)}: invitational.`);
+      }
     }
+    const low = SUITS4.filter((t) => t !== x).slice(0, 2);
+    for (const s of low) def([`(1${x})`, '2N', ...dbl], `3${s}`, `Prefers ${nm(s)}: to play.`);
   }
-  const low = SUITS4.filter((t) => t !== x).slice(0, 2);
-  for (const s of low) def([`(1${x})`, '2N'], `3${s}`, `Prefers ${nm(s)}: to play.`);
 }
 
 // ---------- Decisions: our first call over their opening (overcall, double, two-suiter or pass) ----------
@@ -283,8 +285,11 @@ for (const x of SUITS4) {
     advise(k, (e, st) => advanceOvercall(e, x, ov, st.ctx.vul), [{ dealer: 'W', calls: [`1${x}`, ov, 'P'] }]);
   }
   advise([`(1${x})`, 'X'], (e) => advanceTakeout(e, x), [{ dealer: 'W', calls: [`1${x}`, 'X', 'P'] }]);
-  advise([`(1${x})`, `2${x}`], (e) => advanceMichaels(e, x), [{ dealer: 'W', calls: [`1${x}`, `2${x}`, 'P'] }]);
-  advise([`(1${x})`, '2N'], (e) => advanceUnusual(e, x), [{ dealer: 'W', calls: [`1${x}`, '2N', 'P'] }]);
+  // Over their double too: passing would leave partner doubled in a contract without a fit.
+  for (const [dbl, r] of [[[], 'P'], [['(X)'], 'X']]) {
+    advise([`(1${x})`, `2${x}`, ...dbl], (e) => advanceMichaels(e, x), [{ dealer: 'W', calls: [`1${x}`, `2${x}`, r] }]);
+    advise([`(1${x})`, '2N', ...dbl], (e) => advanceUnusual(e, x), [{ dealer: 'W', calls: [`1${x}`, '2N', r] }]);
+  }
 }
 for (const x of ['D', 'H', 'S']) {
   const k = [`(2${x})`, 'X'];

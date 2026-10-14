@@ -284,6 +284,90 @@ for (const o of SUITS4) {
   }
 }
 
+// ---------- After our values double of their two-suiter, and their runout ----------
+// 1x–(2NT or minor Michaels)–X–(their suit): we have the balance of strength. Opener doubles with length in their
+// suit, shows real shape, or passes (forcing); responder then doubles for penalty, bids a suit (forcing) or supports.
+const TWO = 'their-two-suiters';
+const knownTwo = (o, their) => (their === '2N' ? SUITS4.filter((t) => t !== o).slice(0, 2) : ['H', 'S']);
+const bothStopped = (e, known) => known.every((t) => stopper(e, t));
+
+export function openerAfterRunout(e, o, known, run) {
+  const L = e.len;
+  const r = run[1];
+  if (L[r] >= 4) return R('X', [`${L[r]} ${nm(r)}: penalty`]);
+  if (L[o] >= 6 && lvOf(`${cheapest(run, o)}${o}`) <= 3) return R(`${cheapest(run, o)}${o}`, [`${L[o]} ${nm(o)}: show the long suit`]);
+  const second = SUITS4.find((t) => t !== o && !known.includes(t) && L[t] >= 5 && L[o] >= 5 && cheapest(run, t) <= 3);
+  if (second) return R(`${cheapest(run, second)}${second}`, [`5-5: show ${nm(second)}`]);
+  return R('P', ['partner has 10+: pass is forcing, partner doubles them or bids']);
+}
+
+export function doublerAfterRunout(e, o, known, run) {
+  const L = e.len;
+  const h = e.hcp;
+  const r = run[1];
+  const free = SUITS4.filter((t) => t !== o && !known.includes(t));
+  const six = free.filter((t) => L[t] >= 6 && cheapest(run, t) <= 4).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a])[0];
+  if (six) return R(`${cheapest(run, six)}${six}`, [`${L[six]} ${nm(six)}: natural and forcing (the double showed the values)`]);
+  if (L[r] >= 4 || (L[r] === 3 && /[AK]/.test(e.hand[r]) && h >= 12)) return R('X', [`${L[r]} ${nm(r)}: penalty`]);
+  if (isMajor(o) && L[o] >= 3) return R(`4${o}`, [`${L[o]} ${nm(o)}`, 'opener 12+ and my 10+: game']);
+  if (bothStopped(e, known) && above('3N', run)) return R('3N', [`${known.map(nm).join(' and ')} stopped: game`]);
+  if (!isMajor(o) && L[o] >= 4) return R(`${cheapest(run, o)}${o}`, [`${L[o]} ${nm(o)}: support`]);
+  const five = free.filter((t) => L[t] >= 5 && cheapest(run, t) <= 4).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a])[0];
+  if (five) return R(`${cheapest(run, five)}${five}`, [`${L[five]} ${nm(five)}: natural and forcing`]);
+  return R('X', ['no fit and no long suit: double, opener passes or pulls']);
+}
+
+export function openerAfterDoublersSuit(e, o, known, d) {
+  const L = e.len;
+  const t = d[1];
+  if (isMajor(t) && L[t] >= 3 && above(`4${t}`, d)) return R(`4${t}`, [`${L[t]} ${nm(t)}`, 'partner has 10+: game']);
+  if (isMajor(t) && L[t] >= 3) return R('P', [`${L[t]} ${nm(t)}: game reached`]);
+  if (bothStopped(e, known) && above('3N', d)) return R('3N', [`${known.map(nm).join(' and ')} stopped: game`]);
+  if (L[t] >= 3) return R(`${cheapest(d, t)}${t}`, [`${L[t]} ${nm(t)}: support`]);
+  return R(`${cheapest(d, o)}${o}`, [`no fit for ${nm(t)}: back to ${nm(o)}`]);
+}
+
+for (const o of SUITS4) {
+  for (const their of ['2N', ...(isMajor(o) ? [] : [`2${o}`])]) {
+    const known = knownTwo(o, their);
+    const free = SUITS4.filter((t) => t !== o && !known.includes(t));
+    for (const r of known) {
+      const run = `${cheapest(their, r)}${r}`;
+      const k = [`1${o}`, `(${their})`, 'X', `(${run})`];
+      def(k, 'X', `Penalty: 4+ ${nm(r)}.`, { len: { [r]: [4, 13] } }, TWO);
+      def(k, 'P', 'Forcing pass: partner has 10+, so partner doubles them or bids.', {}, TWO);
+      if (cheapest(run, o) <= 3) def(k, `${cheapest(run, o)}${o}`, `6+ ${nm(o)}: shape, not extra strength.`, { len: { [o]: [6, 13] } }, TWO);
+      for (const t of free) if (cheapest(run, t) <= 3) def(k, `${cheapest(run, t)}${t}`, `5-5: a second suit, ${nm(t)}.`, { len: { [t]: [5, 13], [o]: [5, 13] } }, TWO);
+      advise(k, (e) => openerAfterRunout(e, o, known, run), [{ dealer: 'N', calls: [`1${o}`, their, 'X', run] }]);
+
+      const k2 = [...k, 'P'];
+      def(k2, 'X', `Penalty: length or honours in ${nm(r)}, or no better call (opener may pull with shape).`, {}, TWO);
+      if (isMajor(o)) def(k2, `4${o}`, `Game: 3+ ${nm(o)}.`, { len: { [o]: [3, 13] } }, TWO);
+      else if (cheapest(run, o) <= 4) def(k2, `${cheapest(run, o)}${o}`, `4+ ${nm(o)}: support. Forcing.`, { len: { [o]: [4, 13] }, force: 'round' }, TWO);
+      if (above('3N', run)) def(k2, '3N', `To play: ${known.map(nm).join(' and ')} stopped.`, {}, TWO);
+      const suits = [];
+      for (const t of free) {
+        const c = cheapest(run, t);
+        if (c > 4) continue;
+        def(k2, `${c}${t}`, `Natural: 5+ ${nm(t)}, 10+ (the double showed the values). Forcing.`, { hcp: [10, 37], len: { [t]: [5, 13] }, force: 'round' }, TWO);
+        suits.push(`${c}${t}`);
+      }
+      advise(k2, (e) => doublerAfterRunout(e, o, known, run), [{ dealer: 'N', calls: [`1${o}`, their, 'X', run, 'P', 'P'] }]);
+
+      for (const d of suits) {
+        const k3 = [...k2, d];
+        const t = d[1];
+        if (isMajor(t) && above(`4${t}`, d)) def(k3, `4${t}`, `3+ ${nm(t)}: game.`, { len: { [t]: [3, 13] } }, TWO);
+        if (isMajor(t) && d === `4${t}`) def(k3, 'P', `3+ ${nm(t)}: game reached.`, {}, TWO);
+        if (above('3N', d)) def(k3, '3N', `To play: ${known.map(nm).join(' and ')} stopped.`, {}, TWO);
+        if (!(isMajor(t) && above(`4${t}`, d)) || cheapest(d, t) < 4) def(k3, `${cheapest(d, t)}${t}`, `3+ ${nm(t)}: support.`, { len: { [t]: [3, 13] } }, TWO);
+        def(k3, `${cheapest(d, o)}${o}`, `No fit for ${nm(t)}: back to ${nm(o)}.`, {}, TWO);
+        advise(k3, (e) => openerAfterDoublersSuit(e, o, known, d), [{ dealer: 'N', calls: [`1${o}`, their, 'X', run, 'P', 'P', d, 'P'] }]);
+      }
+    }
+  }
+}
+
 // ---------- Responder after opener answers the negative double ----------
 export function afterNegXAnswer(e, o, ov, z) {
   const y = ov[1];

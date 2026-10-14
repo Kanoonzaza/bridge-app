@@ -166,7 +166,12 @@ export function describeCall(auction, i, rows) {
     return general(`Natural: a second suit, 4+ ${SYMBOL[s]} (the opening suit is longer)${competitive ? ', competing' : ''}.`, competitive ? 'competitive-bidding-tier-0' : 'openers-rebids-tier-0', { len: { [s]: [4, 13] } });
   }
   const len = L === 1 ? 4 : 5;
-  if (iDoubled && !mySuits.size) return general(`Natural: 5+ ${SYMBOL[s]} and a strong hand (doubled first, then bid a suit: 17+).`, 'takeout-doubles', { hcp: [17, 37], len: { [s]: [5, 13] } });
+  // After their opening, double-then-suit shows a hand too strong to overcall. After ours, a double that showed values
+  // (over their two-suiter) then a suit is natural and forcing; after a negative double the suit is a plain new suit.
+  if (iDoubled && !mySuits.size && !weOpened) return general(`Natural: 5+ ${SYMBOL[s]} and a strong hand (doubled first, then bid a suit: 17+).`, 'takeout-doubles', { hcp: [17, 37], len: { [s]: [5, 13] } });
+  if (iDoubled && !mySuits.size && ours.some((r) => r.seat === me && r.call === 'X' && /^Values/.test(r.meaning ?? ''))) {
+    return general(`Natural: 5+ ${SYMBOL[s]}, 10+ (the double showed the values). Forcing.`, 'their-two-suiters', { hcp: [10, 37], len: { [s]: [5, 13] }, force: 'round' });
+  }
   if (competitive && weOpened && !iActed && me !== opened.seat) {
     return L === 1
       ? general(`Free bid: 4+ ${SYMBOL[s]}, 6+ HCP, forcing.`, where, { hcp: [6, 37], len: { [s]: [4, 13] }, force: 'round' })

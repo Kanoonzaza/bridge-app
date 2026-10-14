@@ -135,3 +135,14 @@ test('board 88: over the cue-bid raise, a shapely overcaller (6 losers) bids gam
   const seats = Object.fromEntries(['N', 'E', 'S', 'W'].map((s) => [s, { kind: 'robot' }]));
   assert.ok(systemAuction({ dealer: 'W', vul: 'none', hands, calls: '' }, seats).calls.includes('4S'));
 });
+
+test('board 95: after a double of Unusual 2NT, advancer picks a suit; our side follows up and reaches 4♠', async () => {
+  const { advise } = await import('../js/engine.js');
+  const { systemAuction } = await import('../js/table/review.js');
+  assert.equal(advise(unpackHand('95.K8.764.KT6542'), { dealer: 'S', calls: ['1C', '2N', 'X'] }).call, '3D');
+  const hands = { N: 'KQT763.943.A83.Q', E: '95.K8.764.KT6542', S: 'AJ84.A7.T2.A9873', W: '2.QJT652.KQJ95.J' };
+  const seats = Object.fromEntries(['N', 'E', 'S', 'W'].map((s) => [s, { kind: 'robot' }]));
+  assert.equal(systemAuction({ dealer: 'S', vul: 'NS', hands, calls: '' }, seats).calls.join(' '), '1C 2N X 3D P P 3S P 4S P P P');
+  const row = explain({ dealer: 'S', calls: ['1C', '2N', 'X', '3D', 'P', 'P', '3S'] }).at(-1);
+  assert.equal(row.shows.force, 'round');
+});
