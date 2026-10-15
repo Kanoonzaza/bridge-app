@@ -83,6 +83,8 @@ export function tableView(root, store) {
   }
 
   // Robots (and always-pass seats) bid on every phone at the table; the transaction lets only one call through.
+  // The key only stops a second attempt while one is pending. Once it settles the key is cleared, so the same
+  // position is played again after a take-back, and a write that failed (a dropped connection) is retried.
   function driveRobots() {
     const t = ui.table;
     if (!t || isDone(t)) return;
@@ -91,7 +93,18 @@ export function tableView(root, store) {
     const key = `${t.code}:${t.board.n}:${t.board.calls}`;
     if (ui.robotKey === key) return;
     ui.robotKey = key;
-    setTimeout(() => ui.sync.change(t.code, (cur) => cur && cur.board.n === t.board.n && cur.board.calls === t.board.calls ? playRobot(cur, advise) : undefined), 600);
+    setTimeout(async () => {
+      let failed = false;
+      try {
+        await ui.sync.change(t.code, (cur) => (cur && cur.board.n === t.board.n && cur.board.calls === t.board.calls ? playRobot(cur, advise) : undefined));
+      } catch {
+        failed = true;
+      }
+      if (ui.robotKey !== key) return;
+      ui.robotKey = '';
+      // Still this robot's turn (the write failed): try again shortly.
+      if (failed) setTimeout(driveRobots, 2000);
+    }, 600);
   }
 
   async function start(opponents) {
