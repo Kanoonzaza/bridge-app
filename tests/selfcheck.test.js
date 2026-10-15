@@ -176,3 +176,10 @@ test('board 130: with 8 spades of my own opposite partner\'s values, bid 4♠ ov
   const { advise } = await import('../js/engine.js');
   assert.equal(advise(unpackHand('QJT98632.A7.AT.4'), { dealer: 'E', vul: 'NS', calls: ['P', '1S', '2S', 'X', '4H'] }).call, '4S');
 });
+
+test('board 5: a 7-count with a good 6-card suit overcalls at the 1-level', async () => {
+  const { advise } = await import('../js/engine.js');
+  assert.equal(advise(unpackHand('KT9852.62.762.A3'), { dealer: 'N', vul: 'NS', calls: ['P', '1C'] }).call, '1S');
+  // A poor 6-card suit still passes.
+  assert.equal(advise(unpackHand('K87652.62.762.A3'), { dealer: 'N', vul: 'NS', calls: ['P', '1C'] }).call, 'P');
+});

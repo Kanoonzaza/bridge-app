@@ -16,7 +16,8 @@ for (const x of SUITS4) {
     for (const s of SUITS4.filter((t) => t !== x)) {
       const lv = cheapest(`1${x}`, s);
       const lo = (lv === 1 ? 8 : 11) - (balancing ? 1 + (lv === 2) : 0);
-      def(k, `${lv}${s}`, `${balancing ? 'Balancing overcall' : 'Overcall'}: ${lv === 1 ? '' : 'good '}5+ ${nm(s)}${lv === 1 ? '' : ' (usually 6)'}, ${lo}–16.`, { hcp: [lo, 16], len: { [s]: [5, 13] } });
+      const light = lv === 1 && !balancing ? ' (7 with a good 6-card suit)' : '';
+      def(k, `${lv}${s}`, `${balancing ? 'Balancing overcall' : 'Overcall'}: ${lv === 1 ? '' : 'good '}5+ ${nm(s)}${lv === 1 ? '' : ' (usually 6)'}, ${lo}–16${light}.`, { hcp: [light ? 7 : lo, 16], len: { [s]: [5, 13] } });
       if (!balancing) {
         const jumpLv = lv + 1;
         def(k, `${jumpLv}${s}`, jumpLv >= 3 ? `Weak jump overcall, like a weak three: 7 ${nm(s)}, 5–10.` : `Weak jump overcall: 6 ${nm(s)}, 5–10.`, { hcp: [5, 10], len: { [s]: jumpLv >= 3 ? [7, 7] : [6, 6] } });
@@ -135,7 +136,9 @@ export function overcall(e, x, balancing, vul = 'none') {
   if (h >= 17) return R('X', [`${h} HCP: double first, then bid again`]);
   for (const s of [...others].filter((t) => L[t] >= 5).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a])) {
     const lv = cheapest(`1${x}`, s);
-    if (lv === 1 && h >= (balancing ? 7 : 8) && h <= 16) return R(`1${s}`, [`${L[s]} ${nm(s)}, ${h} HCP: overcall`]);
+    // A 6-card suit with two of the top five honours makes up for a point at the 1-level.
+    const six = !balancing && L[s] >= 6 && [...'AKQJT'].filter((r) => e.hand[s].includes(r)).length >= 2;
+    if (lv === 1 && h >= (balancing || six ? 7 : 8) && h <= 16) return R(`1${s}`, [`${L[s]} ${nm(s)}, ${h} HCP: overcall`, ...(h < 8 && !balancing ? ['a good 6-card suit makes up for the missing point'] : [])]);
     if (lv === 2 && h >= (balancing ? 9 : 11) && h <= 16 && (top3(e, s) >= 2 || L[s] >= 6)) return R(`2${s}`, [`${L[s]} good ${nm(s)}, ${h} HCP: 2-level overcall`]);
   }
   if (L[x] <= 2 && others.every((s) => L[s] >= 3) && h >= (balancing ? 9 : 12)) return R('X', [`short in ${nm(x)}, support for the other suits`, `${h} HCP: takeout double`]);
