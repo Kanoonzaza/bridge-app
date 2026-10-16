@@ -78,7 +78,7 @@ function signalsFit(st, viewer, out) {
   const held = (ti, x) => [...out[mate].filter((c) => c[0] === x), ...plays.slice(ti).flat().filter((p) => p.seat === mate && p.card[0] === x).map((p) => p.card)];
   const r = (c) => RANKS.indexOf(c[1]);
   // First discard: a high spot asks for the suit (an honour there); the lowest card says not that suit (no A or K).
-  const d = globalThis.__noReadDiscard ? -1 : plays.findIndex((tr) => tr.some((p) => p.seat === mate && p.card[0] !== tr[0].card[0] && p.card[0] !== st.trump));
+  const d = plays.findIndex((tr) => tr.some((p) => p.seat === mate && p.card[0] !== tr[0].card[0] && p.card[0] !== st.trump));
   if (d >= 0) {
     const card = plays[d].find((p) => p.seat === mate).card;
     const h = held(d, card[0]);
@@ -90,19 +90,21 @@ function signalsFit(st, viewer, out) {
   }
   // Suit preference: partner led a suit for us to ruff. Their highest card = an entry (A or K) in the higher
   // other side suit, their lowest = in the lower one.
-  if (st.trump && !globalThis.__noReadPref) {
+  if (st.trump) {
     for (let ti = 0; ti < plays.length; ti++) {
       const tr = plays[ti];
       if (tr[0].seat !== mate || tr[0].card[0] === st.trump) continue;
       const mine = tr.find((p) => p.seat === viewer);
       if (!mine || mine.card[0] !== st.trump) continue;
       const x = tr[0].card[0];
+      // Only a lead into a void partner already knew about is a signal.
+      if (!plays.slice(0, ti).some((t) => t[0].card[0] === x && t.some((p) => p.seat === viewer && p.card[0] !== x))) continue;
       const h = held(ti, x);
       if (h.length < 2) continue;
       const others = SUITS.filter((t) => t !== st.trump && t !== x);
       const entry = (t) => held(ti, t).some((c) => r(c) <= 1);
+      // The lowest card is also the normal card, so only the highest card says something: an entry in the higher suit.
       if (h.every((c) => r(c) >= r(tr[0].card)) && !entry(others[0])) return false;
-      if (h.every((c) => r(c) <= r(tr[0].card)) && !entry(others[1])) return false;
     }
   }
   return true;
@@ -168,8 +170,8 @@ export function ddChoose(dds, st, seat, { constraints = null, rand = Math.random
   const kind = signalKind(st, st.current, seat, st.tricks.length);
   const led = st.current[0]?.card[0];
   const sig = (kind && equal.every((c) => c[0] === led) ? signalCard(kind, st.remaining[seat].filter((c) => c[0] === led), equal) : null)
-    ?? (!globalThis.__noGive && led && !equal.some((c) => c[0] === led) ? discardSignal(st, seat, equal) : null)
-    ?? (!globalThis.__noGive && !led ? suitPreferenceLead(st, seat, equal) : null);
+    ?? (led && !equal.some((c) => c[0] === led) ? discardSignal(st, seat, equal) : null)
+    ?? (!led ? suitPreferenceLead(st, seat, equal) : null);
   const card = sig ?? equal.sort((a, b) => RANKS.indexOf(b[1]) - RANKS.indexOf(a[1]))[0];
   return { card, samples: n, scores: Object.fromEntries(legal.map((c) => [c, total[c] / n])) };
 }
