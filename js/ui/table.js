@@ -73,6 +73,11 @@ export function tableView(root, store) {
       ui.table = t;
       if (!t) ui.error = `Table ${code} was not found.`;
       ui.hint = null;
+      // Start the solvers while the board is being read, if a robot will need them.
+      if (t && !ui.warmed && SEATS.some((x) => t.seats[x].kind === 'robot')) {
+        ui.warmed = true;
+        try { sharedPool().warm(); } catch { /* no workers: the rule-based robots play */ }
+      }
       driveRobots();
       render();
     });

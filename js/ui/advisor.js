@@ -14,7 +14,6 @@ import { advisorReport } from '../report.js';
 import { confidence } from '../confidence.js';
 import { confRow } from './conf.js';
 import { simulatedAdvice } from '../sim-advice.js';
-import { sharedPool } from '../table/pool.js';
 
 const WHO = { S: 'You', N: 'Partner', E: 'Right', W: 'Left' };
 const OPP_NAME = { E: 'Right opponent', W: 'Left opponent' };
@@ -125,6 +124,4 @@ export function advisorView(root, store) {
   }
 
   render();
-  // Start the solvers while the screen is being read, so the first simulation is quick.
-  setTimeout(() => { try { sharedPool().warm(); } catch { /* no workers: the rule-based suggestion stands */ } }, 1500);
 }
