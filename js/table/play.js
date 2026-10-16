@@ -119,6 +119,37 @@ export function signalCard(kind, holding, options) {
   const high = kind === 'attitude' ? holding.some((c) => rank(c) <= 2) : holding.length % 2 === 0;
   return high ? highest(spots) : lowest(spots);
 }
+// Discards: a defender's first discard is a signal. A high spot card asks for that suit (we hold the A, K or Q
+// in it); otherwise the lowest card of a suit we do not want (no A or K there).
+const hasDiscarded = (st, seat) => [...st.tricks.map((t) => t.cards), st.current]
+  .some((tr) => tr.length && tr.some((p) => p.seat === seat && p.card[0] !== tr[0].card[0] && p.card[0] !== st.trump));
+export function discardSignal(st, seat, options) {
+  if (seat === st.declarer || seat === st.dummy || !st.current.length || hasDiscarded(st, seat)) return null;
+  const led = st.current[0].card[0];
+  const pool = options.filter((c) => c[0] !== led && c[0] !== st.trump);
+  if (!pool.length) return null;
+  const hand = st.remaining[seat];
+  const want = SUITS.filter((x) => x !== st.trump && bySuit(hand, x).some((c) => rank(c) <= 2) && bySuit(pool, x).filter((c) => rank(c) >= SPOT).length >= 1 && bySuit(hand, x).length >= 3);
+  if (want.length) return highest(bySuit(pool, want[0]).filter((c) => rank(c) >= SPOT));
+  const not = SUITS.filter((x) => bySuit(pool, x).length && !bySuit(hand, x).some((c) => rank(c) <= 1));
+  return not.length ? lowest(bySuit(pool, not.sort((a, b) => bySuit(hand, b).length - bySuit(hand, a).length)[0])) : null;
+}
+
+// Suit preference when giving partner a ruff: the card led asks for the suit to come back for the next ruff.
+// High = the higher-ranking of the other two side suits, low = the lower (where we hold the A or K).
+export function suitPreferenceLead(st, seat, options) {
+  if (!st.trump || seat === st.declarer || seat === st.dummy || st.current.length) return null;
+  const x = options[0]?.[0];
+  if (!x || x === st.trump || options.some((c) => c[0] !== x) || options.length < 2) return null;
+  if (!showedOut(st, partnerOf(seat), x)) return null;
+  const others = SUITS.filter((t) => t !== st.trump && t !== x); // higher-ranking first
+  const hand = st.remaining[seat];
+  const entry = (t) => bySuit(hand, t).some((c) => rank(c) <= 1);
+  if (entry(others[0]) && !entry(others[1])) return highest(options);
+  if (entry(others[1]) && !entry(others[0])) return lowest(options);
+  return null;
+}
+
 // A small card to follow with: the signal when one applies, otherwise the lowest.
 function smallCard(st, seat, legal) {
   const kind = signalKind(st, st.current, seat, st.tricks.length);
@@ -345,7 +376,9 @@ function followCard(st, seat) {
     const ruffs = legal.filter((c) => c[0] === st.trump && beats(st, c, win.card));
     if (ruffs.length) return lowest(ruffs);
   }
-  // Discard: the lowest card of the least useful suit (keep winners and trumps).
+  // Discard: a signal on the first discard; otherwise the lowest card of the least useful suit (keep winners and trumps).
+  const signal = discardSignal(st, seat, legal.filter((c) => !isMaster(st, seat, c)));
+  if (signal) return signal;
   const discards = legal.filter((c) => c[0] !== st.trump && !isMaster(st, seat, c));
   const pool = discards.length ? discards : legal.filter((c) => c[0] !== st.trump);
   const pick = pool.length ? pool : legal;

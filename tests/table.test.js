@@ -302,3 +302,27 @@ test('signals: attitude on partner\'s lead, and partner reads it when placing th
     assert.ok(layout.E.includes('DK') || !layout.E.some((c) => c[0] === 'D'), 'East encouraged: the king, or a singleton 8');
   }
 });
+
+test('signals: first discard and suit preference when giving a ruff', async () => {
+  const { playState, discardSignal, suitPreferenceLead } = await import('../js/table/play.js');
+  const H = (o) => Object.fromEntries(Object.entries(o).map(([s, h]) => [s, unpackHand(h)]));
+  const k = { bid: '4S', declarer: 'S', doubled: '' };
+  // East, out of clubs, discards: the ♥8 (high spot) asks for hearts, where East holds the A-Q.
+  let hands = H({ N: 'K54.32.7632.AQ32', E: '32.AQ82.KJT98.', S: 'AQJT98.KJ4.54.K4', W: '76.T765.AQ.JT9876' });
+  let st = { ...playState(hands, k, ''), started: true, current: [{ seat: 'S', card: 'CK' }], next: 'W' };
+  st = { ...st, current: [{ seat: 'S', card: 'CK' }, { seat: 'W', card: 'C6' }, { seat: 'N', card: 'C2' }], next: 'E' };
+  assert.equal(discardSignal(st, 'E', st.remaining.E.filter((c) => c[0] !== 'S')), 'H8');
+  // With nothing worth asking for, the lowest card of a suit we do not want.
+  hands = H({ N: 'K54.32.7632.AQ32', E: '32.T982.JT987.Q', S: 'AQJT98.KJ4.54.K4', W: '76.AQ765.AKQ.JT9' });
+  st = { ...playState(hands, k, 'CJ C2 CQ CK'), started: true };
+  st = { ...st, current: [{ seat: 'S', card: 'C4' }, { seat: 'W', card: 'C9' }, { seat: 'N', card: 'C3' }], next: 'E' };
+  assert.equal(discardSignal(st, 'E', st.remaining.E.filter((c) => c[0] !== 'S')), 'D7');
+  // East ruffed West's club lead. West leads another club for a second ruff; West's entry is the ♦A
+  // (the lower of hearts and diamonds), so West leads its lowest club.
+  hands = H({ N: 'K54.K32.7632.AQ2', E: '32.QJ9875.KJT98.', S: 'AQJT98.A4.54.K54', W: '76.T6.AQ.JT98763' });
+  st = { ...playState(hands, k, 'C6 C2 S2 C4'), next: 'W' };
+  assert.equal(suitPreferenceLead(st, 'W', st.remaining.W.filter((c) => c[0] === 'C')), 'C3');
+  // With the entry in hearts (the higher suit) instead, the highest club.
+  st = { ...st, remaining: { ...st.remaining, W: ['S7', 'S6', 'HA', 'H6', 'D3', 'D2', 'CJ', 'CT', 'C9', 'C8', 'C7', 'C3'] } };
+  assert.equal(suitPreferenceLead(st, 'W', ['CJ', 'CT', 'C9', 'C8', 'C7', 'C3']), 'CJ');
+});

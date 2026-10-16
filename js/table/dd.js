@@ -3,7 +3,7 @@
 // double dummy with DDS, and play the card that takes the most tricks on average.
 import { SUITS, RANKS } from '../cards.js';
 import { SEATS } from '../auction.js';
-import { visible, showedOut, legalCards, signalKind, signalCard } from './play.js';
+import { visible, showedOut, legalCards, signalKind, signalCard, discardSignal, suitPreferenceLead } from './play.js';
 
 const DIR = { N: 0, E: 1, S: 2, W: 3 };
 const STRAIN = { S: 0, H: 1, D: 2, C: 3 };
@@ -74,6 +74,37 @@ function signalsFit(st, viewer, out) {
     const want = signalCard(kind, holding, holding);
     if (want && want !== card && RANKS.indexOf(card[1]) >= RANKS.indexOf('9')) return false;
   }
+  // Partner's cards in suit x at trick ti: held now in this layout, plus played since.
+  const held = (ti, x) => [...out[mate].filter((c) => c[0] === x), ...plays.slice(ti).flat().filter((p) => p.seat === mate && p.card[0] === x).map((p) => p.card)];
+  const r = (c) => RANKS.indexOf(c[1]);
+  // First discard: a high spot asks for the suit (an honour there); the lowest card says not that suit (no A or K).
+  const d = plays.findIndex((tr) => tr.some((p) => p.seat === mate && p.card[0] !== tr[0].card[0] && p.card[0] !== st.trump));
+  if (d >= 0) {
+    const card = plays[d].find((p) => p.seat === mate).card;
+    const h = held(d, card[0]);
+    if (h.length >= 2) {
+      const low = h.every((c) => r(c) <= r(card));
+      if (low && h.some((c) => r(c) <= 1)) return false;
+      if (!low && r(card) >= RANKS.indexOf('9') && !h.some((c) => r(c) <= 2)) return false;
+    }
+  }
+  // Suit preference: partner led a suit for us to ruff. Their highest card = an entry (A or K) in the higher
+  // other side suit, their lowest = in the lower one.
+  if (st.trump) {
+    for (let ti = 0; ti < plays.length; ti++) {
+      const tr = plays[ti];
+      if (tr[0].seat !== mate || tr[0].card[0] === st.trump) continue;
+      const mine = tr.find((p) => p.seat === viewer);
+      if (!mine || mine.card[0] !== st.trump) continue;
+      const x = tr[0].card[0];
+      const h = held(ti, x);
+      if (h.length < 2) continue;
+      const others = SUITS.filter((t) => t !== st.trump && t !== x);
+      const entry = (t) => held(ti, t).some((c) => r(c) <= 1);
+      if (h.every((c) => r(c) >= r(tr[0].card)) && !entry(others[0])) return false;
+      if (h.every((c) => r(c) <= r(tr[0].card)) && !entry(others[1])) return false;
+    }
+  }
   return true;
 }
 
@@ -136,7 +167,9 @@ export function ddChoose(dds, st, seat, { constraints = null, rand = Math.random
   // Among equally good cards: a defender's signal when one applies, otherwise the lowest card.
   const kind = signalKind(st, st.current, seat, st.tricks.length);
   const led = st.current[0]?.card[0];
-  const sig = kind && equal.every((c) => c[0] === led) ? signalCard(kind, st.remaining[seat].filter((c) => c[0] === led), equal) : null;
+  const sig = (kind && equal.every((c) => c[0] === led) ? signalCard(kind, st.remaining[seat].filter((c) => c[0] === led), equal) : null)
+    ?? (led && !equal.some((c) => c[0] === led) ? discardSignal(st, seat, equal) : null)
+    ?? (!led ? suitPreferenceLead(st, seat, equal) : null);
   const card = sig ?? equal.sort((a, b) => RANKS.indexOf(b[1]) - RANKS.indexOf(a[1]))[0];
   return { card, samples: n, scores: Object.fromEntries(legal.map((c) => [c, total[c] / n])) };
 }
