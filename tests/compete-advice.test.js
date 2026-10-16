@@ -27,6 +27,9 @@ const CASES = [
   // Our 1NT, they overcalled
   ['N', ['1N', '2H'], 'KQ74 83 A962 K53', '3H', 'cue-bid without a heart stopper: Stayman, fast denies'],
   ['N', ['1N', '2H'], 'K4 A83 Q962 K953', '2N', 'stopper: go slowly'],
+  ['N', ['1N', '2C'], 'K32 Q74 954 9852', 'X', '4 clubs behind the overcaller: penalty (measured double dummy)'],
+  ['N', ['1N', '2H'], 'K32 Q974 954 852', 'X', '4 hearts behind the overcaller: penalty'],
+  ['N', ['1N', '2D'], 'K82 Q74 954 KJ52', 'X', '9 HCP, 3 diamonds, no suit of our own: double'],
   ['N', ['1N', '2H'], 'KJ742 83 962 953', '2S', 'weak spades: to play'],
   // They opened
   ['E', ['1C'], 'KQJ74 83 A962 53', '1S', '1-level overcall'],

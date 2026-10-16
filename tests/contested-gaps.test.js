@@ -218,7 +218,8 @@ test('the Advisor\'s whole auction on board 25 no longer passes out a Stayman cu
     calls = [...calls, r.call];
     if (calls.length >= 4 && calls.slice(-3).every((c) => c === 'P')) break;
   }
-  assert.ok(calls.join(' ').includes('3D P 3S'), calls.join(' '));
+  // Either the cue-bid is answered, or West doubles the 2♦ (3 diamonds behind the overcaller): never a cue passed out.
+  assert.ok(calls.join(' ').includes('3D P 3S') || calls.join(' ').includes('2D X'), calls.join(' '));
 });
 
 test('DONT explanations say the shape, the strength and the vulnerability (board 25)', () => {
