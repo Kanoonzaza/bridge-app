@@ -239,3 +239,25 @@ test('trick winner and duplicate scores', () => {
   assert.equal(score({ bid: '6S', declarer: 'N', doubled: '' }, 'none', 12), 980);
   assert.equal(score({ bid: '1N', declarer: 'W', doubled: '' }, 'NS', 6), -50);
 });
+
+test('robot card play: finesse, play for the drop, cover an honour', async () => {
+  const { playState, robotCard } = await import('../js/table/play.js');
+  const H = (o) => Object.fromEntries(Object.entries(o).map(([s, h]) => [s, unpackHand(h)]));
+  const k = { bid: '3N', declarer: 'S', doubled: '' };
+  // South leads a small spade towards North's AQ; West plays low: North finesses the queen.
+  let hands = H({ N: 'AQ3.AK2.AK2.5432', E: 'K54.QJT.QJT.QJT9', S: '762.987.987.AK87', W: 'JT98.6543.6543.6' });
+  let st = playState(hands, k, '');
+  st = { ...st, started: true, current: [{ seat: 'S', card: 'S2' }, { seat: 'W', card: 'S8' }], next: 'N' };
+  assert.equal(robotCard(st, 'N', { calls: [] }), 'SQ');
+  // Nine cards missing the queen: play for the drop (the ace), not the finesse.
+  hands = H({ N: 'AJ32.AK2.AK2.543', E: 'Q8.QJT5.QJT5.QJT', S: 'K7654.987.987.AK', W: 'T9.643.643.98762' });
+  st = { ...playState(hands, k, ''), started: true, current: [{ seat: 'S', card: 'S4' }, { seat: 'W', card: 'S8' }], next: 'N' };
+  assert.equal(robotCard(st, 'N', { calls: [] }), 'SA');
+  // Declarer leads the queen from Q-x: second hand covers with the king.
+  hands = H({ N: 'A32.AK2.AK2.5432', E: 'K54.QJT.QJT.QJT9', S: 'Q76.987.987.AK87', W: 'JT98.6543.6543.6' });
+  st = { ...playState(hands, k, ''), started: true, current: [{ seat: 'S', card: 'SQ' }], next: 'W' };
+  assert.equal(robotCard(st, 'W', { calls: [] }), 'S8', 'West has no card above the queen');
+  hands = H({ N: '432.AK2.AK2.5432', E: 'A54.QJT.QJT.QJT9', S: 'Q76.987.987.AK87', W: 'KJT9.6543.6543.6' });
+  st = { ...playState(hands, k, ''), started: true, current: [{ seat: 'S', card: 'SQ' }], next: 'W' };
+  assert.equal(robotCard(st, 'W', { calls: [] }), 'SK', 'cover the queen with the king');
+});

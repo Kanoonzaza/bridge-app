@@ -135,6 +135,9 @@ const beats = (st, card, win) => {
   return st.trump && card[0] === st.trump;
 };
 
+// Has `seat` already failed to follow to suit `s` (so it has none left)?
+const showedOut = (st, seat, s) => [...st.tricks.map((t) => t.cards), st.current].some((tr) => tr.length && tr[0].card[0] === s && tr.some((p) => p.seat === seat && p.card[0] !== s));
+
 // The cards a seat could play to a trick in suit `led`.
 const legalAfter = (st, seat, led) => (bySuit(st.remaining[seat], led).length ? bySuit(st.remaining[seat], led) : st.remaining[seat]);
 
@@ -189,13 +192,16 @@ function leadCard(st, seat) {
   const ours = seat === st.declarer || seat === st.dummy;
   const mateHand = st.remaining[mate];
   if (ours) {
-    // Draw trumps while the opponents still have some and we hold the top trump.
     if (st.trump) {
       const theirs = unseen(st, seat).filter((c) => c[0] === st.trump);
       const mine = bySuit(hand, st.trump);
+      const mates = bySuit(mateHand, st.trump);
+      // Draw trumps: cash the top trump, or with 8+ trumps between us drive out the missing honours.
       if (theirs.length && mine.length) {
-        const top = highest([...mine, ...bySuit(mateHand, st.trump)]);
+        const top = highest([...mine, ...mates]);
         if (isMaster(st, seat, top)) return mine.includes(top) ? top : lowest(mine);
+        // Top of a sequence (KQJ: the king), otherwise low towards partner's honours.
+        if (mine.length + mates.length >= 8) return /^(KQ|QJ|JT)/.test(mine.map((c) => c[1]).join('')) ? mine[0] : lowest(mine);
       }
     }
     // Cash a winner.
@@ -219,6 +225,24 @@ function leadCard(st, seat) {
     }
     const master = hand.filter((c) => c[0] !== st.trump && isMaster(st, seat, c));
     if (master.length) return master[0];
+    // Through strength, up to weakness: with dummy on our left lead its strong suit; with dummy on our
+    // right, a suit where it is weak. Never a suit both declarer and dummy are out of (a ruff and discard).
+    const dummy = st.dummy;
+    const dummyLeft = nextSeat(seat) === dummy;
+    const pts = (cs) => cs.reduce((n, c) => n + Math.max(0, 4 - rank(c)), 0);
+    const declVoid = (x) => showedOut(st, st.declarer, x);
+    const sluff = (x) => st.trump && x !== st.trump && !bySuit(st.remaining[dummy], x).length && declVoid(x);
+    const opts = SUITS.filter((x) => x !== st.trump && bySuit(hand, x).length && !sluff(x));
+    if (opts.length) {
+      const value = (x) => {
+        const d = bySuit(st.remaining[dummy], x);
+        const ruffable = st.trump && !d.length && bySuit(st.remaining[dummy], st.trump).length;
+        return (dummyLeft ? pts(d) : -pts(d)) + bySuit(hand, x).length - (ruffable ? 6 : 0) - pts(bySuit(hand, x)) / 2;
+      };
+      const x = opts.sort((a, b) => value(b) - value(a))[0];
+      const cs = bySuit(hand, x);
+      return /^(AK|KQ|QJ|JT)/.test(cs.map((c) => c[1]).join('')) ? cs[0] : lowest(cs);
+    }
   }
   if (ours) {
     // Develop our best suit: most cards and honours between the two hands, led low (toward partner's honours).
@@ -254,9 +278,38 @@ function followCard(st, seat) {
         ? !legalAfter(st, fourth, led).some((c) => beats(st, c, win.card))
         : win.card[0] !== led || isMaster(st, seat, win.card));
       if (safe || !winners.length) return lowest(legal);
+      // Fourth hand is dummy: beat dummy's best card as cheaply as possible.
+      if (fourth === st.dummy) {
+        const dummyBest = legalAfter(st, fourth, led).filter((c) => c[0] === led);
+        const over = dummyBest.length ? winners.filter((c) => rank(c) < rank(highest(dummyBest))) : winners;
+        return over.length ? lowest(over) : lowest(legal);
+      }
+      // Declarer's side finesses: the cheapest card that wins now (AQ: the queen, hoping the king is on the left).
+      // A finesse: play the card with one missing card above it (AQ against the K), hoping that card is with
+      // second hand, who has already played. Not when second hand has shown out, and not when the missing card
+      // should drop under our top cards ("eight ever, nine never": with 9+ cards play for the drop of the queen).
+      if (seat === st.declarer || seat === st.dummy) {
+        const out = unseen(st, seat).filter((c) => c[0] === led);
+        const second = st.current[1];
+        const fin = winners.filter((c) => out.filter((o) => rank(o) < rank(c)).length === 1).sort((a, b) => rank(b) - rank(a))[0];
+        if (fin && second.card[0] === led) {
+          const missing = out.find((o) => rank(o) < rank(fin));
+          const ourHigher = [...st.remaining[seat], ...st.remaining[partnerOf(seat)]].filter((c) => c[0] === led && rank(c) < rank(missing)).length;
+          if (out.length > 2 * ourHigher) return fin;
+        }
+        if (fin && showedOut(st, nextSeat(seat), led)) return lowest(winners);
+      }
       return cheapestEqual(st, legal, highest(winners));
     }
-    // Second hand low.
+    // Second hand low, but cover an honour with an honour (Q with the K) when the leader's side cannot
+    // hold the trick with a touching card: that promotes our lower cards.
+    const lead = st.current[0];
+    if (sideOf(lead.seat) !== sideOf(seat) && rank(lead.card) >= 2 && rank(lead.card) <= 4 && winners.length) {
+      const leaderMate = partnerOf(lead.seat);
+      const seen = leaderMate === st.dummy || lead.seat === st.dummy;
+      const touching = seen && [...st.remaining[lead.seat], ...st.remaining[leaderMate]].some((c) => c[0] === led && rank(c) === rank(lead.card) + 1);
+      if (!touching) return lowest(winners);
+    }
     return lowest(legal);
   }
   // Void in the suit led.
