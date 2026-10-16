@@ -51,7 +51,7 @@ export function tableView(root, store) {
   const params = new URLSearchParams(location.search);
   const urlCode = (params.get('table') ?? '').toUpperCase();
   const mode = params.get('sync') === 'local' ? 'local' : FIREBASE ? 'firebase' : 'none';
-  const ui = { sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '' };
+  const ui = { sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '', prev: false };
   if (CODE.test(urlCode) && urlCode !== saved.code) saved.code = '';
 
   const save = () => store.save('table', saved);
@@ -324,7 +324,8 @@ export function tableView(root, store) {
     return el('button', { type: 'button', class: 'pill', 'data-key': 'undo', onclick: () => act((cur) => cur && undo(cur, ui.sync.uid), 'Too late to undo: another player has called since.') }, '↶ Undo my last call');
   }
 
-  function review(t, me) {
+  // past: the previous board, looked at again from this phone only (no Next board / Bid it again).
+  function review(t, me, past = false) {
     const b = t.board;
     const a = auctionOf(b);
     const k = contract(a);
@@ -350,15 +351,28 @@ export function tableView(root, store) {
           r.differs && r.misfit?.length ? el('p', {}, el('b', {}, `Why ${callLabel(r.call)} does not fit your hand: `), `${r.misfit.join('; ')}.`) : null,
           r.differs && r.advisor.close ? el('p', { class: 'close' }, el('b', {}, 'Close call: '), r.advisor.close) : null,
           r.entry || r.notes ? el('a', { href: `${NOTES_URL}#${r.entry?.notes ?? r.notes}` }, 'Read more in the system notes') : null)))),
-      el('div', { class: 'row-buttons' },
+      past ? null : el('div', { class: 'row-buttons' },
         el('button', { type: 'button', class: 'pill on', 'data-key': 'next-board', onclick: () => act((cur) => cur && nextBoard(cur, rand)) }, 'Next board'),
         el('button', { type: 'button', class: 'pill', 'data-key': 'rebid', onclick: () => act((cur) => cur && rebid(cur)) }, 'Bid it again')),
       copyButton('Copy this board', () => boardReport(t, me), 'copy-board'));
   }
 
+  // The board before this one, shown on this phone only; the table carries on for everyone else.
+  function previousScreen(t, me, prev) {
+    const pt = { ...t, board: prev };
+    const back = el('button', { type: 'button', class: 'pill on', 'data-key': 'current-board', onclick: () => { ui.prev = false; render(); } }, 'Back to the current board');
+    return el('div', { class: 'stack' },
+      el('div', { class: 'row-buttons' }, back),
+      el('div', { class: 'board-line' }, el('b', {}, `Board ${prev.n} (previous)`), ` · Dealer ${relative(me, prev.dealer)} · ${VUL_TEXT[prev.vul]}`),
+      felt(pt, me),
+      review(pt, me, true));
+  }
+
   function tableScreen(t) {
     const me = mySeat(t, ui.sync.uid);
     const b = t.board;
+    const prev = t.history[b.n - 1];
+    if (ui.prev && prev) return previousScreen(t, me, prev);
     const now = turn(t);
     const waiting = now && t.seats[now].kind === 'open' ? `Waiting for a player in the ${COMPASS[now]} seat.` : now && t.seats[now].kind === 'human' ? `Waiting for ${relative(me, now) === 'Partner' ? 'partner' : t.seats[now].name || COMPASS[now]}…` : now ? 'The robot is thinking…' : '';
     const someoneMissing = SEATS.some((s) => t.seats[s].kind === 'open');
@@ -369,6 +383,7 @@ export function tableView(root, store) {
           el('button', { type: 'button', class: 'pill', 'data-key': 'share', onclick: () => share(t.code) }, 'Invite'),
           el('button', { type: 'button', class: 'pill', 'data-key': 'leave', onclick: exit }, 'Leave'))),
       el('div', { class: 'board-line' }, el('b', {}, `Board ${b.n}`), ` · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`),
+      prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = true; render(); } }, `← Previous board (${prev.n})`)) : null,
       felt(t, me),
       me ? myHand(handOf(b, me)) : null,
       isDone(t) ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
