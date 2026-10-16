@@ -62,7 +62,9 @@ function lebensohlPlan(e, y) {
 }
 export function lebensohl(e, y) {
   const { h, L, stop, fourM, five, ups, downs } = lebensohlPlan(e, y);
-  if (L[y] >= 4 && top3(e, y) >= 2 && h >= 8) return R('X', [`${L[y]} ${nm(y)} with two top honors: penalty`]);
+  // Sitting over the overcall with length: their suit is breaking badly for them, so the double pays (measured double dummy).
+  if (L[y] >= 4) return R('X', [`${L[y]} ${nm(y)} behind the overcaller: penalty (their suit will not break)`]);
+  if (L[y] === 3 && h >= 8) return R('X', [`${h} HCP and 3 ${nm(y)} behind the overcaller: double (they are likely to be in trouble)`]);
   if (h >= 10) {
     if (five.length) return R(`3${longestOf(e, five)}`, [`5+ ${nm(longestOf(e, five))}, ${h} HCP: game forcing`]);
     if (fourM) return stop ? R('2N', ['a 4-card major and a stopper: go slowly'], { plan: `After 3♣, bid 3${y === 'C' ? 'NT' : { D: '♦', H: '♥', S: '♠' }[y]} (Stayman with a stopper).` })

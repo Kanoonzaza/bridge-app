@@ -10,7 +10,7 @@
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { advise } from '../js/engine.js';
-import { SEATS, addCall, isComplete, nextSeat, legalCalls, sideOf } from '../js/auction.js';
+import { SEATS, addCall, isComplete, nextSeat, legalCalls, sideOf, situationAt } from '../js/auction.js';
 import { deal } from './coverage.mjs';
 import { packHand } from '../js/table/model.js';
 import { contract, score } from '../js/table/play.js';
@@ -42,7 +42,7 @@ export function nsScore(a, table, vul) {
   return sideOf(k.declarer) === sideOf('N') ? s : -s;
 }
 
-function finish(hands, a) {
+export function finish(hands, a) {
   for (let g = 0; g < 60 && !isComplete(a); g++) {
     const r = advise(hands[nextSeat(a)], a);
     a = addCall(a, r.notCovered ? 'P' : r.call);
@@ -52,7 +52,7 @@ function finish(hands, a) {
 
 // The alternatives worth trying at a decision: pass, double, redouble, the cheapest bid and the game bid in each
 // strain, and small slam. Each has a category name so results can be totalled across decisions.
-function alternatives(a) {
+export function alternatives(a) {
   const legal = legalCalls(a);
   const out = new Map();
   const add = (cat, call) => { if (legal.includes(call) && !out.has(call)) out.set(call, cat); };
@@ -102,26 +102,31 @@ export async function checkDeals({ deals, seed, start = 0, step = 1 }) {
     } catch { /* no par for this deal */ }
     for (const d of decisions) {
       const sign = sideOf(d.seat) === 'NS' ? 1 : -1;
-      const key = `${labelOf(d.res)} | ${callKind(d.call)}`;
-      const st = stats.get(key) ?? { n: 0, alts: {}, examples: [] };
-      st.n++;
+      // Two groupings: by the rule or judgment step that answered, and by the exact position (their calls bracketed).
+      const keys = [`${labelOf(d.res)} | ${callKind(d.call)}`, `at ${situationAt(d.a, d.a.calls.length).key.join(' ') || '(opening)'} | ${d.call}`];
+      const sts = keys.map((k) => stats.get(k) ?? { n: 0, alts: {}, examples: [] });
+      sts.forEach((st) => { st.n++; });
       let bestGain = 0;
       let bestAlt = null;
       for (const [call, cat] of alternatives(d.a)) {
         if (call === d.call) continue;
         const alt = finish(hands, addCall(d.a, call));
         const gain = sign * imps(nsScore(alt, resTable, vul) - actual);
-        const e = st.alts[cat] ?? { n: 0, sum: 0, better: 0 };
-        e.n++; e.sum += gain; if (gain > 0) e.better++;
-        st.alts[cat] = e;
+        for (const st of sts) {
+          const e = st.alts[cat] ?? { n: 0, sum: 0, better: 0 };
+          e.n++; e.sum += gain; if (gain > 0) e.better++;
+          st.alts[cat] = e;
+        }
         if (gain > bestGain) { bestGain = gain; bestAlt = { call, cat }; }
       }
-      if (bestAlt && bestGain >= 6) {
-        st.examples.push({ gain: bestGain, alt: bestAlt.call, advisor: d.call, calls: d.a.calls.join(' ') || '(opening)', seat: d.seat, dealer, vul, hands: SEATS.map((s) => packHand(hands[s])).join(' ') });
-        st.examples.sort((x, y) => y.gain - x.gain);
-        st.examples.length = Math.min(st.examples.length, 6);
+      for (const st of sts) {
+        if (bestAlt && bestGain >= 6) {
+          st.examples.push({ gain: bestGain, alt: bestAlt.call, advisor: d.call, calls: d.a.calls.join(' ') || '(opening)', seat: d.seat, dealer, vul, hands: SEATS.map((s) => packHand(hands[s])).join(' ') });
+          st.examples.sort((x, y) => y.gain - x.gain);
+          st.examples.length = Math.min(st.examples.length, 6);
+        }
       }
-      stats.set(key, st);
+      keys.forEach((k, i) => stats.set(k, sts[i]));
     }
   }
   return { stats: Object.fromEntries(stats), parLoss };
