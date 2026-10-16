@@ -3,11 +3,12 @@
 // double dummy, in IMPs for the simulating side. Positive = simulation helps.
 // Usage: node tools/simcheck.mjs [deals=200] [seed=3] [procs=4] [samples=16]
 import { spawn } from 'node:child_process';
-import { advise } from '../js/engine.js';
+import { advise, explain, summarize } from '../js/engine.js';
 import { SEATS, addCall, isComplete, nextSeat, sideOf } from '../js/auction.js';
 import { deal } from './coverage.mjs';
 import { packHand } from '../js/table/model.js';
-import { contract, score } from '../js/table/play.js';
+import { contract, score, playState } from '../js/table/play.js';
+import { ddChoose } from '../js/table/dd.js';
 import { simulateBid, imps } from '../js/sim-bid.js';
 
 const STRAIN = { S: 0, H: 1, D: 2, C: 3, N: 4 };
@@ -31,12 +32,31 @@ const nsScore = (a, table, vul) => {
   return sideOf(k.declarer) === 'NS' ? s : -s;
 };
 
+// Play the contract out with the double-dummy card-play robots on all four seats; North-South score.
+function playOut(dds, hands, a, vul, rand, playSamples) {
+  const k = contract(a);
+  if (!k) return 0;
+  const rows = explain(a, undefined, { general: true });
+  const constraints = Object.fromEntries(SEATS.map((x) => [x, summarize(rows, x)]));
+  const H = Object.fromEntries(SEATS.map((x) => [x, hands[x]]));
+  let cards = [];
+  let st = playState(H, k, '');
+  while (!st.complete) {
+    const c = ddChoose(dds, st, st.next, { constraints, rand, maxSamples: playSamples, minSamples: playSamples, timeMs: 1e9 })?.card;
+    cards.push(c);
+    st = playState(H, k, cards.join(' '));
+  }
+  const sc = score(k, vul, st.declarerTricks);
+  return sideOf(k.declarer) === 'NS' ? sc : -sc;
+}
+
 async function run({ deals, seed, start, step, samples }) {
   const { loadDds, Dds } = await import('../js/vendor/dds/api.js');
   const dds = new Dds(await loadDds());
   const r = rng(seed);
   const rand = rng(seed + 7);
-  const out = { n: 0, gain: { NS: 0, EW: 0 }, decisions: 0, changed: 0, rows: [] };
+  const out = { n: 0, gain: { NS: 0, EW: 0 }, played: { NS: 0, EW: 0 }, decisions: 0, changed: 0, rows: [] };
+  const playSamples = Number(process.env.PLAYED ?? 0);
   for (let i = 0; i < deals; i++) {
     const hands = deal(r);
     if (i % step !== start) continue;
@@ -60,12 +80,20 @@ async function run({ deals, seed, start, step, samples }) {
       }
       return { a, log };
     };
-    const base = nsScore(bid(null).a, resTable, vul);
+    const baseA = bid(null).a;
+    const base = nsScore(baseA, resTable, vul);
+    let basePlayed = null;
     for (const side of ['NS', 'EW']) {
       const { a, log } = bid(side);
       const gain = imps((nsScore(a, resTable, vul) - base) * (side === 'NS' ? 1 : -1));
       out.gain[side] += gain;
-      if (log.length) out.rows.push({ i, side, dealer, vul, gain, calls: a.calls.join(' '), log, hands: SEATS.map((s) => packHand(hands[s])).join(' ') });
+      let played = null;
+      if (playSamples && a.calls.join(' ') !== baseA.calls.join(' ')) {
+        basePlayed ??= playOut(dds, hands, baseA, vul, rand, playSamples);
+        played = imps((playOut(dds, hands, a, vul, rand, playSamples) - basePlayed) * (side === 'NS' ? 1 : -1));
+        out.played[side] += played;
+      }
+      if (log.length) out.rows.push({ i, side, dealer, vul, gain, played, calls: a.calls.join(' '), base: baseA.calls.join(' '), log, hands: SEATS.map((s) => packHand(hands[s])).join(' ') });
     }
     out.n++;
   }
@@ -85,9 +113,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       c.stderr.on('data', (x) => process.stderr.write(x));
       c.on('close', (code) => (code === 0 ? resolve(JSON.parse(buf)) : reject(new Error(`worker ${k + 1} exited ${code}`))));
     })));
-    const tot = parts.reduce((t, x) => ({ n: t.n + x.n, ns: t.ns + x.gain.NS, ew: t.ew + x.gain.EW, dec: t.dec + x.decisions, ch: t.ch + x.changed, rows: t.rows.concat(x.rows) }), { n: 0, ns: 0, ew: 0, dec: 0, ch: 0, rows: [] });
+    const tot = parts.reduce((t, x) => ({ n: t.n + x.n, ns: t.ns + x.gain.NS, ew: t.ew + x.gain.EW, pns: t.pns + x.played.NS, pew: t.pew + x.played.EW, dec: t.dec + x.decisions, ch: t.ch + x.changed, rows: t.rows.concat(x.rows) }), { n: 0, ns: 0, ew: 0, pns: 0, pew: 0, dec: 0, ch: 0, rows: [] });
     console.log(`${tot.n} deals | judgment decisions simulated ${tot.dec}, changed ${tot.ch} (${((100 * tot.ch) / Math.max(1, tot.dec)).toFixed(0)}%)`);
     console.log(`IMPs per deal for the simulating side vs the plain Advisor: NS ${(tot.ns / tot.n).toFixed(3)}, EW ${(tot.ew / tot.n).toFixed(3)}, both ${((tot.ns + tot.ew) / (2 * tot.n)).toFixed(3)}`);
+    if (process.env.PLAYED) {
+      const pl = tot.rows.filter((x) => x.played !== null);
+      console.log(`Played out with the card-play robots (${process.env.PLAYED} samples a card): ${((tot.pns + tot.pew) / (2 * tot.n)).toFixed(3)} IMPs per deal (NS ${(tot.pns / tot.n).toFixed(3)}, EW ${(tot.pew / tot.n).toFixed(3)}); ${pl.length} deals differ: better ${pl.filter((x) => x.played > 0).length}, worse ${pl.filter((x) => x.played < 0).length}`);
+    }
     const changed = tot.rows.filter((x) => x.gain !== 0);
     console.log(`Deals where a changed call changed the result: ${changed.length}; better ${changed.filter((x) => x.gain > 0).length}, worse ${changed.filter((x) => x.gain < 0).length}`);
     for (const x of changed.sort((a, b) => a.gain - b.gain).slice(0, 5)) console.log(`  worst ${x.gain} IMPs | ${x.dealer} ${x.vul} | ${x.calls} | ${x.log.map((l) => `${l.seat}: ${l.advisor}→${l.sim} after ${l.calls}`).join('; ')} | ${x.hands}`);
