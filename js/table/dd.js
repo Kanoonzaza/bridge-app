@@ -78,7 +78,7 @@ function signalsFit(st, viewer, out) {
   const held = (ti, x) => [...out[mate].filter((c) => c[0] === x), ...plays.slice(ti).flat().filter((p) => p.seat === mate && p.card[0] === x).map((p) => p.card)];
   const r = (c) => RANKS.indexOf(c[1]);
   // First discard: a high spot asks for the suit (an honour there); the lowest card says not that suit (no A or K).
-  const d = plays.findIndex((tr) => tr.some((p) => p.seat === mate && p.card[0] !== tr[0].card[0] && p.card[0] !== st.trump));
+  const d = globalThis.__noReadDiscard ? -1 : plays.findIndex((tr) => tr.some((p) => p.seat === mate && p.card[0] !== tr[0].card[0] && p.card[0] !== st.trump));
   if (d >= 0) {
     const card = plays[d].find((p) => p.seat === mate).card;
     const h = held(d, card[0]);
@@ -90,7 +90,7 @@ function signalsFit(st, viewer, out) {
   }
   // Suit preference: partner led a suit for us to ruff. Their highest card = an entry (A or K) in the higher
   // other side suit, their lowest = in the lower one.
-  if (st.trump) {
+  if (st.trump && !globalThis.__noReadPref) {
     for (let ti = 0; ti < plays.length; ti++) {
       const tr = plays[ti];
       if (tr[0].seat !== mate || tr[0].card[0] === st.trump) continue;
@@ -168,8 +168,8 @@ export function ddChoose(dds, st, seat, { constraints = null, rand = Math.random
   const kind = signalKind(st, st.current, seat, st.tricks.length);
   const led = st.current[0]?.card[0];
   const sig = (kind && equal.every((c) => c[0] === led) ? signalCard(kind, st.remaining[seat].filter((c) => c[0] === led), equal) : null)
-    ?? (led && !equal.some((c) => c[0] === led) ? discardSignal(st, seat, equal) : null)
-    ?? (!led ? suitPreferenceLead(st, seat, equal) : null);
+    ?? (!globalThis.__noGive && led && !equal.some((c) => c[0] === led) ? discardSignal(st, seat, equal) : null)
+    ?? (!globalThis.__noGive && !led ? suitPreferenceLead(st, seat, equal) : null);
   const card = sig ?? equal.sort((a, b) => RANKS.indexOf(b[1]) - RANKS.indexOf(a[1]))[0];
   return { card, samples: n, scores: Object.fromEntries(legal.map((c) => [c, total[c] / n])) };
 }
