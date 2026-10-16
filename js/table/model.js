@@ -1,8 +1,9 @@
-// A shared bidding table: four seats, the current board, and the boards already bid.
+// A shared table: four seats, the current board (bidding, then the play of the cards), and the boards already played.
 // Pure functions only: every change returns a new table (or undefined when the change is not allowed),
 // so the same code runs inside a Firebase transaction, in tests, and in the local two-tab mode.
 import { SUITS, RANKS } from '../cards.js';
 import { SEATS, legalCalls, isComplete, nextSeat, partnerOf, seatAt } from '../auction.js';
+import { contract, playState, legalCards, controller, robotCard, splitPlay } from './play.js';
 
 export const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE = /^[A-Z2-9]{6}$/;
@@ -43,7 +44,7 @@ export function dealHands(rand) {
 }
 
 function board(n, rand) {
-  return { n, dealer: boardDealer(n), vul: boardVul(n), hands: dealHands(rand), calls: '' };
+  return { n, dealer: boardDealer(n), vul: boardVul(n), hands: dealHands(rand), calls: '', play: '', skip: false };
 }
 
 const splitCalls = (s) => (s ? String(s).split(' ').filter(Boolean) : []);
@@ -59,13 +60,13 @@ export function normalize(raw) {
   const b = raw.board;
   const n = Number.isInteger(b.n) && b.n > 0 ? b.n : 1;
   const history = {};
-  for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '' };
+  for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true };
   return {
     code: String(raw.code ?? ''),
     created: Number(raw.created ?? 0),
     opponents: OPPONENTS.includes(raw.opponents) ? raw.opponents : 'robot',
     seats,
-    board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '' },
+    board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true },
     history,
   };
 }
@@ -80,8 +81,65 @@ export function newTable({ code, uid, name, seat = 'S', opponents = 'robot', ran
 export const auctionOf = (b) => ({ dealer: b.dealer, vul: b.vul, calls: splitCalls(b.calls) });
 export const handOf = (b, seat) => unpackHand(b.hands?.[seat]);
 export const mySeat = (t, uid) => SEATS.find((s) => t.seats[s].kind === 'human' && t.seats[s].uid === uid) ?? null;
+// isDone: the bidding is over. turn: whose call it is (null once the bidding is over).
 export const isDone = (t) => isComplete(auctionOf(t.board));
 export const turn = (t) => (isDone(t) ? null : nextSeat(auctionOf(t.board)));
+
+// The play of the cards, once the bidding is over and there is a contract.
+const allHands = (b) => Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)]));
+export const contractOf = (b) => contract(auctionOf(b));
+export function playOf(b) {
+  const k = isComplete(auctionOf(b)) ? contractOf(b) : null;
+  return k ? playState(allHands(b), k, b.play) : null;
+}
+// bidding · play · over (passed out, all 13 tricks played, or the play was skipped).
+export function phase(t) {
+  if (!isDone(t)) return 'bidding';
+  const st = playOf(t.board);
+  return !st || st.complete || t.board.skip ? 'over' : 'play';
+}
+export const isOver = (t) => phase(t) === 'over';
+// The seat whose card it is, and the seat whose player chooses it (declarer plays for dummy).
+export const playTurn = (t) => (phase(t) === 'play' ? playOf(t.board).next : null);
+export function actor(t) {
+  const p = phase(t);
+  if (p === 'bidding') return turn(t);
+  if (p !== 'play') return null;
+  const st = playOf(t.board);
+  return controller(st, st.next);
+}
+
+export function playCard(t, seat, card, uid) {
+  if (phase(t) !== 'play') return undefined;
+  const st = playOf(t.board);
+  if (st.next !== seat || !legalCards(st, seat).includes(card)) return undefined;
+  const who = t.seats[controller(st, seat)];
+  if (who.kind === 'human' ? who.uid !== uid : who.kind === 'open') return undefined;
+  return { ...t, board: { ...t.board, play: [...splitPlay(t.board.play), card].join(' ') } };
+}
+
+// Stop playing this board: go straight to the review.
+export const skipPlay = (t) => (phase(t) === 'play' ? { ...t, board: { ...t.board, skip: true } } : undefined);
+
+// Take back my last card (or the card I played from dummy): allowed while only robots have played since.
+export function lastOwnCard(t, uid) {
+  const me = mySeat(t, uid);
+  if (!me || phase(t) !== 'play') return -1;
+  const st = playOf(t.board);
+  const cards = splitPlay(t.board.play);
+  const seats = [...st.tricks.flatMap((tr) => tr.cards), ...st.current].map((p) => p.seat);
+  for (let i = cards.length - 1; i >= 0; i--) {
+    const who = controller(st, seats[i]);
+    if (who === me) return i;
+    if (t.seats[who].kind === 'human' || t.seats[who].kind === 'open') return -1;
+  }
+  return -1;
+}
+export function undoCard(t, uid) {
+  const i = lastOwnCard(t, uid);
+  if (i < 0) return undefined;
+  return { ...t, board: { ...t.board, play: splitPlay(t.board.play).slice(0, i).join(' ') } };
+}
 
 // The home pair (North-South: the table's creator and partner) chooses who sits East-West:
 // robots, always pass, or open for players (anyone already seated there stays).
@@ -127,6 +185,7 @@ export function call(t, seat, c, uid) {
 }
 
 // The call a robot (or an always-pass seat) makes now; `advise` is the engine's Advisor.
+// In the play, an always-pass seat plays like a robot.
 export function robotCall(t, advise) {
   const seat = turn(t);
   if (!seat) return undefined;
@@ -138,12 +197,18 @@ export function robotCall(t, advise) {
 }
 
 export function playRobot(t, advise) {
+  if (phase(t) === 'play') {
+    const st = playOf(t.board);
+    if (!['robot', 'pass'].includes(t.seats[controller(st, st.next)].kind)) return undefined;
+    const card = robotCard(st, st.next, auctionOf(t.board));
+    return card ? { ...t, board: { ...t.board, play: [...splitPlay(t.board.play), card].join(' ') } } : undefined;
+  }
   const c = robotCall(t, advise);
   return c === undefined ? undefined : call(t, turn(t), c);
 }
 
 export function nextBoard(t, rand) {
-  if (!isDone(t)) return undefined;
+  if (!isOver(t)) return undefined;
   const history = { ...t.history, [t.board.n]: { ...t.board } };
   const keys = Object.keys(history).map(Number).sort((a, b) => a - b);
   for (const k of keys.slice(0, Math.max(0, keys.length - HISTORY))) delete history[k];
@@ -154,7 +219,7 @@ export function nextBoard(t, rand) {
 // always-pass replies after it are taken back too). Returns undefined when not allowed.
 export function lastOwnCall(t, uid) {
   const me = mySeat(t, uid);
-  if (!me) return -1;
+  if (!me || (isDone(t) && t.board.play)) return -1;
   const a = auctionOf(t.board);
   for (let i = a.calls.length - 1; i >= 0; i--) {
     const s = seatAt(a, i);
@@ -171,7 +236,7 @@ export function undo(t, uid) {
 
 // Restart the current board's bidding (same cards), e.g. after a mis-click.
 export function rebid(t) {
-  return t.board.calls ? { ...t, board: { ...t.board, calls: '' } } : undefined;
+  return t.board.calls ? { ...t, board: { ...t.board, calls: '', play: '', skip: false } } : undefined;
 }
 
 export const partnerSeat = partnerOf;

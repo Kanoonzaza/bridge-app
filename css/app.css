@@ -139,7 +139,7 @@ body.has-update{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 .abody .cell.next{color:var(--muted)}
 .hand-wrap{display:grid;gap:4px}
 .cards{display:flex;padding:2px 0}
-.card{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;width:44px;height:64px;margin-right:calc((100% - 44px) / 12 - 44px);padding-top:3px;border-radius:6px;background:#fff;color:#111;border:1px solid #9aa7a2;box-shadow:-1px 0 2px rgba(0,0,0,.18);font-weight:700;line-height:1.05}
+.card{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;width:44px;height:64px;margin-right:min(4px,calc((100% - 44px) / var(--gaps,12) - 44px));padding-top:3px;border-radius:6px;background:#fff;color:#111;border:1px solid #9aa7a2;box-shadow:-1px 0 2px rgba(0,0,0,.18);font-weight:700;line-height:1.05}
 .card:last-child{margin-right:0}
 .card .rank{font-size:1.1rem}
 .card .pip{font-size:1.05rem}
@@ -168,3 +168,17 @@ body.has-update{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 .chip.warn{background:var(--warn-soft);color:var(--warn-ink)}
 .conf{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:6px 0;font-size:.85rem}
 .conf .chip{white-space:nowrap}
+
+/* The play: cards to click, the trick on the table */
+button.card{font:inherit;font-weight:700;cursor:pointer;padding:3px 0 0;appearance:none}
+.cards.to-play{padding-top:10px}
+.card.playable{transform:translateY(-8px);border-color:var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.card.playable:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.card.dim{opacity:.5;cursor:default}
+.card.small{width:34px;height:48px;margin:0;font-size:.85rem;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.tbox{background:var(--abox);border-radius:8px;min-height:150px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"h h h" ". top ." "left . right" ". bottom ." "f f f";align-items:center;justify-items:center;padding:6px 4px;gap:2px}
+.thead{grid-area:h;font-weight:700;font-size:.85rem}
+.tfoot{grid-area:f;font-size:.72rem;color:var(--muted);text-align:center;line-height:1.25}
+.t-top{grid-area:top}.t-left{grid-area:left}.t-right{grid-area:right}.t-bottom{grid-area:bottom}
+.tspot{min-height:50px;display:flex;align-items:center}
+.tbox.last .card{opacity:.65}

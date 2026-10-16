@@ -68,12 +68,4 @@ export function reviewRows(b, seats) {
 }
 
 // "4♠ by North, doubled" style summary of the final contract.
-export function contract(a) {
-  const li = a.calls.map((c, i) => (isBid(c) ? i : -1)).filter((i) => i >= 0).at(-1);
-  if (li === undefined) return null;
-  const c = a.calls[li];
-  const side = sideOf(seatAt(a, li));
-  const first = a.calls.findIndex((x, i) => isBid(x) && x[1] === c[1] && sideOf(seatAt(a, i)) === side);
-  const after = a.calls.slice(li + 1).filter((x) => x !== 'P');
-  return { bid: c, declarer: seatAt(a, first), doubled: after.at(-1) === 'XX' ? 'XX' : after.includes('X') ? 'X' : '' };
-}
+export { contract } from './play.js';

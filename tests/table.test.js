@@ -5,7 +5,9 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
+  phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard,
 } from '../js/table/model.js';
+import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
 import { memoryHub } from '../js/table/sync.js';
 import { boardReport } from '../js/report.js';
@@ -89,6 +91,11 @@ test('next board keeps history; bid it again keeps the cards', () => {
   let t = robotsNS(fresh('pass'));
   for (let g = 0; g < 60 && !isDone(t); g++) t = playRobot(t, advise);
   const hands = t.board.hands;
+  // A contract is played out (or skipped) before the next board.
+  if (phase(t) === 'play') {
+    assert.equal(nextBoard(t, rand), undefined, 'not during the play');
+    t = skipPlay(t);
+  }
   assert.deepEqual(rebid(t).board.hands, hands);
   assert.equal(rebid(t).board.calls, '');
   const n2 = nextBoard(t, rand);
@@ -191,4 +198,44 @@ test('the review says why the player\'s own call does not fit their hand (board 
   // Strength: a 2/1 forcing response with 8 HCP.
   const gf = explain({ dealer: 'N', calls: ['1S', 'P', '2C'] }).at(-1);
   assert.match(misfit(unpackHand('KJ4.J8.862.A5432'), gf).join(' '), /shows 12\+ HCP; you have 9/);
+});
+
+test('the play: follow suit, tricks, declarer plays dummy, robots finish the board, and the score', () => {
+  // South declares 1NT; West leads. South (human) plays dummy's (North's) cards too.
+  let t = { ...fresh('robot'), board: { n: 1, dealer: 'S', vul: 'none', hands: { N: 'AK2.AK2.AK2.5432', E: 'QJT.QJT.QJT.QJT9', S: '987.987.987.AK87', W: '6543.6543.6543.6' }, calls: '1N P P P', play: '', skip: false } };
+  t = { ...t, seats: { ...t.seats, N: { kind: 'robot' } } };
+  assert.equal(phase(t), 'play');
+  assert.equal(playOf(t.board).next, 'W', 'the opening lead is from declarer\'s left');
+  assert.equal(actor(t), 'W');
+  t = playRobot(t, advise);
+  const st = playOf(t.board);
+  assert.equal(st.next, 'N');
+  assert.equal(actor(t), 'S', 'declarer chooses dummy\'s card');
+  assert.equal(playRobot(t, advise), undefined, 'robots do not play for a human declarer');
+  const led = st.current[0].card[0];
+  const bad = st.remaining.N.find((c) => c[0] !== led);
+  assert.equal(playCard(t, 'N', bad, 'me'), undefined, 'must follow suit');
+  const good = legalCards(st, 'N')[0];
+  t = playCard(t, 'N', good, 'me');
+  assert.equal(lastOwnCard(t, 'me') >= 0, true);
+  assert.equal(undoCard(t, 'me').board.play.split(' ').length, 1);
+  // Let the robots play everything, with South's cards chosen as a robot would.
+  for (let g = 0; g < 60 && phase(t) === 'play'; g++) t = playRobot({ ...t, seats: { ...t.seats, S: { kind: 'robot' } } }, advise);
+  assert.equal(phase(t), 'over');
+  const end = playOf(t.board);
+  assert.equal(end.tricks.length, 13);
+  assert.equal(end.declarerTricks + end.defenderTricks, 13);
+  assert.ok(nextBoard(t, rand));
+});
+
+test('trick winner and duplicate scores', () => {
+  assert.equal(trickWinner([{ seat: 'N', card: 'HA' }, { seat: 'E', card: 'S2' }, { seat: 'S', card: 'HK' }, { seat: 'W', card: 'S3' }], 'S'), 'W');
+  assert.equal(trickWinner([{ seat: 'N', card: 'H5' }, { seat: 'E', card: 'D2' }, { seat: 'S', card: 'HK' }, { seat: 'W', card: 'H3' }], null), 'S');
+  assert.equal(score({ bid: '4S', declarer: 'N', doubled: '' }, 'NS', 10), 620);
+  assert.equal(score({ bid: '3N', declarer: 'E', doubled: '' }, 'none', 10), 430);
+  assert.equal(score({ bid: '2D', declarer: 'S', doubled: 'X' }, 'none', 8), 180);
+  assert.equal(score({ bid: '4H', declarer: 'S', doubled: 'X' }, 'NS', 7), -800);
+  assert.equal(score({ bid: '4H', declarer: 'S', doubled: 'X' }, 'none', 6), -800);
+  assert.equal(score({ bid: '6S', declarer: 'N', doubled: '' }, 'none', 12), 980);
+  assert.equal(score({ bid: '1N', declarer: 'W', doubled: '' }, 'NS', 6), -50);
 });

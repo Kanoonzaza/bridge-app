@@ -7,7 +7,10 @@ import { firebaseSync, localSync } from '../table/sync.js';
 import {
   CODE, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
   setOpponents, sit, leave, setSeatKind, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
+  phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard,
 } from '../table/model.js';
+import { legalCards, controller } from '../table/play.js';
+import { resultText } from '../report.js';
 import { reviewRows, systemAuction, contract } from '../table/review.js';
 import { el, segmented, keepFocus } from './dom.js';
 import { confRow } from './conf.js';
@@ -87,16 +90,16 @@ export function tableView(root, store) {
   // position is played again after a take-back, and a write that failed (a dropped connection) is retried.
   function driveRobots() {
     const t = ui.table;
-    if (!t || isDone(t)) return;
-    const s = turn(t);
+    if (!t || isOver(t)) return;
+    const s = actor(t);
     if (!['robot', 'pass'].includes(t.seats[s].kind)) return;
-    const key = `${t.code}:${t.board.n}:${t.board.calls}`;
+    const key = `${t.code}:${t.board.n}:${t.board.calls}:${t.board.play}`;
     if (ui.robotKey === key) return;
     ui.robotKey = key;
     setTimeout(async () => {
       let failed = false;
       try {
-        await ui.sync.change(t.code, (cur) => (cur && cur.board.n === t.board.n && cur.board.calls === t.board.calls ? playRobot(cur, advise) : undefined));
+        await ui.sync.change(t.code, (cur) => (cur && cur.board.n === t.board.n && cur.board.calls === t.board.calls && cur.board.play === t.board.play ? playRobot(cur, advise) : undefined));
       } catch {
         failed = true;
       }
@@ -212,7 +215,7 @@ export function tableView(root, store) {
       } else if (st.kind === 'robot' && me && sideOf(s) === sideOf(me)) {
         actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `free-${s}`, onclick: () => act((cur) => cur && setSeatKind(cur, s, 'open')) }, 'Free seat'));
       }
-      return el('div', { class: `seat seat-${s}${s === me ? ' me' : ''}${turn(t) === s ? ' turn' : ''}` },
+      return el('div', { class: `seat seat-${s}${s === me ? ' me' : ''}${nowAt(t) === s ? ' turn' : ''}` },
         el('div', { class: 'label' }, `${COMPASS[s]}${me ? ` · ${relative(me, s)}` : ''}`),
         el('div', { class: 'seat-name' }, who),
         actions.length ? el('div', { class: 'row-buttons' }, ...actions) : null);
@@ -231,7 +234,7 @@ export function tableView(root, store) {
     const st = t.seats[s];
     const name = st.kind === 'human' ? st.name || 'Player' : st.kind === 'robot' ? 'Robot' : st.kind === 'pass' ? 'Passes' : 'Empty';
     const b = t.board;
-    return el('div', { class: `plate${turn(t) === s ? ' turn' : ''}${s === me ? ' me' : ''}`, title: `${COMPASS[s]}: ${name}` },
+    return el('div', { class: `plate${nowAt(t) === s ? ' turn' : ''}${s === me ? ' me' : ''}`, title: `${COMPASS[s]}: ${name}` },
       el('span', { class: `dir${isVul(b, s) ? ' vul' : ''}` }, s),
       el('span', { class: 'pname' }, name),
       b.dealer === s ? el('span', { class: 'dealer', 'aria-label': 'Dealer' }, 'D') : null);
@@ -269,26 +272,71 @@ export function tableView(root, store) {
         el('button', { type: 'button', class: 'pill small', 'data-key': 'hand-style', onclick: () => { saved.handStyle = asCards ? 'list' : 'cards'; save(); render(); } }, asCards ? 'Show as list' : 'Show as cards')));
   }
 
+  // The seat to call or play now (during the play: the seat whose card it is, dummy included).
+  const nowAt = (t) => (phase(t) === 'play' ? playOf(t.board).next : turn(t));
+
+  // The trick on the table, each card in front of its player; between tricks, the last trick.
+  function trickBox(t, me, st) {
+    const pos = around(me);
+    const last = st.tricks.at(-1);
+    const shown = st.current.length ? st.current : last ? last.cards : [];
+    const at = Object.fromEntries(shown.map((p) => [p.seat, p.card]));
+    const spot = (where) => {
+      const c = at[pos[where]];
+      return el('div', { class: `tspot t-${where}` }, c ? playedCard(c) : null);
+    };
+    const k = st.contract;
+    return el('div', { class: `tbox${st.current.length ? '' : ' last'}`, 'aria-label': 'Cards played to this trick' },
+      el('div', { class: 'thead' }, `${callLabel(k.bid)}${k.doubled ? ` ${k.doubled === 'XX' ? 'XX' : 'X'}` : ''} by ${relative(me, k.declarer)}`),
+      spot('top'), spot('left'), spot('right'), spot('bottom'),
+      el('div', { class: 'tfoot' }, st.current.length || !last ? `Tricks: declarer ${st.declarerTricks}, defence ${st.defenderTricks}` : `${relative(me, last.winner)} won trick ${st.tricks.length} · declarer ${st.declarerTricks}, defence ${st.defenderTricks}`));
+  }
+  const playedCard = (c) => el('span', { class: `card small${c[0] === 'H' || c[0] === 'D' ? ' redc' : ''}` }, el('span', { class: 'rank' }, rankLabel(c[1])), el('span', { class: 'pip' }, SYMBOL[c[0]]));
+
   function felt(t, me) {
     const pos = around(me);
+    const st = phase(t) === 'play' ? playOf(t.board) : null;
     return el('div', { class: 'felt' },
       el('div', { class: 'f-board' }, boardBox(t, me)),
-      el('div', { class: 'f-top' }, backs(13), plate(t, pos.top, me)),
+      el('div', { class: 'f-top' }, backs(st ? st.remaining[pos.top].length : 13), plate(t, pos.top, me)),
       el('div', { class: 'f-left' }, backs(5, ' side'), plate(t, pos.left, me)),
-      el('div', { class: 'f-center' }, auctionBox(t, me)),
+      el('div', { class: 'f-center' }, st ? trickBox(t, me, st) : auctionBox(t, me)),
       el('div', { class: 'f-right' }, backs(5, ' side'), plate(t, pos.right, me)),
       el('div', { class: 'f-bottom' }, plate(t, pos.bottom, me)));
   }
 
-  // My hand as cards: spades, hearts, clubs, diamonds (alternating colours), overlapping to fit the screen.
-  function cards(hand) {
+  // A hand as cards: spades, hearts, clubs, diamonds (alternating colours), overlapping to fit the screen.
+  // play: { legal: Set of cards, onPlay(card) } makes the legal cards buttons; who names the hand for screen readers.
+  function cards(hand, { play = null, who = 'Your hand', hcp = true } = {}) {
     const list = ['S', 'H', 'C', 'D'].flatMap((s) => [...hand[s]].map((r) => [s, r]));
     const e = evaluate(hand);
+    const face = (s, r) => [el('span', { class: 'rank' }, rankLabel(r)), el('span', { class: 'pip' }, SYMBOL[s])];
     return el('div', { class: 'hand-wrap' },
-      el('div', { class: 'cards', role: 'img', 'aria-label': `Your hand: ${SUITS.map((s) => `${SYMBOL[s]} ${hand[s] ? [...hand[s]].map(rankLabel).join(' ') : 'none'}`).join(', ')}` },
-        ...list.map(([s, r]) => el('span', { class: `card${s === 'H' || s === 'D' ? ' redc' : ''}` },
-          el('span', { class: 'rank' }, rankLabel(r)), el('span', { class: 'pip' }, SYMBOL[s])))),
-      el('div', { class: 'hcp' }, `${e.hcp} HCP`));
+      el('div', { class: `cards${play ? ' to-play' : ''}`, style: `--gaps:${Math.max(list.length - 1, 1)}`, role: play ? 'group' : 'img', 'aria-label': `${who}: ${SUITS.map((s) => `${SYMBOL[s]} ${hand[s] ? [...hand[s]].map(rankLabel).join(' ') : 'none'}`).join(', ')}` },
+        ...list.map(([s, r]) => {
+          const cls = `card${s === 'H' || s === 'D' ? ' redc' : ''}`;
+          if (!play) return el('span', { class: cls }, ...face(s, r));
+          const ok = play.legal.has(s + r);
+          return el('button', { type: 'button', class: `${cls}${ok ? ' playable' : ' dim'}`, disabled: !ok, 'data-key': `card-${s}${r}`, 'aria-label': `${rankLabel(r)} ${SYMBOL[s]}`, onclick: () => play.onPlay(s + r) }, ...face(s, r));
+        })),
+      hcp ? el('div', { class: 'hcp' }, `${e.hcp} HCP`) : null);
+  }
+  const handFromCards = (list) => Object.fromEntries(SUITS.map((s) => [s, list.filter((c) => c[0] === s).map((c) => c[1]).join('')]));
+
+  // During the play: dummy (face up after the opening lead) and my hand, with the cards I may play now.
+  function playArea(t, me, st) {
+    const mine = (seat) => me && controller(st, seat) === me && st.next === seat;
+    const playFor = (seat) => (mine(seat) ? { legal: new Set(legalCards(st, seat)), onPlay: (c) => act((cur) => cur && playCard(cur, seat, c, ui.sync.uid), 'That card did not go through. Try again.') } : null);
+    const dummy = st.dummy;
+    const dummyBlock = st.started && dummy !== me
+      ? el('div', {}, el('div', { class: 'label' }, `Dummy (${relative(me, dummy)})${mine(dummy) ? ' · your turn to play from dummy' : ''}`),
+        cards(handFromCards(st.remaining[dummy]), { play: playFor(dummy), who: 'Dummy', hcp: false }))
+      : null;
+    const myBlock = me
+      ? el('div', {}, el('div', { class: 'label' }, me === dummy ? 'Your hand (dummy: partner plays it)' : mine(me) ? 'Your turn: play a card' : 'Your hand'),
+        cards(handFromCards(st.remaining[me]), { play: playFor(me), hcp: false }))
+      : null;
+    return el('div', { class: 'stack' }, dummyBlock, myBlock);
   }
 
   function meanings(t, me) {
@@ -320,6 +368,10 @@ export function tableView(root, store) {
   }
 
   function undoButton(t) {
+    if (phase(t) === 'play') {
+      if (lastOwnCard(t, ui.sync.uid) < 0) return null;
+      return el('button', { type: 'button', class: 'pill', 'data-key': 'undo-card', onclick: () => act((cur) => cur && undoCard(cur, ui.sync.uid), 'Too late to undo: another player has played since.') }, '↶ Undo my last card');
+    }
     if (lastOwnCall(t, ui.sync.uid) < 0) return null;
     return el('button', { type: 'button', class: 'pill', 'data-key': 'undo', onclick: () => act((cur) => cur && undo(cur, ui.sync.uid), 'Too late to undo: another player has called since.') }, '↶ Undo my last call');
   }
@@ -335,8 +387,9 @@ export function tableView(root, store) {
     const kText = (x) => (x ? `${callLabel(x.bid)}${x.doubled ? ` ${x.doubled === 'XX' ? 'redoubled' : 'doubled'}` : ''} by ${relative(me, x.declarer)}` : 'Passed out');
     return el('div', { class: 'stack' },
       el('div', { class: 'panel' },
-        el('div', { class: 'eyebrow' }, 'Auction over'),
+        el('div', { class: 'eyebrow' }, 'Board over'),
         el('div', { class: 'big' }, kText(k)),
+        k ? el('p', { 'data-key': 'result' }, el('b', {}, 'Result: '), resultText(b, (s) => relative(me, s))) : null,
         el('p', { class: 'muted' }, `The Advisor would reach: ${kText(sysK)} (${sys.calls.map(callLabel).join(' ')}).`)),
       el('div', { class: 'compass' }, ...['N', 'W', 'E', 'S'].map((s) => el('div', { class: `seat-${s}` }, handView(handOf(b, s), `${COMPASS[s]} (${relative(me, s)})`)))),
       el('div', {},
@@ -373,7 +426,9 @@ export function tableView(root, store) {
     const b = t.board;
     const prev = t.history[b.n - 1];
     if (ui.prev && prev) return previousScreen(t, me, prev);
-    const now = turn(t);
+    const ph = phase(t);
+    const st = ph === 'play' ? playOf(b) : null;
+    const now = actor(t);
     const waiting = now && t.seats[now].kind === 'open' ? `Waiting for a player in the ${COMPASS[now]} seat.` : now && t.seats[now].kind === 'human' ? `Waiting for ${relative(me, now) === 'Partner' ? 'partner' : t.seats[now].name || COMPASS[now]}…` : now ? 'The robot is thinking…' : '';
     const someoneMissing = SEATS.some((s) => t.seats[s].kind === 'open');
     return el('div', { class: 'stack' },
@@ -385,14 +440,16 @@ export function tableView(root, store) {
       el('div', { class: 'board-line' }, el('b', {}, `Board ${b.n}`), ` · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`),
       prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = true; render(); } }, `← Previous board (${prev.n})`)) : null,
       felt(t, me),
-      me ? myHand(handOf(b, me)) : null,
-      isDone(t) ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
-      undoButton(t) ? el('div', { class: 'row-buttons' }, undoButton(t)) : null,
-      isDone(t) ? review(t, me) : me && now === me ? myTurn(t, me) : null,
-      !isDone(t) ? el('label', { class: 'toggle' },
+      st ? playArea(t, me, st) : me ? myHand(handOf(b, me)) : null,
+      ph === 'over' ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
+      undoButton(t) || (st && me) ? el('div', { class: 'row-buttons' }, undoButton(t),
+        st && me ? el('button', { type: 'button', class: 'pill', 'data-key': 'skip-play', onclick: () => act((cur) => cur && skipPlay(cur)) }, 'Skip the play') : null) : null,
+      ph === 'over' ? review(t, me) : ph === 'bidding' && me && now === me ? myTurn(t, me) : null,
+      st ? el('details', { class: 'manage' }, el('summary', {}, 'The bidding'), auctionBox(t, me)) : null,
+      ph === 'bidding' ? el('label', { class: 'toggle' },
         el('input', { type: 'checkbox', 'data-key': 'hints', checked: saved.hints, onchange: (e) => { saved.hints = e.target.checked; save(); render(); } }),
         ' Show what each call means') : null,
-      !isDone(t) && saved.hints ? meanings(t, me) : null,
+      ph === 'bidding' && saved.hints ? meanings(t, me) : null,
       el('details', { class: 'manage', open: someoneMissing || !me },
         el('summary', {}, 'Seats and opponents'),
         seatsView(t, me),

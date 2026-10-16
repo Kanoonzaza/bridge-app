@@ -3,7 +3,8 @@
 import { formatHand } from './cards.js';
 import { callLabel } from './format.js';
 import { SEATS } from './auction.js';
-import { auctionOf, handOf, packHand } from './table/model.js';
+import { auctionOf, handOf, packHand, playOf } from './table/model.js';
+import { score } from './table/play.js';
 import { reviewRows, systemAuction, contract } from './table/review.js';
 import { confidence } from './confidence.js';
 
@@ -22,7 +23,21 @@ function rounds(a) {
   return out.length ? out : ['(no calls yet)'];
 }
 
-const dataLine = (a, hands) => `Data: dealer=${a.dealer} vul=${a.vul ?? 'none'} calls=${a.calls.join(' ') || '-'} ${Object.entries(hands).map(([s, h]) => `${s}=${packHand(h)}`).join(' ')}`;
+const dataLine = (a, hands, play = '') => `Data: dealer=${a.dealer} vul=${a.vul ?? 'none'} calls=${a.calls.join(' ') || '-'} ${Object.entries(hands).map(([s, h]) => `${s}=${packHand(h)}`).join(' ')}${play ? ` play=${play.replace(/ /g, ',')}` : ''}`;
+
+// How the play went: "10 tricks: made 4♥ with an overtrick, +650 for N-S". name(seat) labels a seat.
+export function resultText(b, name = (s) => COMPASS[s]) {
+  const st = playOf(b);
+  if (!st) return 'Passed out.';
+  const k = st.contract;
+  const need = Number(k.bid[0]) + 6;
+  const side = st.declarer === 'N' || st.declarer === 'S' ? 'N-S' : 'E-W';
+  if (!st.complete) return b.skip ? `Play skipped after ${st.tricks.length} trick${st.tricks.length === 1 ? '' : 's'} (declarer ${st.declarerTricks}, defence ${st.defenderTricks}).` : `In play: declarer ${st.declarerTricks}, defence ${st.defenderTricks}.`;
+  const got = st.declarerTricks;
+  const sc = score(k, b.vul, got);
+  const how = got >= need ? `made${got > need ? ` with ${got - need} overtrick${got - need === 1 ? '' : 's'}` : ''}` : `down ${need - got}`;
+  return `${name(st.declarer)} took ${got} tricks in ${callLabel(k.bid)}${k.doubled ? (k.doubled === 'XX' ? ' redoubled' : ' doubled') : ''}: ${how}, ${sc > 0 ? '+' : ''}${sc} for ${side}.`;
+}
 
 export function boardReport(t, me) {
   const b = t.board;
@@ -44,6 +59,7 @@ export function boardReport(t, me) {
     'Auction:',
     ...rounds(a),
     `Contract: ${kText(contract(a))}`,
+    ...(contract(a) ? [`Result: ${resultText(b)}`] : []),
     `The Advisor would bid: ${calls(sys.calls)} → ${kText(contract(sys))}`,
     '',
     rows.length ? 'Where the Advisor differs (each player\'s first difference only):' : 'Every player\'s call matched the Advisor.',
@@ -51,7 +67,7 @@ export function boardReport(t, me) {
     '',
     'My question:',
     '',
-    dataLine(a, hands),
+    dataLine(a, hands, b.play),
   ].join('\n');
 }
 
