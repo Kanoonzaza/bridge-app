@@ -3,7 +3,7 @@
 // double dummy with DDS, and play the card that takes the most tricks on average.
 import { SUITS, RANKS } from '../cards.js';
 import { SEATS } from '../auction.js';
-import { visible, showedOut, legalCards } from './play.js';
+import { visible, showedOut, legalCards, signalKind, signalCard } from './play.js';
 
 const DIR = { N: 0, E: 1, S: 2, W: 3 };
 const STRAIN = { S: 0, H: 1, D: 2, C: 3 };
@@ -17,7 +17,7 @@ const hcpOf = (cards) => cards.reduce((n, c) => n + (HCP[c[1]] ?? 0), 0);
 
 // One layout of the hidden cards, or null. Hidden seats keep their known card counts and shown voids;
 // with `strict`, their whole hand must also fit what the bidding showed (HCP range and suit lengths).
-function sampleOnce(st, hidden, pool, constraints, rand, strict) {
+function sampleOnce(st, viewer, hidden, pool, constraints, rand, strict) {
   const deck = [...pool];
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
@@ -36,6 +36,7 @@ function sampleOnce(st, hidden, pool, constraints, rand, strict) {
     out[s].push(c);
     need[s]--;
   }
+  if (strict && !signalsFit(st, viewer, out)) return null;
   if (strict) {
     for (const s of hidden) {
       const k = constraints?.[s];
@@ -52,16 +53,40 @@ function sampleOnce(st, hidden, pool, constraints, rand, strict) {
   return out;
 }
 
+// A defender reads partner's signals: in this layout, would partner have played the small cards they did?
+function signalsFit(st, viewer, out) {
+  if (viewer === st.declarer || viewer === st.dummy) return true;
+  const mate = SEATS[(SEATS.indexOf(viewer) + 2) % 4];
+  if (!out[mate]) return true;
+  const plays = st.tricks.map((t) => t.cards);
+  for (let ti = 0; ti < plays.length; ti++) {
+    const tr = plays[ti];
+    const k = tr.findIndex((p) => p.seat === mate);
+    if (k <= 0 || st.tricks[ti].winner === mate) continue;
+    const { card } = tr[k];
+    const led = tr[0].card[0];
+    if (card[0] !== led) continue;
+    const kind = signalKind(st, tr.slice(0, k), mate, ti);
+    if (!kind) continue;
+    // Partner's cards in the suit at that moment: what they hold now (in this layout) plus what they played since.
+    const later = plays.slice(ti).flat().filter((p) => p.seat === mate && p.card[0] === led).map((p) => p.card);
+    const holding = [...out[mate].filter((c) => c[0] === led), ...later];
+    const want = signalCard(kind, holding, holding);
+    if (want && want !== card && RANKS.indexOf(card[1]) >= RANKS.indexOf('9')) return false;
+  }
+  return true;
+}
+
 export function sampleLayout(st, seat, constraints, rand) {
   const seen = visible(st, seat);
   const hidden = SEATS.filter((s) => st.remaining[s].some((c) => !seen.has(c)));
   const pool = hidden.flatMap((s) => st.remaining[s]);
   for (let i = 0; i < 400; i++) {
-    const r = sampleOnce(st, hidden, pool, constraints, rand, true);
+    const r = sampleOnce(st, seat, hidden, pool, constraints, rand, true);
     if (r) return r;
   }
   for (let i = 0; i < 200; i++) {
-    const r = sampleOnce(st, hidden, pool, constraints, rand, false);
+    const r = sampleOnce(st, seat, hidden, pool, constraints, rand, false);
     if (r) return r;
   }
   return null;
@@ -107,7 +132,11 @@ export function ddChoose(dds, st, seat, { constraints = null, rand = Math.random
   }
   if (!n) return null;
   const best = Math.max(...legal.map((c) => total[c]));
-  // Among equally good cards, the lowest (keeps honours, gives nothing away).
-  const card = legal.filter((c) => total[c] === best).sort((a, b) => RANKS.indexOf(b[1]) - RANKS.indexOf(a[1]))[0];
+  const equal = legal.filter((c) => total[c] === best);
+  // Among equally good cards: a defender's signal when one applies, otherwise the lowest card.
+  const kind = signalKind(st, st.current, seat, st.tricks.length);
+  const led = st.current[0]?.card[0];
+  const sig = kind && equal.every((c) => c[0] === led) ? signalCard(kind, st.remaining[seat].filter((c) => c[0] === led), equal) : null;
+  const card = sig ?? equal.sort((a, b) => RANKS.indexOf(b[1]) - RANKS.indexOf(a[1]))[0];
   return { card, samples: n, scores: Object.fromEntries(legal.map((c) => [c, total[c] / n])) };
 }

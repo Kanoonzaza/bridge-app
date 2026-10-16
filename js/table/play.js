@@ -99,6 +99,34 @@ export function score(k, vul, tricks) {
   return s;
 }
 
+// ---------- Defenders' signals (standard carding) ----------
+// Attitude on partner's lead: a high spot card asks for the suit (we hold the A, K or Q), a low one says no.
+// Count when declarer's side leads: high then low = an even number of cards, low = odd. Only on the first
+// round of a suit, and only with spot cards (9 or lower) to spare. Partner reads them when placing cards.
+const SPOT = RANKS.indexOf('9');
+export function signalKind(st, before, seat, trickIndex) {
+  if (seat === st.declarer || seat === st.dummy || !before.length) return null;
+  const s = before[0].card[0];
+  if (st.tricks.slice(0, trickIndex).some((t) => t.cards[0].card[0] === s)) return null;
+  if (before[0].seat === partnerOf(seat)) return 'attitude';
+  if (before[0].seat === st.declarer || before[0].seat === st.dummy) return 'count';
+  return null;
+}
+// The signal card from `options` (cards that are all fine to play), given the whole holding in the suit.
+export function signalCard(kind, holding, options) {
+  const spots = options.filter((c) => rank(c) >= SPOT);
+  if (spots.length < 2) return null;
+  const high = kind === 'attitude' ? holding.some((c) => rank(c) <= 2) : holding.length % 2 === 0;
+  return high ? highest(spots) : lowest(spots);
+}
+// A small card to follow with: the signal when one applies, otherwise the lowest.
+function smallCard(st, seat, legal) {
+  const kind = signalKind(st, st.current, seat, st.tricks.length);
+  const led = st.current[0]?.card[0];
+  if (kind && legal.every((c) => c[0] === led)) return signalCard(kind, bySuit(st.remaining[seat], led), legal) ?? lowest(legal);
+  return lowest(legal);
+}
+
 // ---------- How a robot picks a card ----------
 // Simple, sound habits: lead top of a sequence or partner's suit, second hand low, third hand high,
 // win as cheaply as possible, ruff when void, draw trumps and cash winners as declarer.
@@ -269,7 +297,7 @@ function followCard(st, seat) {
   const winners = legal.filter((c) => beats(st, c, win.card));
   const following = legal[0][0] === led;
   if (following) {
-    if (pos === 3) return mateWinning || !winners.length ? lowest(legal) : lowest(winners);
+    if (pos === 3) return mateWinning || !winners.length ? smallCard(st, seat, legal) : lowest(winners);
     if (pos === 2) {
       // Third hand: low if partner's card already wins against what is left to play.
       // The fourth hand is an opponent; we can see its cards only when it is dummy.
@@ -277,7 +305,7 @@ function followCard(st, seat) {
       const safe = mateWinning && (fourth === st.dummy
         ? !legalAfter(st, fourth, led).some((c) => beats(st, c, win.card))
         : win.card[0] !== led || isMaster(st, seat, win.card));
-      if (safe || !winners.length) return lowest(legal);
+      if (safe || !winners.length) return smallCard(st, seat, legal);
       // Fourth hand is dummy: beat dummy's best card as cheaply as possible.
       if (fourth === st.dummy) {
         const dummyBest = legalAfter(st, fourth, led).filter((c) => c[0] === led);
@@ -310,7 +338,7 @@ function followCard(st, seat) {
       const touching = seen && [...st.remaining[lead.seat], ...st.remaining[leaderMate]].some((c) => c[0] === led && rank(c) === rank(lead.card) + 1);
       if (!touching) return lowest(winners);
     }
-    return lowest(legal);
+    return smallCard(st, seat, legal);
   }
   // Void in the suit led.
   if (st.trump && !mateWinning) {

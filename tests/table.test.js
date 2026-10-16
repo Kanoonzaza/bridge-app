@@ -256,7 +256,7 @@ test('robot card play: finesse, play for the drop, cover an honour', async () =>
   // Declarer leads the queen from Q-x: second hand covers with the king.
   hands = H({ N: 'A32.AK2.AK2.5432', E: 'K54.QJT.QJT.QJT9', S: 'Q76.987.987.AK87', W: 'JT98.6543.6543.6' });
   st = { ...playState(hands, k, ''), started: true, current: [{ seat: 'S', card: 'SQ' }], next: 'W' };
-  assert.equal(robotCard(st, 'W', { calls: [] }), 'S8', 'West has no card above the queen');
+  assert.equal(robotCard(st, 'W', { calls: [] }), 'S9', 'no card above the queen: West gives count, high with four');
   hands = H({ N: '432.AK2.AK2.5432', E: 'A54.QJT.QJT.QJT9', S: 'Q76.987.987.AK87', W: 'KJT9.6543.6543.6' });
   st = { ...playState(hands, k, ''), started: true, current: [{ seat: 'S', card: 'SQ' }], next: 'W' };
   assert.equal(robotCard(st, 'W', { calls: [] }), 'SK', 'cover the queen with the king');
@@ -283,4 +283,22 @@ test('double-dummy robot: sampled layouts keep known cards and voids; it finds t
   st = { ...playState(end, { bid: '4S', declarer: 'S', doubled: '' }, ''), started: true, next: 'S' };
   const best = ddChoose(dds, st, 'S', { maxSamples: 3, minSamples: 3, timeMs: 1e9 });
   assert.ok(best.card, 'a card is chosen');
+});
+
+test('signals: attitude on partner\'s lead, and partner reads it when placing the cards', async () => {
+  const { playState, robotCard } = await import('../js/table/play.js');
+  const { sampleLayout } = await import('../js/table/dd.js');
+  const H = (o) => Object.fromEntries(Object.entries(o).map(([s, h]) => [s, unpackHand(h)]));
+  // South declares 4♠; West leads the ♦A. East holds ♦K82: encourages with the 8 (from K-8-2).
+  const hands = H({ N: 'K54.A32.763.AQ32', E: '32.J987.K82.J987', S: 'AQJT98.KQ4.54.K4', W: '76.T65.AQJT9.T65' });
+  const k = { bid: '4S', declarer: 'S', doubled: '' };
+  let st = playState(hands, k, 'DA D3');
+  assert.equal(robotCard(st, 'E', { calls: [] }), 'D8', 'encourage with the king');
+  // West sees East's 8 and dummy's cards: in every layout West samples, East holds the ♦K
+  // (or the 8 was a singleton, which signals nothing). Without the signal, East would often lack the king.
+  st = playState(hands, k, 'DA D3 D8 D4');
+  for (let i = 0; i < 30; i++) {
+    const layout = sampleLayout(st, 'W', null, Math.random);
+    assert.ok(layout.E.includes('DK') || !layout.E.some((c) => c[0] === 'D'), 'East encouraged: the king, or a singleton 8');
+  }
 });
