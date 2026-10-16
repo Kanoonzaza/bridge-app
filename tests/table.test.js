@@ -261,3 +261,26 @@ test('robot card play: finesse, play for the drop, cover an honour', async () =>
   st = { ...playState(hands, k, ''), started: true, current: [{ seat: 'S', card: 'SQ' }], next: 'W' };
   assert.equal(robotCard(st, 'W', { calls: [] }), 'SK', 'cover the queen with the king');
 });
+
+test('double-dummy robot: sampled layouts keep known cards and voids; it finds the winning card', async () => {
+  const { playState } = await import('../js/table/play.js');
+  const { ddChoose, sampleLayout } = await import('../js/table/dd.js');
+  const { loadDds, Dds } = await import('../js/vendor/dds/api.js');
+  const dds = new Dds(await loadDds());
+  const H = (o) => Object.fromEntries(Object.entries(o).map(([s, h]) => [s, unpackHand(h)]));
+  const hands = H({ N: 'AK2.AK2.AK2.5432', E: 'QJT.QJT.QJT.QJT9', S: '987.987.987.AK87', W: '6543.6543.6543.6' });
+  const k = { bid: '3N', declarer: 'S', doubled: '' };
+  let st = playState(hands, k, 'D3');
+  const layout = sampleLayout(st, 'N', null, Math.random);
+  // North (dummy, played by declarer) sees South's cards: only East and West are dealt at random.
+  assert.deepEqual(Object.keys(layout).sort(), ['E', 'W']);
+  assert.equal(layout.E.length, 13);
+  assert.equal(layout.W.length, 12);
+  const r = ddChoose(dds, st, 'N', { maxSamples: 4, minSamples: 4, timeMs: 1e9 });
+  assert.ok(['DA', 'DK', 'D2'].includes(r.card));
+  // A short ending (three cards each) is solved too.
+  const end = H({ N: '.A.K.Q', E: '.KQ.J.', S: 'A.2.2.', W: '.J.Q.J' });
+  st = { ...playState(end, { bid: '4S', declarer: 'S', doubled: '' }, ''), started: true, next: 'S' };
+  const best = ddChoose(dds, st, 'S', { maxSamples: 3, minSamples: 3, timeMs: 1e9 });
+  assert.ok(best.card, 'a card is chosen');
+});

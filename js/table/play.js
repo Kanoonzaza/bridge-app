@@ -104,7 +104,7 @@ export function score(k, vul, tricks) {
 // win as cheaply as possible, ruff when void, draw trumps and cash winners as declarer.
 
 // Cards a seat can see: its own, dummy's once the lead is made, and everything already played.
-function visible(st, seat) {
+export function visible(st, seat) {
   const own = new Set(st.remaining[seat]);
   if (seat === st.declarer || seat === st.dummy) for (const c of st.remaining[partnerOf(seat)]) own.add(c);
   else if (st.started) for (const c of st.remaining[st.dummy]) own.add(c);
@@ -136,7 +136,7 @@ const beats = (st, card, win) => {
 };
 
 // Has `seat` already failed to follow to suit `s` (so it has none left)?
-const showedOut = (st, seat, s) => [...st.tricks.map((t) => t.cards), st.current].some((tr) => tr.length && tr[0].card[0] === s && tr.some((p) => p.seat === seat && p.card[0] !== s));
+export const showedOut = (st, seat, s) => [...st.tricks.map((t) => t.cards), st.current].some((tr) => tr.length && tr[0].card[0] === s && tr.some((p) => p.seat === seat && p.card[0] !== s));
 
 // The cards a seat could play to a trick in suit `led`.
 const legalAfter = (st, seat, led) => (bySuit(st.remaining[seat], led).length ? bySuit(st.remaining[seat], led) : st.remaining[seat]);

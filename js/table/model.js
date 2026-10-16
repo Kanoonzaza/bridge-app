@@ -196,11 +196,12 @@ export function robotCall(t, advise) {
   return r.notCovered ? 'P' : r.call;
 }
 
-export function playRobot(t, advise) {
+// chosen: a card already worked out for this robot (the double-dummy robot); otherwise the rule-based choice.
+export function playRobot(t, advise, chosen = null) {
   if (phase(t) === 'play') {
     const st = playOf(t.board);
     if (!['robot', 'pass'].includes(t.seats[controller(st, st.next)].kind)) return undefined;
-    const card = robotCard(st, st.next, auctionOf(t.board));
+    const card = chosen && legalCards(st, st.next).includes(chosen) ? chosen : robotCard(st, st.next, auctionOf(t.board));
     return card ? { ...t, board: { ...t.board, play: [...splitPlay(t.board.play), card].join(' ') } } : undefined;
   }
   const c = robotCall(t, advise);

@@ -1,6 +1,6 @@
 import { SUITS, SYMBOL, evaluate } from '../cards.js';
 import { SEATS, partnerOf, sideOf, seatAt } from '../auction.js';
-import { advise, explain } from '../engine.js';
+import { advise, explain, summarize } from '../engine.js';
 import { callLabel, rankLabel } from '../format.js';
 import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
@@ -88,6 +88,35 @@ export function tableView(root, store) {
   // Robots (and always-pass seats) bid on every phone at the table; the transaction lets only one call through.
   // The key only stops a second attempt while one is pending. Once it settles the key is cleared, so the same
   // position is played again after a take-back, and a write that failed (a dropped connection) is retried.
+  // In the play, a robot's card comes from the double-dummy robot in a background worker (simulations, like the
+  // robots on Bridge Base Online); if that is unavailable or slow, the rule-based robot plays instead.
+  let worker = null;
+  let seq = 0;
+  const pending = new Map();
+  function ddCard(t) {
+    return new Promise((resolve) => {
+      try {
+        if (!worker) {
+          worker = new Worker(new URL('../table/dd-worker.js', import.meta.url), { type: 'module' });
+          worker.onmessage = (e) => { pending.get(e.data.id)?.(e.data.card); pending.delete(e.data.id); };
+          worker.onerror = () => { for (const r of pending.values()) r(null); pending.clear(); worker = null; };
+        }
+      } catch {
+        resolve(null);
+        return;
+      }
+      const id = ++seq;
+      pending.set(id, resolve);
+      setTimeout(() => { if (pending.has(id)) { pending.delete(id); resolve(null); } }, 12000);
+      const b = t.board;
+      const a = auctionOf(b);
+      const rows = explain(a, undefined, { general: true });
+      const constraints = Object.fromEntries(SEATS.map((s) => [s, summarize(rows, s)]));
+      const hands = Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)]));
+      worker.postMessage({ id, hands, contract: playOf(b).contract, play: b.play, constraints });
+    });
+  }
+
   function driveRobots() {
     const t = ui.table;
     if (!t || isOver(t)) return;
@@ -99,7 +128,8 @@ export function tableView(root, store) {
     setTimeout(async () => {
       let failed = false;
       try {
-        await ui.sync.change(t.code, (cur) => (cur && cur.board.n === t.board.n && cur.board.calls === t.board.calls && cur.board.play === t.board.play ? playRobot(cur, advise) : undefined));
+        const chosen = phase(t) === 'play' ? await ddCard(t) : null;
+        await ui.sync.change(t.code, (cur) => (cur && cur.board.n === t.board.n && cur.board.calls === t.board.calls && cur.board.play === t.board.play ? playRobot(cur, advise, chosen) : undefined));
       } catch {
         failed = true;
       }

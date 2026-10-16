@@ -7,7 +7,7 @@ Live: https://kanoonzaza.github.io/bridge-app/
 - Tests: `npm test` (Node 20+)
 - Rules live in `js/system/`, in folders that follow the parts of the system notes; every entry links to the notes section that explains it. How the Advisor and Decoder use them: [docs/how-the-advisor-works.md](docs/how-the-advisor-works.md).
 - Advisor: choose who opens (you, partner or an opponent) and whether the opponents always pass or you enter their calls.
-- Table: bid and then play the cards with friends and robots (shared by code). Declarer plays dummy; the result and score follow, then the review against the Advisor. Card play: `js/table/play.js`.
+- Table: bid and then play the cards with friends and robots (shared by code). Declarer plays dummy; the result and score follow, then the review against the Advisor. Card play: `js/table/play.js`. Robots choose cards by double-dummy simulation (`js/table/dd.js`, in a web worker): deal the hidden cards many ways consistent with the bidding and play, solve each with DDS (Bo Haglund's double dummy solver, WebAssembly build from `bridge-dds`, Apache-2.0, in `js/vendor/dds/`), and play the card that does best on average; the rule-based robot is the fallback.
 - For practice and study only; electronic aids are not allowed at the table.
 
 ## Release
