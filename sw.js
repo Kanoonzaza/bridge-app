@@ -1,4 +1,4 @@
-const CACHE = 'bc-184c0c33';
+const CACHE = 'bc-3b30b233';
 const FILES = [
   './',
   'index.html',
@@ -49,6 +49,7 @@ const FILES = [
   'js/table/play.js',
   'js/table/dd.js',
   'js/table/dd-worker.js',
+  'js/table/pool.js',
   'js/vendor/dds/api.js',
   'js/vendor/dds/dds.js',
   'js/table/review.js',

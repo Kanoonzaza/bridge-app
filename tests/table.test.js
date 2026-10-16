@@ -326,3 +326,24 @@ test('signals: first discard and suit preference when giving a ruff', async () =
   st = { ...st, remaining: { ...st.remaining, W: ['S7', 'S6', 'HA', 'H6', 'D3', 'D2', 'CJ', 'CT', 'C9', 'C8', 'C7', 'C3'] } };
   assert.equal(suitPreferenceLead(st, 'W', ['CJ', 'CT', 'C9', 'C8', 'C7', 'C3']), 'CJ');
 });
+
+test('parallel scoring: shares from several workers add up like one run, and the card is picked from the sum', async () => {
+  const { playState, legalCards } = await import('../js/table/play.js');
+  const { ddScores, mergeScores, pickCard, ddChoose } = await import('../js/table/dd.js');
+  const { loadDds, Dds } = await import('../js/vendor/dds/api.js');
+  const dds = new Dds(await loadDds());
+  const H = (o) => Object.fromEntries(Object.entries(o).map(([s, h]) => [s, unpackHand(h)]));
+  const hands = H({ N: 'AK2.AK2.AK2.5432', E: 'QJT.QJT.QJT.QJT9', S: '987.987.987.AK87', W: '6543.6543.6543.6' });
+  const st = playState(hands, { bid: '3N', declarer: 'S', doubled: '' }, 'D3');
+  const a = ddScores(dds, st, 'N', { maxSamples: 3, minSamples: 3, timeMs: 1e9 });
+  const b = ddScores(dds, st, 'N', { maxSamples: 5, minSamples: 5, timeMs: 1e9 });
+  const m = mergeScores([a, null, b]);
+  assert.equal(m.n, 8);
+  for (const c of legalCards(st, 'N')) assert.equal(m.total[c], a.total[c] + b.total[c]);
+  assert.deepEqual(mergeScores([null, { n: 0, total: {} }]), { n: 0, total: {} });
+  assert.equal(pickCard(st, 'N', { n: 0, total: {} }), null);
+  const pick = pickCard(st, 'N', m);
+  assert.ok(legalCards(st, 'N').includes(pick.card));
+  assert.equal(pick.samples, 8);
+  assert.ok(ddChoose(dds, st, 'N', { maxSamples: 2, minSamples: 2, timeMs: 1e9 }).card);
+});

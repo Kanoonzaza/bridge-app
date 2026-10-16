@@ -10,6 +10,7 @@ import {
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard,
 } from '../table/model.js';
 import { legalCards, controller } from '../table/play.js';
+import { createPool, poolChoose } from '../table/pool.js';
 import { resultText } from '../report.js';
 import { reviewRows, systemAuction, contract } from '../table/review.js';
 import { el, segmented, keepFocus } from './dom.js';
@@ -88,33 +89,26 @@ export function tableView(root, store) {
   // Robots (and always-pass seats) bid on every phone at the table; the transaction lets only one call through.
   // The key only stops a second attempt while one is pending. Once it settles the key is cleared, so the same
   // position is played again after a take-back, and a write that failed (a dropped connection) is retried.
-  // In the play, a robot's card comes from the double-dummy robot in a background worker (simulations, like the
-  // robots on Bridge Base Online); if that is unavailable or slow, the rule-based robot plays instead.
-  let worker = null;
-  let seq = 0;
-  const pending = new Map();
-  function ddCard(t) {
-    return new Promise((resolve) => {
-      try {
-        if (!worker) {
-          worker = new Worker(new URL('../table/dd-worker.js', import.meta.url), { type: 'module' });
-          worker.onmessage = (e) => { pending.get(e.data.id)?.(e.data.card); pending.delete(e.data.id); };
-          worker.onerror = () => { for (const r of pending.values()) r(null); pending.clear(); worker = null; };
-        }
-      } catch {
-        resolve(null);
-        return;
-      }
-      const id = ++seq;
-      pending.set(id, resolve);
-      setTimeout(() => { if (pending.has(id)) { pending.delete(id); resolve(null); } }, 12000);
+  // In the play, a robot's card comes from the double-dummy robot: sampled deals solved in parallel by a pool of
+  // background workers (one per processor core, like the robots on Bridge Base Online); if that is unavailable or
+  // slow, the rule-based robot plays instead.
+  let pool = null;
+  async function ddCard(t) {
+    try {
+      pool ??= createPool(new URL('../table/dd-worker.js', import.meta.url));
       const b = t.board;
-      const a = auctionOf(b);
-      const rows = explain(a, undefined, { general: true });
-      const constraints = Object.fromEntries(SEATS.map((s) => [s, summarize(rows, s)]));
-      const hands = Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)]));
-      worker.postMessage({ id, hands, contract: playOf(b).contract, play: b.play, constraints });
-    });
+      const rows = explain(auctionOf(b), undefined, { general: true });
+      const r = await poolChoose(pool, {
+        hands: Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)])),
+        contract: playOf(b).contract,
+        play: b.play,
+        constraints: Object.fromEntries(SEATS.map((s) => [s, summarize(rows, s)])),
+        total: 16 * pool.size,
+      });
+      return r?.card ?? null;
+    } catch {
+      return null;
+    }
   }
 
   function driveRobots() {

@@ -147,11 +147,10 @@ function solve(dds, st, hands) {
   return scores;
 }
 
-// The best card for `seat` (st.next) by sampling. Returns { card, samples, scores } or null.
-export function ddChoose(dds, st, seat, { constraints = null, rand = Math.random, maxSamples = 24, minSamples = 6, timeMs = 1500, now = () => Date.now() } = {}) {
+// Score the legal cards on sampled layouts: { n, total } where total[card] is the sum of the tricks over n layouts.
+// One worker runs this on its share of the samples; the shares from several workers are added with mergeScores.
+export function ddScores(dds, st, seat, { constraints = null, rand = Math.random, maxSamples = 24, minSamples = 6, timeMs = 1500, now = () => Date.now() } = {}) {
   const legal = legalCards(st, seat);
-  if (legal.length === 1) return { card: legal[0], samples: 0 };
-  // Every card the same (all small in one suit): nothing to work out.
   const total = Object.fromEntries(legal.map((c) => [c, 0]));
   const start = now();
   let n = 0;
@@ -163,15 +162,39 @@ export function ddChoose(dds, st, seat, { constraints = null, rand = Math.random
     for (const c of legal) total[c] += sc[c] ?? 0;
     n++;
   }
+  return { n, total };
+}
+
+// Add the shares of several workers (a share that failed is null and is skipped).
+export function mergeScores(parts) {
+  const out = { n: 0, total: {} };
+  for (const p of parts) {
+    if (!p?.n) continue;
+    out.n += p.n;
+    for (const [c, v] of Object.entries(p.total)) out.total[c] = (out.total[c] ?? 0) + v;
+  }
+  return out;
+}
+
+// The card to play from summed scores: the best average, and among equals a defender's signal when one
+// applies, otherwise the lowest card. Returns { card, samples, scores } or null with no samples.
+export function pickCard(st, seat, { n, total }) {
   if (!n) return null;
-  const best = Math.max(...legal.map((c) => total[c]));
-  const equal = legal.filter((c) => total[c] === best);
-  // Among equally good cards: a defender's signal when one applies, otherwise the lowest card.
+  const legal = legalCards(st, seat);
+  const best = Math.max(...legal.map((c) => total[c] ?? 0));
+  const equal = legal.filter((c) => (total[c] ?? 0) === best);
   const kind = signalKind(st, st.current, seat, st.tricks.length);
   const led = st.current[0]?.card[0];
   const sig = (kind && equal.every((c) => c[0] === led) ? signalCard(kind, st.remaining[seat].filter((c) => c[0] === led), equal) : null)
     ?? (led && !equal.some((c) => c[0] === led) ? discardSignal(st, seat, equal) : null)
     ?? (!led ? suitPreferenceLead(st, seat, equal) : null);
   const card = sig ?? equal.sort((a, b) => RANKS.indexOf(b[1]) - RANKS.indexOf(a[1]))[0];
-  return { card, samples: n, scores: Object.fromEntries(legal.map((c) => [c, total[c] / n])) };
+  return { card, samples: n, scores: Object.fromEntries(legal.map((c) => [c, (total[c] ?? 0) / n])) };
+}
+
+// The best card for `seat` (st.next) by sampling, in one go. Returns { card, samples, scores } or null.
+export function ddChoose(dds, st, seat, opts = {}) {
+  const legal = legalCards(st, seat);
+  if (legal.length === 1) return { card: legal[0], samples: 0 };
+  return pickCard(st, seat, ddScores(dds, st, seat, opts));
 }
