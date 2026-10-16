@@ -1,4 +1,5 @@
 import { cardCount } from '../cards.js';
+import { packHand } from '../table/model.js';
 import { nextSeat, isComplete, seatAt } from '../auction.js';
 import { advise, explain, summarize, describeShown } from '../engine.js';
 import { buildAuction, enteredTurn, oppsEnter, isOpp, OPENER_SEAT as OPENER, PARTNER } from '../advisor-model.js';
@@ -12,6 +13,8 @@ import { copyButton } from './copy.js';
 import { advisorReport } from '../report.js';
 import { confidence } from '../confidence.js';
 import { confRow } from './conf.js';
+import { simulatedAdvice } from '../sim-advice.js';
+import { sharedPool } from '../table/pool.js';
 
 const WHO = { S: 'You', N: 'Partner', E: 'Right', W: 'Left' };
 const OPP_NAME = { E: 'Right opponent', W: 'Left opponent' };
@@ -49,13 +52,34 @@ export function advisorView(root, store) {
         : null);
   }
 
+  // The simulated version of the suggestion for the current hand and auction.
+  let simResult = null;
+  const simPending = new Set();
+  const adviceKey = (a) => `${packHand(state.hand)}|${a.dealer}|${a.vul}|${a.calls.join(' ')}`;
+  function checkBySimulation(a, plain) {
+    const key = adviceKey(a);
+    simPending.add(key);
+    simulatedAdvice(state.hand, a, plain).then((better) => {
+      simPending.delete(key);
+      simResult = { key, r: better ?? plain };
+      if (!root.isConnected) return;
+      if (adviceKey(buildAuction(state)) === key) render();
+    });
+  }
+
   function answerCard(a) {
     if (isComplete(a)) return el('div', { class: 'panel muted' }, 'The auction is over. Tap Undo, or change who opens to start again.');
     if (nextSeat(a) === PARTNER) return el('div', { class: 'panel muted' }, "Partner's turn: tap partner's call on the bidding box.");
     if (isOpp(nextSeat(a))) return el('div', { class: 'panel muted' }, `${OPP_NAME[nextSeat(a)]}'s turn: tap their call (Pass if they passed).`);
     const n = cardCount(state.hand);
     if (n !== 13) return el('div', { class: 'panel muted' }, `Pick exactly 13 cards (you have ${n}).`);
-    const r = advise(state.hand, a);
+    const plain = advise(state.hand, a);
+    // A judgment call is checked by simulation in the background; the screen shows the rule-based call now.
+    const r = simResult && simResult.key === adviceKey(a) ? simResult.r : plain;
+    if (!simResult || simResult.key !== adviceKey(a)) {
+      if (plain.fallback === 'judgment' && !simPending.has(adviceKey(a))) checkBySimulation(a, plain);
+    }
+    const checking = plain.fallback === 'judgment' && !(simResult && simResult.key === adviceKey(a));
     if (r.notCovered) {
       return el('div', { class: 'panel' },
         el('div', { class: 'eyebrow' }, 'Not covered yet'),
@@ -73,7 +97,8 @@ export function advisorView(root, store) {
       r.reasons.length ? el('p', {}, el('b', {}, 'Why: '), `${r.reasons.join('; ')}.`) : null,
       el('p', {}, el('b', {}, 'Tells partner: '), r.meaning),
       r.plan ? el('p', {}, el('b', {}, 'Plan: '), r.plan) : null,
-      r.close ? el('p', { class: 'close' }, el('b', {}, 'Close call: '), r.close) : null,
+      checking ? el('p', { class: 'muted', 'data-key': 'sim-checking' }, 'Checking by simulation…') : null,
+      r.close ? el('p', { class: 'close' }, el('b', {}, r.sim ? 'Simulation: ' : 'Close call: '), r.close) : null,
       el('a', { href: `${NOTES_URL}#${r.notes}` }, 'Read more in the system notes'),
       copyButton('Copy for review', () => advisorReport(state.hand, a, r), 'copy-advice'));
   }
@@ -100,4 +125,6 @@ export function advisorView(root, store) {
   }
 
   render();
+  // Start the solvers while the screen is being read, so the first simulation is quick.
+  setTimeout(() => { try { sharedPool().warm(); } catch { /* no workers: the rule-based suggestion stands */ } }, 1500);
 }

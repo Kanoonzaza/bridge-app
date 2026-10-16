@@ -196,7 +196,7 @@ export function robotCall(t, advise) {
   return r.notCovered ? 'P' : r.call;
 }
 
-// chosen: a card already worked out for this robot (the double-dummy robot); otherwise the rule-based choice.
+// chosen: a card (play) or call (bidding) already worked out for this robot by simulation; otherwise the rule-based choice.
 export function playRobot(t, advise, chosen = null) {
   if (phase(t) === 'play') {
     const st = playOf(t.board);
@@ -204,7 +204,8 @@ export function playRobot(t, advise, chosen = null) {
     const card = chosen && legalCards(st, st.next).includes(chosen) ? chosen : robotCard(st, st.next, auctionOf(t.board));
     return card ? { ...t, board: { ...t.board, play: [...splitPlay(t.board.play), card].join(' ') } } : undefined;
   }
-  const c = robotCall(t, advise);
+  // In the bidding, `chosen` is a call from the simulation; it is used only when it is legal.
+  const c = chosen && legalCalls(auctionOf(t.board)).includes(chosen) ? chosen : robotCall(t, advise);
   return c === undefined ? undefined : call(t, turn(t), c);
 }
 

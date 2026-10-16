@@ -98,11 +98,20 @@ It then tries named steps in order:
 
 If none applies, it passes and says why.
 
+**Simulation** (`js/sim-bid.js`, `js/sim-advice.js`). A general-judgment call is then checked by simulation, in the background:
+
+1. Deal the hidden hands 48 ways that fit the auction: the point and length ranges the Decoder reads from each call, then checked by asking the Advisor whether each hidden player would really have made the calls they made.
+2. For each candidate call (the Advisor's call, pass, double, bids in the suits we or partner hold, notrump, the games), finish the auction with the Advisor and score the final contract double dummy with DDS.
+3. Total the results in IMPs against the Advisor's call. A different call replaces it only when it gains at least 0.75 IMPs per deal and does better on more than 52% of the deals.
+
+The work is split across a pool of web workers, one per processor core (`js/table/pool.js`, `js/table/dd-worker.js`). The screen shows the rule-based call at once and swaps in the simulated one when it arrives; table robots use the same check for their own judgment calls. The tag then reads **Simulation**. `tools/ddcheck.mjs` (rule checker) and `tools/simcheck.mjs` (does simulation help?) measure all of this offline.
+
 Every suggestion carries a **confidence tag** (`js/confidence.js`):
 
 - **Agreed system**: a rule answered.
 - **Proposed agreement**: the rule links to a notes subsection marked Proposed (the list is in `js/proposed.js`).
 - **General judgment**: the fallback answered.
+- **Simulation**: the fallback answered and a simulation of likely deals checked it (or changed it).
 
 ## 5. Where each rule lives
 

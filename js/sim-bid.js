@@ -125,21 +125,20 @@ export function candidatesFor(hand, auction, advisedCall, shown = null) {
   return [...out];
 }
 
-// The result of simulating a decision.
-//   call: the call to make; changed: whether it differs from the Advisor's; table: per candidate, mean IMPs gained
-//   against the Advisor's call and the share of deals where it does better.
-export function simulateBid({ hand, auction, advised, dds, rand = Math.random, samples = 16, timeMs = 2500, now = () => Date.now(), candidates }) {
+// Simulate a share of the samples: for each candidate call, the IMPs it gains against the Advisor's call (baseCall)
+// summed over the sampled deals, and on how many deals it does better. One worker runs one share; shares from
+// several workers are combined with mergeParts and judged with decideBid.
+export function simulateParts({ hand, auction, baseCall, dds, rand = Math.random, samples = 16, minSamples = 0, timeMs = 2500, now = () => Date.now(), candidates }) {
   const seat = nextSeat(auction);
-  const baseCall = advised.notCovered ? 'P' : advised.call;
   const ranges = shownRanges(auction);
   const calls = candidates ?? candidatesFor(hand, auction, baseCall, ranges);
-  if (calls.length < 2) return { call: baseCall, changed: false, n: 0, table: {} };
+  const sums = Object.fromEntries(calls.map((c) => [c, { sum: 0, win: 0 }]));
+  if (calls.length < 2) return { n: 0, sums };
   const mySide = sideOf(seat);
-  const total = Object.fromEntries(calls.map((c) => [c, { sum: 0, win: 0 }]));
   const start = now();
   let n = 0;
   let misses = 0;
-  while (n < samples && now() - start < timeMs && misses < 6) {
+  while (n < samples && (n < minSamples || now() - start < timeMs) && misses < 6) {
     const hands = sampleHands(auction, seat, hand, rand, { ranges }) ?? sampleHands(auction, seat, hand, rand, { strict: false, ranges, tries: 3000 });
     if (!hands) { misses++; continue; }
     const cache = new Map();
@@ -157,15 +156,43 @@ export function simulateBid({ hand, auction, advised, dds, rand = Math.random, s
     const base = result(baseCall);
     for (const c of calls) {
       const g = c === baseCall ? 0 : imps(result(c) - base);
-      total[c].sum += g;
-      if (g > 0) total[c].win++;
+      sums[c].sum += g;
+      if (g > 0) sums[c].win++;
     }
     n++;
   }
+  return { n, sums };
+}
+
+// Add the shares of several workers (a share that failed is null and is skipped).
+export function mergeParts(parts) {
+  const out = { n: 0, sums: {} };
+  for (const p of parts) {
+    if (!p?.n) continue;
+    out.n += p.n;
+    for (const [c, v] of Object.entries(p.sums)) {
+      const t = (out.sums[c] ??= { sum: 0, win: 0 });
+      t.sum += v.sum;
+      t.win += v.win;
+    }
+  }
+  return out;
+}
+
+// The decision from the combined samples.
+//   call: the call to make; changed: whether it differs from the Advisor's; table: per candidate, mean IMPs gained
+//   against the Advisor's call and the share of deals where it does better.
+export function decideBid(baseCall, { n, sums }) {
   if (!n) return { call: baseCall, changed: false, n: 0, table: {} };
-  const table = Object.fromEntries(calls.map((c) => [c, { gain: total[c].sum / n, win: total[c].win / n }]));
+  const table = Object.fromEntries(Object.entries(sums).map(([c, v]) => [c, { gain: v.sum / n, win: v.win / n }]));
   let best = baseCall;
-  for (const c of calls) if (c !== baseCall && table[c].gain > table[best].gain) best = c;
+  for (const c of Object.keys(table)) if (c !== baseCall && table[c].gain > (table[best]?.gain ?? 0)) best = c;
   const take = best !== baseCall && table[best].gain >= MIN_GAIN && table[best].win >= MIN_WIN && n >= 8;
   return { call: take ? best : baseCall, changed: take, n, table };
+}
+
+// All in one go (for the checking tools).
+export function simulateBid({ advised, ...opts }) {
+  const baseCall = advised.notCovered ? 'P' : advised.call;
+  return decideBid(baseCall, simulateParts({ ...opts, baseCall }));
 }

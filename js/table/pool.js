@@ -2,6 +2,7 @@
 // so a decision's sampled deals are solved in parallel. Each worker has its own copy of the solver (about 15 MB).
 import { playState, legalCards } from './play.js';
 import { mergeScores, pickCard } from './dd.js';
+import { mergeParts, decideBid } from '../sim-bid.js';
 
 export const poolSize = (cores = globalThis.navigator?.hardwareConcurrency ?? 2) => Math.max(1, Math.min(4, cores - 1));
 
@@ -37,9 +38,15 @@ export function createPool(url, size = poolSize()) {
         w.postMessage({ id, ...makeMessage(k, workers.length) });
       })));
     },
+    // Load the solver (and the bidding rules) in every worker now, so the first decision does not wait for it.
+    warm() { return this.run(() => ({ kind: 'warm' }), 20000); },
     close() { for (const w of workers.splice(0)) w.terminate(); },
   };
 }
+
+// One pool for the whole app, made on first use.
+let shared = null;
+export const sharedPool = () => (shared ??= createPool(new URL('./dd-worker.js', import.meta.url)));
 
 // Choose a robot's card with the pool: the samples are split across the workers and their totals added.
 // total: samples over all workers (more samples, steadier answer); timeMs: time each worker may spend.
@@ -53,4 +60,15 @@ export async function poolChoose(pool, { hands, contract, play, constraints, tot
     samples: Math.ceil(total / n), minSamples: Math.max(2, Math.ceil(6 / n)), timeMs,
   }));
   return pickCard(st, st.next, mergeScores(parts));
+}
+
+// Simulate a judgment call with the pool: sampled deals split across the workers, combined, decided.
+// auction: { dealer, vul, calls }; baseCall: the Advisor's call. Returns { call, changed, n, table } or null.
+export async function poolSimulate(pool, { hand, auction, baseCall, total = 48, timeMs = 2000 }) {
+  const parts = await pool.run((k, n) => ({
+    kind: 'bid', hand, auction, baseCall,
+    samples: Math.ceil(total / n), minSamples: Math.max(2, Math.ceil(8 / n)), timeMs,
+  }), timeMs + 8000);
+  const merged = mergeParts(parts);
+  return merged.n ? decideBid(baseCall, merged) : null;
 }

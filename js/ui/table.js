@@ -10,7 +10,8 @@ import {
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard,
 } from '../table/model.js';
 import { legalCards, controller } from '../table/play.js';
-import { createPool, poolChoose } from '../table/pool.js';
+import { sharedPool, poolChoose } from '../table/pool.js';
+import { simulatedAdvice } from '../sim-advice.js';
 import { resultText } from '../report.js';
 import { reviewRows, systemAuction, contract } from '../table/review.js';
 import { el, segmented, keepFocus } from './dom.js';
@@ -92,10 +93,9 @@ export function tableView(root, store) {
   // In the play, a robot's card comes from the double-dummy robot: sampled deals solved in parallel by a pool of
   // background workers (one per processor core, like the robots on Bridge Base Online); if that is unavailable or
   // slow, the rule-based robot plays instead.
-  let pool = null;
   async function ddCard(t) {
     try {
-      pool ??= createPool(new URL('../table/dd-worker.js', import.meta.url));
+      const pool = sharedPool();
       const b = t.board;
       const rows = explain(auctionOf(b), undefined, { general: true });
       const r = await poolChoose(pool, {
@@ -111,6 +111,16 @@ export function tableView(root, store) {
     }
   }
 
+  // A robot's judgment call in the bidding is checked by simulation; null means "use the rule-based call".
+  async function ddBid(t) {
+    const s = turn(t);
+    if (!s || t.seats[s].kind !== 'robot') return null;
+    const a = auctionOf(t.board);
+    const hand = handOf(t.board, s);
+    const sim = await simulatedAdvice(hand, a, advise(hand, a));
+    return sim?.sim?.changed ? sim.call : null;
+  }
+
   function driveRobots() {
     const t = ui.table;
     if (!t || isOver(t)) return;
@@ -122,7 +132,7 @@ export function tableView(root, store) {
     setTimeout(async () => {
       let failed = false;
       try {
-        const chosen = phase(t) === 'play' ? await ddCard(t) : null;
+        const chosen = phase(t) === 'play' ? await ddCard(t) : phase(t) === 'bidding' ? await ddBid(t) : null;
         await ui.sync.change(t.code, (cur) => (cur && cur.board.n === t.board.n && cur.board.calls === t.board.calls && cur.board.play === t.board.play ? playRobot(cur, advise, chosen) : undefined));
       } catch {
         failed = true;
@@ -386,9 +396,26 @@ export function tableView(root, store) {
         hint
           ? [el('div', { class: 'big' }, callLabel(hint.call)),
               hint.reasons.length ? el('p', {}, el('b', {}, 'Why: '), `${hint.reasons.join('; ')}.`) : null,
-              el('p', {}, el('b', {}, 'Tells partner: '), hint.meaning)]
-          : el('button', { type: 'button', class: 'pill', 'data-key': 'hint', onclick: () => { ui.hint = advise(handOf(t.board, me), a); render(); } }, 'Show the Advisor\'s bid')),
+              el('p', {}, el('b', {}, 'Tells partner: '), hint.meaning),
+              hint.checking ? el('p', { class: 'muted' }, 'Checking by simulation…') : null,
+              hint.close && hint.sim ? el('p', { class: 'close' }, hint.close) : null]
+          : el('button', { type: 'button', class: 'pill', 'data-key': 'hint', onclick: () => showHint(t, me, a) }, 'Show the Advisor\'s bid')),
       biddingBox(a, { doubles: true, onCall: (c) => act((cur) => cur && call(cur, me, c, ui.sync.uid), 'That call did not go through. Try again.') }));
+  }
+
+  // The Advisor's bid at once; a judgment call is then checked by simulation and the answer updated.
+  function showHint(t, me, a) {
+    const hand = handOf(t.board, me);
+    const r = advise(hand, a);
+    const mine = { ...r, checking: r.fallback === 'judgment' };
+    ui.hint = mine;
+    render();
+    if (!mine.checking) return;
+    simulatedAdvice(hand, a, r).then((better) => {
+      if (ui.hint !== mine) return;
+      ui.hint = better ?? { ...r };
+      render();
+    });
   }
 
   function undoButton(t) {
