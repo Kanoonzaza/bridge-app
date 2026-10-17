@@ -133,7 +133,11 @@ export function afterTheirOvercall(e, o, ov) {
     return R(`${cheapest(ov, s)}${s}`, [`${L[s]} ${nm(s)}, ${h} HCP`, 'natural, forcing one round']);
   }
   if (stopper(e, y)) {
-    if (lv === 1 && h >= 8 && h <= 10) return R('1N', [`${h} HCP with a ${nm(y)} stopper`]);
+    if (lv === 1 && h >= 8 && h <= 10) {
+      // One or two points short of a 2-level suit with a good 6-card suit: say that bidding the suit is reasonable too.
+      const six = h < 10 ? SUITS4.find((t) => t !== o && t !== y && L[t] >= 6 && cheapest(ov, t) === 2 && top3(e, t) + ['J', 'T'].filter((r) => e.hand[t].includes(r)).length >= 3) : null;
+      return R('1N', [`${h} HCP with a ${nm(y)} stopper`], six ? { close: `A new suit at the 2-level asks for 10+ HCP, so 1NT is the agreed call. But ${L[six]} ${nm(six)} headed by ${[...'AKQJT'].filter((r) => e.hand[six].includes(r)).join('')} is a good suit: many players would bid 2${six} with ${h} HCP, and over 1NT partner will not know about the long suit. Bidding it is a reasonable choice, not a mistake.` } : {});
+    }
     if (h >= 11 && h <= 12 && above('2N', ov)) return R('2N', [`${h} HCP with a ${nm(y)} stopper: invitational`]);
     if (h >= 13) return R('3N', [`${h} HCP with a ${nm(y)} stopper`]);
   }

@@ -1,7 +1,7 @@
 // Studies one position: generates deals in which the Advisor really would have made the given auction, then at
 // the next decision tries every alternative call (finishing the auction with the Advisor, scored double dummy on
 // the real deal) and totals the IMPs against the Advisor's own call, overall and by the deciding hand.
-// Usage: node tools/ddsituation.mjs "P P 1N 2C" [dealer=N] [vul=none] [samples=300] [procs=4] [dump.json]
+// Usage: node tools/ddsituation.mjs "P P 1N 2C" [dealer=N] [vul=none] [samples=300] [procs=4] [dump.json]   (HANDFILTER="e.hcp >= 9" limits the hand that calls)
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { advise } from '../js/engine.js';
@@ -33,6 +33,9 @@ const matches = (hands, dealer, vul, calls) => {
   return true;
 };
 
+// HANDFILTER="e.hcp >= 8 && e.hcp <= 10 && Math.max(...Object.values(e.len)) >= 6" keeps only deals where the hand to call fits.
+const keep = process.env.HANDFILTER ? new Function('e', `return (${process.env.HANDFILTER});`) : null;
+
 async function work({ calls, dealer, vul, samples, seed }) {
   const { loadDds, Dds } = await import('../js/vendor/dds/api.js');
   const dds = new Dds(await loadDds());
@@ -43,6 +46,7 @@ async function work({ calls, dealer, vul, samples, seed }) {
     tries++;
     const hands = deal(r);
     if (!matches(hands, dealer, vul, calls)) continue;
+    if (keep && !keep(evaluate(hands[nextSeat(calls.reduce((x, c) => addCall(x, c), { dealer, vul, calls: [] }))]))) continue;
     const { resTable } = dds.CalcDDTablePBN({ cards: `N:${SEATS.map((s) => packHand(hands[s])).join(' ')}` });
     const a = calls.reduce((x, c) => addCall(x, c), { dealer, vul, calls: [] });
     const seat = nextSeat(a);

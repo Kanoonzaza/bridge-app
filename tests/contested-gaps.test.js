@@ -252,3 +252,12 @@ test('board 13: 10 HCP with a 6-card suit headed by A-K-J overcalls 2♣ (the 2-
   assert.match(p.reasons.join(' | '), /headed by AKJT.*only 9 HCP.*10\+/);
   assert.match(p.close, /many players would overcall 2 of clubs with 9 HCP/);
 });
+
+test('board 17: 9 HCP with a good 6-card suit over their 1-level overcall bids 1NT by agreement and says 2-level suit is reasonable', () => {
+  const r = advise(parseHand('A8 T74 AJT643 83'), { dealer: 'N', vul: 'none', calls: ['1C', '1S'] });
+  assert.equal(r.call, '1N');
+  assert.match(r.close, /6 diamonds headed by AJT.*many players would bid 2D with 9 HCP/);
+  // A poor suit gets no such note, and 10 HCP simply bids the suit.
+  assert.equal(advise(parseHand('A8 T74 K98643 83'), { dealer: 'N', vul: 'none', calls: ['1C', '1S'] }).close ?? null, null);
+  assert.equal(advise(parseHand('A8 K74 AJT643 83'), { dealer: 'N', vul: 'none', calls: ['1C', '1S'] }).call, '2D');
+});
