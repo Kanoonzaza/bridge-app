@@ -210,7 +210,7 @@ for (const [dealer, calls, hand, want, why] of LEB_ANSWERS) {
 }
 
 test('the Advisor\'s whole auction on board 25 no longer passes out a Stayman cue', () => {
-  const H = { N: 'Q763.2.KT6.97542', E: 'AT52.AJ5.94.AKT8', S: 'J94.T9863.AJ82.Q', W: 'K8.KQ74.Q753.J63' };
+  const H = { N: 'Q763.2.KT6.97542', E: 'AT52.AJ5.94.AKT8', S: 'J94.T9863.AKJ2.Q', W: 'K8.KQ74.Q753.J63' };
   const seats = ['N', 'E', 'S', 'W'];
   let calls = [];
   for (let i = 0; i < 20; i++) {
@@ -223,15 +223,21 @@ test('the Advisor\'s whole auction on board 25 no longer passes out a Stayman cu
 });
 
 test('DONT explanations say the shape, the strength and the vulnerability (board 25)', () => {
-  const r = advise(parseHand('J94 T9863 AJ82 Q'), { dealer: 'N', vul: 'EW', calls: ['P', '1N'] });
+  const r = advise(parseHand('J94 T9863 AKJ2 Q'), { dealer: 'N', vul: 'EW', calls: ['P', '1N'] });
   assert.equal(r.call, '2D');
   const why = r.reasons.join(' | ');
   assert.match(why, /4 diamonds and 5 hearts/);
-  assert.match(why, /8 HCP: a playing hand/);
+  assert.match(why, /11 HCP: a playing hand/);
   assert.match(why, /they are vulnerable: a good time to get in/);
   assert.match(r.plan, /Partner passes with diamonds/);
   assert.match(r.close, /Your hearts \(T9863\) have no top honor/);
   const strong = advise(parseHand('J94 AKJ98 A982 Q'), { dealer: 'N', vul: 'none', calls: ['P', '1N'] });
   assert.equal(strong.call, '2D');
   assert.equal(strong.close ?? null, null);
+});
+
+test('DONT needs 10 HCP: eight and nine point hands with the shape pass', () => {
+  for (const h of ['J94 T9863 AJ82 Q', 'KJ4 T9863 QJ82 5']) {
+    assert.equal(advise(parseHand(h), { dealer: 'N', vul: 'none', calls: ['P', '1N'] }).call, 'P', h);
+  }
 });

@@ -33,9 +33,9 @@ for (const pre of [['(1N)'], ['(1N)', 'P']]) {
 export function dont(e, vul = 'none') {
   const h = e.hcp;
   const L = e.len;
-  if (h < 8 || h > 15) return R('P', [`${h} HCP: ${h < 8 ? 'too weak' : 'defend'}`]);
+  if (h < 10 || h > 15) return R('P', [`${h} HCP: ${h < 10 ? 'too weak: DONT needs 10 or more' : 'defend'}`]);
   const risk = vul === 'we' || vul === 'both' ? ['we are vulnerable: DONT needs a sound hand, because a double costs more'] : vul === 'they' ? ['they are vulnerable: a good time to get in, the risk is low'] : [];
-  const sh = (...parts) => [...parts, `${h} HCP: a playing hand (DONT is roughly 8–15)`, ...risk];
+  const sh = (...parts) => [...parts, `${h} HCP: a playing hand (DONT is roughly 10–15)`, ...risk];
   const five = (a, b) => L[a] >= 4 && L[b] >= 4 && Math.max(L[a], L[b]) >= 5;
   if (five('H', 'S')) return R('2H', sh(`${L.H} hearts and ${L.S} spades`), { plan: 'Partner passes with hearts, or bids 2♠ with spades.' });
   if (L.S >= 6 && !SUITS4.some((s) => s !== 'S' && L[s] >= 4)) return R('2S', sh(`${L.S} spades, one-suited`));
