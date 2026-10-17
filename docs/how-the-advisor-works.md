@@ -104,7 +104,7 @@ If none applies, it passes and says why.
 2. For each candidate call (the Advisor's call, pass, double, bids in the suits we or partner hold, notrump, the games), finish the auction with the Advisor and score the final contract double dummy with DDS.
 3. Total the results in IMPs against the Advisor's call. A different call replaces it only when it gains at least 0.75 IMPs per deal and does better on more than 52% of the deals.
 
-The work is split across a pool of web workers, one per processor core (`js/table/pool.js`, `js/table/dd-worker.js`). The screen shows the rule-based call at once and swaps in the simulated one when it arrives; table robots use the same check for their own judgment calls. The tag then reads **Simulation**. `tools/ddcheck.mjs` (rule checker) and `tools/simcheck.mjs` (does simulation help?) measure all of this offline.
+The work is split across a pool of web workers, one per processor core (`js/table/pool.js`, `js/table/dd-worker.js`). The screen shows the rule-based call at once and swaps in the simulated one when it arrives; table robots use the same check for their own judgment calls. The tag then reads **Simulation**. `tools/ddcheck.mjs` (rule checker) and `tools/simcheck.mjs` (does simulation help?) measure all of this offline. To test a rule change, check out `main` next to the working copy and run `node tools/match.mjs ../that-checkout`: the same deals are bid by both versions at both tables and scored double dummy, so the result is the change in IMPs per board with the luck of the deal removed. `tools/ddsituation.mjs` studies one auction, listing what every alternative call would score for each type of hand.
 
 Every suggestion carries a **confidence tag** (`js/confidence.js`):
 
