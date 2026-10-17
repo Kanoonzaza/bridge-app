@@ -277,3 +277,12 @@ test('board 18: 7 spades and 13 HCP opposite 1NT sign off with Texas and then as
   assert.equal(sign('KJT8652 A83 J 87'), 'P');
   assert.equal(sign('KJT865 A83 J A74'), 'P');
 });
+
+test('board 19: a light opener with a 7-card suit bids game over Drury; a 6-card suit needs 11–12', () => {
+  const reply = (hand, M = 'H') => advise(parseHand(hand), { dealer: 'S', vul: 'EW', calls: ['P', 'P', `1${M}`, 'P', '2C', 'P'] }).call;
+  assert.equal(reply('5 AKQJ865 J976 7'), '4H', 'board 19: 11 HCP and 7 hearts');
+  assert.equal(reply('5 AKJ8654 J97 72'), '4H', '9 HCP and 7 hearts');
+  assert.equal(reply('KJ AQJ865 J97 72'), '4H', '12 HCP and 6 hearts');
+  assert.equal(reply('KJ AJ9865 J97 72'), '2H', '10 HCP and 6 hearts: light, stop');
+  assert.equal(reply('K92 AQJ86 J97 72'), '2H', '11 HCP and 5 hearts: light, stop');
+});
