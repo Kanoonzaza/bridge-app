@@ -242,10 +242,13 @@ test('DONT needs 10 HCP: eight and nine point hands with the shape pass', () => 
   }
 });
 
-test('board 13: 10 HCP with a 6-card suit headed by A-K-J passes by agreement, and says 2-level overcall is a fair choice', () => {
+test('board 13: 10 HCP with a 6-card suit headed by A-K-J overcalls 2♣ (the 2-level overcall starts at 10)', () => {
   const r = advise(parseHand('9 Q42 862 AKJT98'), { dealer: 'N', vul: 'both', calls: ['P', '1S'] });
-  assert.equal(r.call, 'P');
-  assert.match(r.reasons.join(' | '), /headed by AKJT.*only 10 HCP.*11\+/);
-  assert.match(r.close, /many players would overcall 2 of clubs with 10 HCP/);
-  assert.equal(advise(parseHand('9 Q42 862 AKJT98'), { dealer: 'N', vul: 'both', calls: ['P', '1S'] }).fallback, undefined);
+  assert.equal(r.call, '2C');
+  assert.equal(r.fallback, undefined);
+  // One point short: pass by agreement, and say a 2-level overcall is a fair choice.
+  const p = advise(parseHand('9 J42 862 AKJT98'), { dealer: 'N', vul: 'both', calls: ['P', '1S'] });
+  assert.equal(p.call, 'P');
+  assert.match(p.reasons.join(' | '), /headed by AKJT.*only 9 HCP.*10\+/);
+  assert.match(p.close, /many players would overcall 2 of clubs with 9 HCP/);
 });

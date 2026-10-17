@@ -15,7 +15,7 @@ for (const x of SUITS4) {
     def(k, '1N', balancing ? `Balancing 1NT: 11–14 balanced with a ${nm(x)} stopper.` : `15–18 balanced with a ${nm(x)} stopper. Systems on.`, { hcp: balancing ? [11, 14] : [15, 18], balanced: true });
     for (const s of SUITS4.filter((t) => t !== x)) {
       const lv = cheapest(`1${x}`, s);
-      const lo = (lv === 1 ? 8 : 11) - (balancing ? 1 + (lv === 2) : 0);
+      const lo = lv === 1 ? (balancing ? 7 : 8) : (balancing ? 9 : 10);
       const light = lv === 1 && !balancing ? ' (7 with a good 6-card suit)' : '';
       def(k, `${lv}${s}`, `${balancing ? 'Balancing overcall' : 'Overcall'}: ${lv === 1 ? '' : 'good '}5+ ${nm(s)}${lv === 1 ? '' : ' (usually 6)'}, ${lo}–16${light}.`, { hcp: [light ? 7 : lo, 16], len: { [s]: [5, 13] } });
       if (!balancing) {
@@ -139,7 +139,7 @@ export function overcall(e, x, balancing, vul = 'none') {
     // A 6-card suit with two of the top five honours makes up for a point at the 1-level.
     const six = !balancing && L[s] >= 6 && [...'AKQJT'].filter((r) => e.hand[s].includes(r)).length >= 2;
     if (lv === 1 && h >= (balancing || six ? 7 : 8) && h <= 16) return R(`1${s}`, [`${L[s]} ${nm(s)}, ${h} HCP: overcall`, ...(h < 8 && !balancing ? ['a good 6-card suit makes up for the missing point'] : [])]);
-    if (lv === 2 && h >= (balancing ? 9 : 11) && h <= 16 && (top3(e, s) >= 2 || L[s] >= 6)) return R(`2${s}`, [`${L[s]} good ${nm(s)}, ${h} HCP: 2-level overcall`]);
+    if (lv === 2 && h >= (balancing ? 9 : 10) && h <= 16 && (top3(e, s) >= 2 || L[s] >= 6)) return R(`2${s}`, [`${L[s]} good ${nm(s)}, ${h} HCP: 2-level overcall`]);
   }
   if (L[x] <= 2 && others.every((s) => L[s] >= 3) && h >= (balancing ? 9 : 12)) return R('X', [`short in ${nm(x)}, support for the other suits`, `${h} HCP: takeout double`]);
   return overcallPass(e, x, balancing);
@@ -151,7 +151,7 @@ function overcallPass(e, x, balancing) {
   const L = e.len;
   const others = SUITS4.filter((s) => s !== x);
   const honors = (s) => ['A', 'K', 'Q'].filter((r) => e.hand[s].includes(r)).join('') || 'no top honor';
-  const minTwo = balancing ? 9 : 11;
+  const minTwo = balancing ? 9 : 10;
   // One point short of a 2-level overcall with a strong long suit: say so, and that many players would bid it.
   const near = others.find((t) => L[t] >= 6 && cheapest(`1${x}`, t) === 2 && h === minTwo - 1 && top3(e, t) >= 2);
   if (near) {
