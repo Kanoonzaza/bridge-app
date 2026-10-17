@@ -1,8 +1,9 @@
 // Does simulating judgment calls make the Advisor's results better? One side simulates its judgment calls
 // while the other plays the plain Advisor, on the same deals; the result is compared with the all-plain auction,
 // double dummy, in IMPs for the simulating side. Positive = simulation helps.
-// Usage: node tools/simcheck.mjs [deals=200] [seed=3] [procs=4] [samples=16]
+// Usage: node tools/simcheck.mjs [deals=200] [seed=3] [procs=4] [samples=16]   (DUMP=file.json saves every changed deal; PLAYED=8 plays them out; SIMALL=1 also simulates rule-based calls, to see an upper bound)
 import { spawn } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 import { advise, explain, summarize } from '../js/engine.js';
 import { SEATS, addCall, isComplete, nextSeat, sideOf } from '../js/auction.js';
 import { deal } from './coverage.mjs';
@@ -70,7 +71,7 @@ async function run({ deals, seed, start, step, samples }) {
         const seat = nextSeat(a);
         const res = advise(hands[seat], a);
         let call = res.notCovered ? 'P' : res.call;
-        if (simSide && sideOf(seat) === simSide && res.fallback === 'judgment') {
+        if (simSide && sideOf(seat) === simSide && (res.fallback === 'judgment' || (process.env.SIMALL && a.calls.length > 0))) {
           const s = simulateBid({ hand: hands[seat], auction: a, advised: res, dds, rand, samples });
           out.decisions++;
           if (s.changed) { out.changed++; log.push({ calls: a.calls.join(' ') || '(opening)', seat, advisor: call, sim: s.call, table: s.table }); }
@@ -120,6 +121,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const pl = tot.rows.filter((x) => x.played !== null);
       console.log(`Played out with the card-play robots (${process.env.PLAYED} samples a card): ${((tot.pns + tot.pew) / (2 * tot.n)).toFixed(3)} IMPs per deal (NS ${(tot.pns / tot.n).toFixed(3)}, EW ${(tot.pew / tot.n).toFixed(3)}); ${pl.length} deals differ: better ${pl.filter((x) => x.played > 0).length}, worse ${pl.filter((x) => x.played < 0).length}`);
     }
+    if (process.env.DUMP) writeFileSync(process.env.DUMP, JSON.stringify(tot.rows));
     const changed = tot.rows.filter((x) => x.gain !== 0);
     console.log(`Deals where a changed call changed the result: ${changed.length}; better ${changed.filter((x) => x.gain > 0).length}, worse ${changed.filter((x) => x.gain < 0).length}`);
     for (const x of changed.sort((a, b) => a.gain - b.gain).slice(0, 5)) console.log(`  worst ${x.gain} IMPs | ${x.dealer} ${x.vul} | ${x.calls} | ${x.log.map((l) => `${l.seat}: ${l.advisor}→${l.sim} after ${l.calls}`).join('; ')} | ${x.hands}`);
