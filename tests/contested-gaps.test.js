@@ -261,3 +261,19 @@ test('board 17: 9 HCP with a good 6-card suit over their 1-level overcall bids 1
   assert.equal(advise(parseHand('A8 T74 K98643 83'), { dealer: 'N', vul: 'none', calls: ['1C', '1S'] }).close ?? null, null);
   assert.equal(advise(parseHand('A8 K74 AJT643 83'), { dealer: 'N', vul: 'none', calls: ['1C', '1S'] }).call, '2D');
 });
+
+test('board 18: 7 spades and 13 HCP opposite 1NT sign off with Texas and then ask for key cards', () => {
+  const H = { N: 'KJT8652.A83.J.A7', E: '943.Q7.QT984.865', S: 'AQ.K642.A52.QT32', W: '7.JT95.K763.KJ94' };
+  const seats = ['E', 'S', 'W', 'N'];
+  let calls = [];
+  for (let i = 0; i < 20; i++) {
+    const r = advise(parseHand(H[seats[calls.length % 4]].replace(/\./g, ' ')), { dealer: 'E', vul: 'NS', calls });
+    calls = [...calls, r.call];
+    if (calls.length >= 4 && calls.slice(-3).every((c) => c === 'P')) break;
+  }
+  assert.equal(calls.join(' '), 'P 1N P 4H P 4S P 4N P 5S P 6S P P P');
+  // Fewer than 12 HCP, or a 6-card suit: Texas is a sign-off.
+  const sign = (hand) => advise(parseHand(hand), { dealer: 'S', vul: 'none', calls: ['1N', 'P', '4H', 'P', '4S', 'P'] }).call;
+  assert.equal(sign('KJT8652 A83 J 87'), 'P');
+  assert.equal(sign('KJT865 A83 J A74'), 'P');
+});

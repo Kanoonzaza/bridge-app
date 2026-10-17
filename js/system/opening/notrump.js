@@ -15,7 +15,7 @@ export function respond1NT(e) {
   const long = ['H', 'S'].filter((M) => e.len[M] >= 6).sort((a, b) => e.len[b] - e.len[a])[0];
   const xfer = (M) => (M === 'H' ? '2D' : '2H');
   if (long) {
-    if (h + e.len[long] - 6 >= 10 && h <= 15) return R(M4(long), [`${e.len[long]} ${NAME[long]}`, `${h} HCP: game, no slam interest`], { plan: `Opener bids 4${SYMBOL[long]}: pass.` });
+    if (h + e.len[long] - 6 >= 10 && h <= 15) return R(M4(long), [`${e.len[long]} ${NAME[long]}`, `${h} HCP: game${e.len[long] >= 7 && h >= 12 ? ', with slam interest after the transfer' : ', no slam interest'}`], { plan: e.len[long] >= 7 && h >= 12 ? `Opener bids 4${SYMBOL[long]}: bid 4NT (key cards) for slam.` : `Opener bids 4${SYMBOL[long]}: pass.` });
     return R(xfer(long), [`${e.len[long]} ${NAME[long]}`, 'transfer: the strong hand declares'],
       { plan: h <= 7 ? `Pass 2${SYMBOL[long]}.` : h <= 9 ? `Then 3${SYMBOL[long]} (invitational).` : `Then 4${SYMBOL[long]} (mild slam interest).` });
   }
@@ -229,6 +229,14 @@ for (const m of ['C', 'D']) {
 }
 add(['1N', '4D'], callTable([['4H', 'Completes the Texas transfer.', {}]]), () => R('4H', ['complete the Texas transfer']));
 add(['1N', '4H'], callTable([['4S', 'Completes the Texas transfer.', {}]]), () => R('4S', ['complete the Texas transfer']));
+// After the Texas transfer is completed, a 7-card major with 12+ HCP opposite 15–17 asks for key cards: slam makes
+// more often than not (measured double dummy), and Texas is otherwise a sign-off.
+const slamAfterTexas = (M) => [
+  callTable([['P', 'Sign-off: game only.', {}], ['4N', `RKCB for ${NAME[M]}: slam try with a 7+ card suit and 12+ HCP.`, { len: { [M]: [7, 13] }, hcp: [12, 37] }]]),
+  (e) => (e.len[M] >= 7 && e.hcp >= 12 ? R('4N', [`${e.len[M]} ${NAME[M]} and ${e.hcp} HCP opposite 15–17: slam is likely`, 'ask for key cards (RKCB)']) : R('P', ['game only: partner placed the contract'])),
+];
+add(['1N', '4D', '4H'], ...slamAfterTexas('H'));
+add(['1N', '4H', '4S'], ...slamAfterTexas('S'));
 add(['1N', '4N'], callTable([['P', '15: decline.', {}], ['6N', '17, or 16 with a good 5-card suit: accept.', {}]]), (e) => quantReply(e, 15));
 add(['1N', '4C'], GERBER_REPLIES, gerberReply(4));
 for (const pass of ['3N', '6N']) add(['1N', pass], callTable([['P', 'To play.', {}]]), () => R('P', ['partner placed the contract']));
