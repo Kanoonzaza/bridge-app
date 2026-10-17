@@ -23,12 +23,13 @@ export function misfit(hand, row) {
     if (lo >= 4 && e.len[suit] < lo) out.push(`it shows ${lo}+ ${NAME[suit]}; you have ${e.len[suit]}`);
   }
   if (sh.balanced && !e.balanced) out.push(`it shows a balanced hand; yours is ${e.pattern.join('-')}`);
-  const st = /stopper in (♠|♥|♦|♣)/.exec(row.meaning ?? '');
-  if (st) {
-    const x = SYM_SUIT[st[1]];
+  // "with a stopper in ♠ and ♦": every suit named needs a stopper.
+  const st = /stoppers? in ((?:♠|♥|♦|♣)(?:(?:,| and) (?:♠|♥|♦|♣))*)/.exec(row.meaning ?? '');
+  for (const sym of st ? st[1].match(/[♠♥♦♣]/g) : []) {
+    const x = SYM_SUIT[sym];
     const h = hand[x];
     const stopped = /A/.test(h) || (/K/.test(h) && h.length >= 2) || (/Q/.test(h) && h.length >= 3) || (/J/.test(h) && h.length >= 4);
-    if (!stopped) out.push(`it claims a ${st[1]} stopper; you hold ${h ? [...h].join('') : 'no cards'} in ${NAME[x]}`);
+    if (!stopped) out.push(`it claims a ${sym} stopper; you hold ${h ? [...h].join('') : 'no cards'} in ${NAME[x]}`);
   }
   return out;
 }

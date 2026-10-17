@@ -7,6 +7,7 @@ import { SUITS, RANKS } from './cards.js';
 import { advise, explain, summarize } from './engine.js';
 import { SEATS, addCall, isComplete, nextSeat, seatAt, legalCalls, sideOf } from './auction.js';
 import { packHand } from './table/model.js';
+import { misfit } from './table/review.js';
 import { contract, score } from './table/play.js';
 
 const STRAIN = { S: 0, H: 1, D: 2, C: 3, N: 4 };
@@ -125,13 +126,24 @@ export function candidatesFor(hand, auction, advisedCall, shown = null) {
   return [...out];
 }
 
+// A call must not claim what the hand lacks: the meaning the Decoder would give it (a stopper in their suits, a
+// balanced hand, a minimum length or strength) has to fit the hand. The Advisor's own call is always kept.
+export function honest(hand, auction, calls, advisedCall) {
+  const rows = (c) => explain({ ...auction, calls: [...auction.calls, c] }, undefined, { general: true })[auction.calls.length];
+  return calls.filter((c) => {
+    if (c === advisedCall) return true;
+    const row = rows(c);
+    return !row || misfit(hand, row).length === 0;
+  });
+}
+
 // Simulate a share of the samples: for each candidate call, the IMPs it gains against the Advisor's call (baseCall)
 // summed over the sampled deals, and on how many deals it does better. One worker runs one share; shares from
 // several workers are combined with mergeParts and judged with decideBid.
 export function simulateParts({ hand, auction, baseCall, dds, rand = Math.random, samples = 16, minSamples = 0, timeMs = 2500, now = () => Date.now(), candidates }) {
   const seat = nextSeat(auction);
   const ranges = shownRanges(auction);
-  const calls = candidates ?? candidatesFor(hand, auction, baseCall, ranges);
+  const calls = candidates ?? honest(hand, auction, candidatesFor(hand, auction, baseCall, ranges), baseCall);
   const sums = Object.fromEntries(calls.map((c) => [c, { sum: 0, win: 0 }]));
   if (calls.length < 2) return { n: 0, sums };
   const mySide = sideOf(seat);

@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { advise } from '../js/engine.js';
 import { unpackHand } from '../js/table/model.js';
-import { sampleHands, candidatesFor, simulateParts, mergeParts, decideBid, imps, MIN_GAIN } from '../js/sim-bid.js';
+import { sampleHands, candidatesFor, honest, simulateParts, mergeParts, decideBid, imps, MIN_GAIN } from '../js/sim-bid.js';
+import { misfit } from '../js/table/review.js';
+import { explain } from '../js/engine.js';
 import { confidence } from '../js/confidence.js';
 
 const rng = (seed) => () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
@@ -67,4 +69,17 @@ test('simulation: a hand with 8 spades opposite a limit raise keeps the game bid
   assert.ok(d.call);
   assert.equal(confidence({ ...r, sim: { changed: true, n: 6 } }).label, 'Simulation');
   assert.match(confidence({ ...r, sim: { changed: false, n: 6 } }).note, /held up/);
+});
+
+test('board 16: the simulation may not pick a call whose meaning the hand does not fit', () => {
+  const west = unpackHand('KJ74.KQT7.762.62');
+  const auction = { dealer: 'W', vul: 'EW', calls: 'P 1S 2C P P X P 2D P 2S P P'.split(' ') };
+  // 2NT here is "natural, with a stopper in ♠ and ♦": West has ♦762.
+  const row = explain({ ...auction, calls: [...auction.calls, '2N'] }, undefined, { general: true })[auction.calls.length];
+  assert.match(row.meaning, /stopper in ♠ and ♦/);
+  assert.match(misfit(west, row).join(' '), /claims a ♦ stopper; you hold 762/);
+  const kept = honest(west, auction, ['P', 'X', '2N', '3N'], 'P');
+  assert.deepEqual(kept.sort(), ['P', 'X']);
+  // The Advisor's own call stays even if it would not pass the test.
+  assert.ok(honest(west, auction, ['2N'], '2N').includes('2N'));
 });
