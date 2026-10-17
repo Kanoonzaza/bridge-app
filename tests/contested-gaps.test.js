@@ -286,3 +286,14 @@ test('board 19: a light opener with a 7-card suit bids game over Drury; a 6-card
   assert.equal(reply('KJ AJ9865 J97 72'), '2H', '10 HCP and 6 hearts: light, stop');
   assert.equal(reply('K92 AQJ86 J97 72'), '2H', '11 HCP and 5 hearts: light, stop');
 });
+
+test('board 23: 5 clubs and 4 diamonds opens 1♣ and says why (the longer minor first)', () => {
+  const open = (hand) => advise(parseHand(hand), { dealer: 'S', vul: 'both', calls: [] });
+  const r = open('K42 J KJ64 A8632');
+  assert.equal(r.call, '1C');
+  assert.match(r.reasons.join(' | '), /also 4 diamonds: with 5-4 in the minors, open the longer suit first/);
+  // A stronger 4-card diamond suit: still 1♣ by agreement, with a note that some players open 1♦.
+  const s = open('K42 J AQJ4 98632');
+  assert.equal(s.call, '1C');
+  assert.match(s.close ?? '', /4-card diamonds is stronger than your 5-card clubs: some players open 1D/);
+});

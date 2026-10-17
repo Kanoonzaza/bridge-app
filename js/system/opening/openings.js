@@ -61,6 +61,8 @@ function oneLevelWhy(e, seat, s) {
   const r = [`${e.hcp} HCP`];
   const tied = SUITS.filter((t) => e.len[t] === e.pattern[0]).length > 1;
   if (e.len[s] >= 5) r.push(`${e.len[s]}-card ${NAME[s]}${tied ? ' (equal long suits: open the higher)' : ''}`);
+  const other = s === 'C' ? 'D' : s === 'D' ? 'C' : null;
+  if (e.len[s] >= 5 && other && e.len[other] === 4 && !tied) r.push(`also 4 ${NAME[other]}: with ${e.len[s]}-4 in the minors, open the longer suit first (${other === 'D' ? 'then show the diamonds later' : 'the clubs can be shown later'})`);
   else if (s === 'D' && e.len.D === 3) r.push('4♠ 4♥ 3♦ 2♣: the one hand that opens 1♦ with three');
   else r.push(`no 5-card suit: open the ${s === 'D' ? 'diamonds (4+)' : 'clubs (3+)'}`);
   if (seat === 4) r.push(e.hcp >= 14 ? '14+ HCP: always open in 4th seat' : `Rule of 15: ${e.hcp} + ${e.len.S} spades = ${ruleOf15(e)}`);
@@ -70,6 +72,12 @@ function oneLevelWhy(e, seat, s) {
 }
 
 function oneLevelClose(e, seat) {
+  const m = e.len.C >= 5 && e.len.D === 4 ? 'C' : e.len.D >= 5 && e.len.C === 4 ? 'D' : null;
+  if (m) {
+    const o = m === 'C' ? 'D' : 'C';
+    const top = (t) => ['A', 'K', 'Q'].filter((r) => e.hand[t].includes(r)).length;
+    if (top(o) > top(m)) return `Your 4-card ${NAME[o]} is stronger than your 5-card ${NAME[m]}: some players open 1${o} here. Our agreement is longest suit first (1${m}), which keeps the length message clear for partner.`;
+  }
   if (e.pattern.join('') === '4441') return 'Three 4-card suits: open 1♦, or 1♣ when the singleton is a diamond.';
   if (seat <= 2 && e.hcp < 12 && ruleOf20(e) === 20) return 'Exactly 20 on the Rule of 20: open, but treat it as a light opening.';
   return null;
