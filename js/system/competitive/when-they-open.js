@@ -152,6 +152,14 @@ function overcallPass(e, x, balancing) {
   const others = SUITS4.filter((s) => s !== x);
   const honors = (s) => ['A', 'K', 'Q'].filter((r) => e.hand[s].includes(r)).join('') || 'no top honor';
   const minTwo = balancing ? 9 : 11;
+  // One point short of a 2-level overcall with a strong long suit: say so, and that many players would bid it.
+  const near = others.find((t) => L[t] >= 6 && cheapest(`1${x}`, t) === 2 && h === minTwo - 1 && top3(e, t) >= 2);
+  if (near) {
+    const top = [...'AKQJT'].filter((r) => e.hand[near].includes(r)).join('');
+    return R('P', [`${L[near]} ${nm(near)} headed by ${top}, but only ${h} HCP: our 2-level overcall asks for ${minTwo}+`, 'pass'], {
+      close: `A ${L[near]}-card suit headed by ${top} is strong enough that many players would overcall 2 of ${nm(near)} with ${h} HCP. Our agreement says ${minTwo}+ because a 2-level overcall can be doubled and partner, often weak, may have little to offer. Bidding it is a reasonable choice, not a mistake.`,
+    });
+  }
   const weak3 = !balancing ? others.find((t) => L[t] === 6 && cheapest(`1${x}`, t) + 1 >= 3 && h >= 5 && h <= 10) : null;
   if (weak3) return R('P', [`6 ${nm(weak3)}: a weak jump to the 3-level needs 7 cards (a jump overcall that lands at the 2-level needs only 6)`, `${h} HCP: too weak for an ordinary overcall`]);
   if (h < (balancing ? 7 : 8)) return R('P', [`${h} HCP: too weak to act`]);
