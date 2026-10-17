@@ -182,3 +182,10 @@ button.card{font:inherit;font-weight:700;cursor:pointer;padding:3px 0 0;appearan
 .t-top{grid-area:top}.t-left{grid-area:left}.t-right{grid-area:right}.t-bottom{grid-area:bottom}
 .tspot{min-height:50px;display:flex;align-items:center}
 .tbox.last .card{opacity:.65}
+
+.dd-wrap{overflow-x:auto}
+.dd-table{border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:100%}
+.dd-table th,.dd-table td{padding:4px 8px;text-align:center;border-bottom:1px solid var(--rule)}
+.dd-table thead th{font-size:.8em;color:var(--muted);font-weight:600}
+.dd-table tbody th{text-align:left}
+.dd-hit{font-weight:700;background:var(--accent-soft)}

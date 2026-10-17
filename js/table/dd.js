@@ -128,7 +128,7 @@ export function sampleLayout(st, seat, constraints, rand) {
 const pbnHand = (cards) => SUITS.map((s) => cards.filter((c) => c[0] === s).map((c) => c[1]).sort((a, b) => RANKS.indexOf(a) - RANKS.indexOf(b)).join('')).join('.');
 
 // Score every legal card on one layout: tricks for the side to play from here on.
-function solve(dds, st, hands) {
+export function solve(dds, st, hands) {
   const cur = st.current;
   const first = cur.length ? cur[0].seat : st.next;
   const res = dds.SolveBoardPBN({

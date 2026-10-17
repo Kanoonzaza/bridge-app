@@ -38,6 +38,21 @@ export function createPool(url, size = poolSize()) {
         w.postMessage({ id, ...makeMessage(k, workers.length) });
       })));
     },
+    // Send one message to a single worker (the first) and wait for its answer; null if it fails or is too slow.
+    one(message, timeoutMs = 30000) {
+      try {
+        if (!workers.length) workers.push(spawn());
+      } catch {
+        return Promise.resolve(null);
+      }
+      const w = workers[0];
+      return new Promise((resolve) => {
+        const id = ++seq;
+        pending.set(id, { worker: w, resolve });
+        setTimeout(() => { if (pending.has(id)) { pending.delete(id); resolve(null); } }, timeoutMs);
+        w.postMessage({ id, ...message });
+      });
+    },
     // Load the solver (and the bidding rules) in every worker now, so the first decision does not wait for it.
     warm() { return this.run(() => ({ kind: 'warm' }), 20000); },
     close() { for (const w of workers.splice(0)) w.terminate(); },
