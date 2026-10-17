@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { advise } from '../js/engine.js';
 import { unpackHand } from '../js/table/model.js';
-import { sampleHands, candidatesFor, honest, simulateParts, mergeParts, decideBid, imps, MIN_GAIN } from '../js/sim-bid.js';
+import { sampleHands, candidatesFor, honest, isSacrifice, simulateParts, mergeParts, decideBid, imps, MIN_GAIN } from '../js/sim-bid.js';
 import { misfit } from '../js/table/review.js';
 import { explain } from '../js/engine.js';
 import { confidence } from '../js/confidence.js';
@@ -82,4 +82,21 @@ test('board 16: the simulation may not pick a call whose meaning the hand does n
   assert.deepEqual(kept.sort(), ['P', 'X']);
   // The Advisor's own call stays even if it would not pass the test.
   assert.ok(honest(west, auction, ['2N'], '2N').includes('2N'));
+});
+
+test('board 25: a push to the 5- or 6-level over their bid is a sacrifice, scored doubled when it fails', async () => {
+  const a = { dealer: 'N', vul: 'EW', calls: 'P 1C 1S 2H P 3H P 4H 5D X P P 6D P P P'.split(' ') };
+  assert.equal(isSacrifice(a, { bid: '6D', declarer: 'N', doubled: '' }), true);
+  assert.equal(isSacrifice(a, { bid: '4H', declarer: 'W', doubled: '' }), false, 'their own game is not a sacrifice');
+  assert.equal(isSacrifice(a, { bid: '3D', declarer: 'N', doubled: '' }), false, 'below the 5-level');
+  assert.equal(isSacrifice(a, { bid: '5D', declarer: 'N', doubled: 'X' }), false, 'already doubled');
+  assert.equal(isSacrifice({ dealer: 'N', vul: 'none', calls: ['1D', 'P', '2D', 'P', '5D'] }, { bid: '5D', declarer: 'N', doubled: '' }), false, 'our own game after our opening');
+  // The robot with 7 diamonds and 4 HCP does not run to 6♦ after East doubles 5♦ (the simulation used to).
+  const { loadDds, Dds } = await import('../js/vendor/dds/api.js');
+  const dds = new Dds(await loadDds());
+  const hand = unpackHand('2..KT97532.J9876');
+  const auction = { dealer: 'N', vul: 'EW', calls: 'P 1C 1S 2H P 3H P 4H 5D X P P'.split(' ') };
+  const r = simulateParts({ hand, auction, baseCall: 'P', dds, rand: rng(3), samples: 12, minSamples: 12, timeMs: 1e9 });
+  assert.ok(r.n >= 8);
+  assert.ok(!r.sums['6D'] || r.sums['6D'].sum / r.n < MIN_GAIN, '6♦ does not beat passing');
 });

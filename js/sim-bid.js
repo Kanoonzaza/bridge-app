@@ -79,6 +79,14 @@ export function sampleHands(auction, seat, hand, rand, { strict = true, tries = 
   return null;
 }
 
+// A contract at the 5-level or higher, bid by the side that did not make the first bid of the auction: a sacrifice
+// or a competitive push. The Advisor, defending, does not double these as boldly as people do.
+export function isSacrifice(a, k) {
+  if (k.doubled || Number(k.bid[0]) < 5) return false;
+  const first = a.calls.findIndex((c) => /^[1-7]/.test(c));
+  return first >= 0 && sideOf(seatAt(a, first)) !== sideOf(k.declarer);
+}
+
 // Finish the auction with the Advisor playing every seat (no simulation inside).
 function finish(hands, a) {
   for (let g = 0; g < 60 && !isComplete(a); g++) {
@@ -160,8 +168,10 @@ export function simulateParts({ hand, auction, baseCall, dds, rand = Math.random
       if (!k) return 0;
       const key = `${k.bid}${k.doubled}${k.declarer}`;
       if (!cache.has(key)) {
-        const s = score(k, auction.vul ?? 'none', declarerTricks(dds, hands, k));
-        cache.set(key, sideOf(k.declarer) === mySide ? s : -s);
+        const tricks = declarerTricks(dds, hands, k);
+        // A sacrifice that fails would be doubled by sensible opponents, so score it doubled.
+        const sc = score(isSacrifice(a, k) && tricks < Number(k.bid[0]) + 6 ? { ...k, doubled: 'X' } : k, auction.vul ?? 'none', tricks);
+        cache.set(key, sideOf(k.declarer) === mySide ? sc : -sc);
       }
       return cache.get(key);
     };
