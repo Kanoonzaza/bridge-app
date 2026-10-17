@@ -3,8 +3,8 @@
 //   -> { id, part: { n, total } }: scores of the legal cards on sampled deals.
 // Messages in (kind 'bid'): { id, kind: 'bid', hand, auction, baseCall, samples, minSamples, timeMs }
 //   -> { id, part: { n, sums } }: IMPs gained by each candidate call on sampled deals.
-// Messages in (kind 'review'): { id, kind: 'review', hands, contract, play, dealer, vul }
-//   -> { id, part }: the double-dummy review of a finished board (see ddreview.js).
+// Messages in (kind 'review'): { id, kind: 'review', hands, dealer, vul }
+//   -> { id, part }: the double-dummy table and par of a finished board (see ddreview.js).
 // Kind 'warm' loads the solver (and the bidding rules) ahead of time. part is null if a job failed.
 import { loadDds, Dds } from '../vendor/dds/api.js';
 import { playState } from './play.js';
@@ -23,7 +23,7 @@ self.onmessage = async (e) => {
     }
     if (kind === 'review') {
       const { ddReview } = await import('./ddreview.js');
-      self.postMessage({ id, part: ddReview(dds, { hands, k: contract, play, dealer: e.data.dealer, vul: e.data.vul }) });
+      self.postMessage({ id, part: ddReview(dds, { hands, dealer: e.data.dealer, vul: e.data.vul }) });
       return;
     }
     if (kind === 'bid') {

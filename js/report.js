@@ -6,7 +6,7 @@ import { SEATS } from './auction.js';
 import { auctionOf, handOf, packHand, playOf } from './table/model.js';
 import { score } from './table/play.js';
 import { reviewRows, systemAuction, contract } from './table/review.js';
-import { ddLines, tableRows } from './table/ddtext.js';
+import { parLine, tableRows } from './table/ddtext.js';
 import { confidence } from './confidence.js';
 
 const COMPASS = { N: 'North', E: 'East', S: 'South', W: 'West' };
@@ -62,7 +62,7 @@ export function boardReport(t, me, dd = null) {
     `Contract: ${kText(contract(a))}`,
     ...(contract(a) ? [`Result: ${resultText(b)}`] : []),
     `The Advisor would bid: ${calls(sys.calls)} → ${kText(contract(sys))}`,
-    ...(dd ? ['', 'Double dummy:', ...ddLines(dd, { k: contract(a), took: playOf(b)?.complete ? playOf(b).declarerTricks : null, name: (s) => COMPASS[s] }).map((l) => `- ${l}`), `- Tricks as declarer (N E S W): ${tableRows(dd.table).map((r) => `${r.strain} ${r.N} ${r.E} ${r.S} ${r.W}`).join(' · ')}`] : []),
+    ...(dd ? ['', `Double dummy (tricks as declarer, N E S W): ${tableRows(dd.table).map((r) => `${r.strain} ${r.N} ${r.E} ${r.S} ${r.W}`).join(' · ')}`, ...(parLine(dd, { name: (x) => COMPASS[x] }) ? [parLine(dd, { name: (x) => COMPASS[x] })] : [])] : []),
     '',
     rows.length ? 'Where the Advisor differs (each player\'s first difference only):' : 'Every player\'s call matched the Advisor.',
     ...rows.map((r) => `- ${COMPASS[r.seat]} bid ${callLabel(r.call)}; Advisor: ${callLabel(r.advisor.call)}${r.advisor.conf ? ` [${r.advisor.conf.label}]` : ''} (${r.advisor.meaning}${r.advisor.reasons?.length ? `; ${r.advisor.reasons.join('; ')}` : ''})${r.advisor.close ? ` Close call: ${r.advisor.close}` : ''}${r.misfit?.length ? ` [Why ${callLabel(r.call)} does not fit the hand: ${r.misfit.join('; ')}]` : ''}`),

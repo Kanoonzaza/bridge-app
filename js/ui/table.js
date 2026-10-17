@@ -18,7 +18,7 @@ import { el, segmented, keepFocus } from './dom.js';
 import { confRow } from './conf.js';
 import { biddingBox } from './bidding-box.js';
 import { copyButton } from './copy.js';
-import { ddLines, tableRows } from '../table/ddtext.js';
+import { parLine, tableRows } from '../table/ddtext.js';
 import { boardReport } from '../report.js';
 
 const COMPASS = { N: 'North', E: 'East', S: 'South', W: 'West' };
@@ -433,9 +433,9 @@ export function tableView(root, store) {
     return el('button', { type: 'button', class: 'pill', 'data-key': 'undo', onclick: () => act((cur) => cur && undo(cur, ui.sync.uid), 'Too late to undo: another player has called since.') }, '↶ Undo my last call');
   }
 
-  // Double dummy, once the board is over: what the cards could have made, par, and the cards that gave away tricks.
-  // Solved in a background worker (about a second); the board screen shows it when it arrives.
-  const ddKey = (t) => `${t.code}:${t.board.n}:${t.board.calls}:${t.board.play}:${t.board.skip ? 1 : 0}`;
+  // Double dummy, once the board is over: the tricks each seat takes in each strain, and par.
+  // Solved in a background worker (about half a second); the board screen shows it when it arrives.
+  const ddKey = (t) => `${t.code}:${t.board.n}`;
   function ensureDD(t) {
     const key = ddKey(t);
     if (ui.dd.has(key)) return;
@@ -444,7 +444,7 @@ export function tableView(root, store) {
     const b = t.board;
     let job;
     try {
-      job = sharedPool().one({ kind: 'review', hands: Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)])), contract: contract(auctionOf(b)), play: b.play, dealer: b.dealer, vul: b.vul });
+      job = sharedPool().one({ kind: 'review', hands: Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)])), dealer: b.dealer, vul: b.vul });
     } catch {
       job = Promise.resolve(null);
     }
@@ -454,17 +454,16 @@ export function tableView(root, store) {
     ensureDD(t);
     const d = ui.dd.get(ddKey(t));
     const head = el('div', { class: 'label' }, 'Double dummy');
-    if (d === undefined) return el('div', { class: 'panel muted', 'data-key': 'dd' }, head, el('p', {}, 'Checking the play with the double-dummy solver…'));
+    if (d === undefined) return el('div', { class: 'panel muted', 'data-key': 'dd' }, head, el('p', {}, 'Solving the deal…'));
     if (!d) return el('div', { class: 'panel muted', 'data-key': 'dd' }, head, el('p', {}, 'The double-dummy solver is not available on this device.'));
-    const st = playOf(t.board);
-    const took = st && st.complete ? st.declarerTricks : null;
     const rows = tableRows(d.table);
+    const par = parLine(d, { name: (s) => relative(me, s), side: (s) => (me ? (sideOf(s) === sideOf(me) ? 'your side' : 'their side') : sideOf(s) === 'NS' ? 'N-S' : 'E-W') });
     const seats = ['N', 'E', 'S', 'W'];
     return el('div', { class: 'panel', 'data-key': 'dd' }, head,
-      ...ddLines(d, { k, took, name: (s) => relative(me, s), side: (s) => (me ? (sideOf(s) === sideOf(me) ? 'your side' : 'their side') : sideOf(s) === 'NS' ? 'N-S' : 'E-W') }).map((line) => el('p', {}, line)),
       el('div', { class: 'dd-wrap' }, el('table', { class: 'dd-table' },
         el('thead', {}, el('tr', {}, el('th', {}, 'Tricks as declarer'), ...seats.map((s) => el('th', {}, relative(me, s))))),
-        el('tbody', {}, ...rows.map((r) => el('tr', {}, el('th', {}, r.strain), ...seats.map((s) => el('td', { class: k && k.declarer === s && callLabel(k.bid).endsWith(r.strain) ? 'dd-hit' : '' }, String(r[s])))))))));
+        el('tbody', {}, ...rows.map((r) => el('tr', {}, el('th', {}, r.strain), ...seats.map((s) => el('td', { class: k && k.declarer === s && callLabel(k.bid).endsWith(r.strain) ? 'dd-hit' : '' }, String(r[s])))))))),
+      par ? el('p', { class: 'muted' }, par) : null);
   }
 
   // past: the previous board, looked at again from this phone only (no Next board / Bid it again).
