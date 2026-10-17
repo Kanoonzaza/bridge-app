@@ -14,6 +14,7 @@ import { boardReport } from '../js/report.js';
 import { mulberry32 } from './helpers.js';
 
 const rand = mulberry32(7);
+const SEATS_ALL = ['N', 'E', 'S', 'W'];
 const fresh = (opponents = 'robot') => newTable({ code: 'ABC234', uid: 'me', name: 'Kan', opponents, rand });
 // North and South played by robots: the creator stands up first.
 const robotsNS = (t) => setSeatKind(setSeatKind(leave(t, 'me'), 'S', 'robot'), 'N', 'robot');
@@ -346,4 +347,42 @@ test('parallel scoring: shares from several workers add up like one run, and the
   assert.ok(legalCards(st, 'N').includes(pick.card));
   assert.equal(pick.samples, 8);
   assert.ok(ddChoose(dds, st, 'N', { maxSamples: 2, minSamples: 2, timeMs: 1e9 }).card);
+});
+
+test('four humans at one table: each plays only their own seat, a whole board and the next one, no robots involved', async () => {
+  const hub = memoryHub();
+  const uids = { S: 'me', N: 'pard', E: 'opp1', W: 'opp2' };
+  const sync = Object.fromEntries(Object.values(uids).map((u) => [u, hub(u)]));
+  await sync.me.change('ABC234', () => fresh('players'));
+  for (const s of ['N', 'E', 'W']) await sync[uids[s]].change('ABC234', (t) => sit(t, s, uids[s], s));
+  let seen = null;
+  sync.me.watch('ABC234', (t) => { seen = t; });
+  assert.ok(SEATS_ALL.every((s) => seen.seats[s].kind === 'human'), 'all four seats are people');
+
+  // Bidding: the Advisor stands in for what each person would choose; only the owner of the seat can make the call.
+  for (let g = 0; g < 60 && !isDone(seen); g++) {
+    const s = turn(seen);
+    const r = advise(unpackHand(seen.board.hands[s]), auctionOf(seen.board));
+    const c = r.notCovered ? 'P' : r.call;
+    const other = uids[SEATS_ALL[(SEATS_ALL.indexOf(s) + 1) % 4]];
+    assert.ok(!(await sync[other].change('ABC234', (t) => call(t, s, c, other))), 'nobody can call for another seat');
+    assert.equal(playRobot(seen, advise), undefined, 'no robot acts at a table of people');
+    await sync[uids[s]].change('ABC234', (t) => call(t, s, c, uids[s]));
+  }
+  assert.ok(isDone(seen));
+  if (phase(seen) === 'play') {
+    for (let g = 0; g < 60 && phase(seen) === 'play'; g++) {
+      const st = playOf(seen.board);
+      const who = actor(seen);
+      const card = legalCards(st, st.next)[0];
+      const stranger = uids[SEATS_ALL.find((x) => x !== who && x !== st.next)];
+      assert.ok(!(await sync[stranger].change('ABC234', (t) => playCard(t, st.next, card, stranger))), 'nobody plays another player\'s card');
+      assert.equal(playRobot(seen, advise), undefined);
+      await sync[uids[who]].change('ABC234', (t) => playCard(t, st.next, card, uids[who]));
+    }
+  }
+  assert.equal(phase(seen), 'over');
+  await sync.opp2.change('ABC234', (t) => nextBoard(t, rand));
+  assert.equal(seen.board.n, 2);
+  assert.ok(seen.history[1], 'the finished board is kept for the review');
 });
