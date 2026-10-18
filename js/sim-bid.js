@@ -174,7 +174,7 @@ export function sensible(hand, auction, calls, advisedCall, shown) {
 // Simulate a share of the samples: for each candidate call, the IMPs it gains against the Advisor's call (baseCall)
 // summed over the sampled deals, and on how many deals it does better. One worker runs one share; shares from
 // several workers are combined with mergeParts and judged with decideBid.
-export function simulateParts({ hand, auction, baseCall, dds, rand = Math.random, samples = 16, minSamples = 0, timeMs = 2500, now = () => Date.now(), candidates }) {
+export function simulateParts({ hand, auction, baseCall, dds, estimate = null, rand = Math.random, samples = 16, minSamples = 0, timeMs = 2500, now = () => Date.now(), candidates }) {
   const seat = nextSeat(auction);
   const ranges = shownRanges(auction);
   const calls = candidates ?? sensible(hand, auction, honest(hand, auction, candidatesFor(hand, auction, baseCall, ranges), baseCall), baseCall, ranges);
@@ -194,9 +194,10 @@ export function simulateParts({ hand, auction, baseCall, dds, rand = Math.random
       if (!k) return 0;
       const key = `${k.bid}${k.doubled}${k.declarer}`;
       if (!cache.has(key)) {
-        const tricks = declarerTricks(dds, hands, k);
         // A sacrifice that fails would be doubled by sensible opponents, so score it doubled.
-        const sc = score(isSacrifice(a, k) && tricks < Number(k.bid[0]) + 6 ? { ...k, doubled: 'X' } : k, auction.vul ?? 'none', tricks);
+        const scoreAt = (tricks) => score(isSacrifice(a, k) && tricks < Number(k.bid[0]) + 6 ? { ...k, doubled: 'X' } : k, auction.vul ?? 'none', tricks);
+        // With an estimator the tricks are a distribution (probabilities for 0..13), and the score its expectation.
+        const sc = estimate ? estimate(hands, k).reduce((sum, p, t) => (p ? sum + p * scoreAt(t) : sum), 0) : scoreAt(declarerTricks(dds, hands, k));
         cache.set(key, sideOf(k.declarer) === mySide ? sc : -sc);
       }
       return cache.get(key);

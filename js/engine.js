@@ -128,7 +128,23 @@ export function candidates(situation, entries = ALL, onlyPickable = false) {
   return [...own, ...candidatesFor(alias, entries, onlyPickable).filter((c) => !have.has(c.call))];
 }
 
+// The matching rules depend only on the auction and its context, not on the hand: remember them (the simulation asks
+// about the same auction prefixes thousands of times).
+const MEMO = new WeakMap();
 function candidatesFor(situation, entries, onlyPickable) {
+  let memo = MEMO.get(entries);
+  if (!memo) MEMO.set(entries, (memo = new Map()));
+  const k = `${onlyPickable ? 1 : 0}|${situation.key.join(' ')}|${JSON.stringify(situation.ctx)}`;
+  let hit = memo.get(k);
+  if (!hit) {
+    hit = findCandidates(situation, entries, onlyPickable);
+    if (memo.size > 20000) memo.clear();
+    memo.set(k, hit);
+  }
+  return hit;
+}
+
+function findCandidates(situation, entries, onlyPickable) {
   const best = new Map();
   const idx = indexOf(entries);
   for (const entry of [...(idx.byLen.get(situation.key.length) ?? []), ...idx.tails]) {
