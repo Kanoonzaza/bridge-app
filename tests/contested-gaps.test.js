@@ -316,3 +316,15 @@ test('board 31: advancing partner\'s takeout double after (1♦)–X–(1♥): a
   assert.equal(adv('A842 865 963 K72').call, 'P', 'no 5-card suit: pass');
   assert.equal(adv('A8543 K65 963 72', ['1C', 'X', '1S']).call, 'P', 'their suit is the one I hold: no suit of my own');
 });
+
+test('DONT bid doubled: pass with 4+ in the suit, otherwise redouble; the bidder then shows the other suit', () => {
+  const adv = (hand, calls, dealer = 'W') => advise(parseHand(hand), { dealer, vul: 'none', calls }).call;
+  assert.equal(adv('KJ53 A762 84 A953', ['1N', '2C', 'X']), 'P', '4 clubs');
+  assert.equal(adv('KJ53 A762 J84 953', ['1N', '2C', 'X']), 'XX', '3 clubs');
+  assert.equal(adv('KJ53 A762 84 A953', ['1N', '2D', 'X']), 'XX', '2 diamonds');
+  assert.equal(adv('KJ53 A62 842 A53', ['1N', '2H', 'X']), 'XX', '3 hearts');
+  assert.equal(adv('KJ53 A762 84 A953', ['1N', 'P', 'P', '2C', 'X'], 'E'), 'P', 'balancing seat too');
+  assert.equal(adv('KJ853 A762 J84 5', ['1N', '2C', 'X', 'XX', 'P']), '2S', 'clubs and spades: show spades');
+  assert.equal(adv('KJ853 A762 3 J854', ['1N', '2D', 'X', 'XX', 'P']), '2S', 'diamonds and spades');
+  assert.equal(adv('KJ8532 AJ762 3 4', ['1N', '2H', 'X', 'XX', 'P']), '2S', 'spades longer than hearts');
+});

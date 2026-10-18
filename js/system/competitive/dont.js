@@ -28,6 +28,17 @@ for (const pre of [['(1N)'], ['(1N)', 'P']]) {
   for (const s of ['D', 'H', 'S']) def([...pre, '2C', '2D'], s === 'D' ? 'P' : `2${s}`, s === 'D' ? 'My other suit is diamonds.' : `My other suit is ${nm(s)}.`, {}, DONT);
   def([...pre, '2D', '2H'], 'P', 'My major is hearts.', {}, DONT);
   def([...pre, '2D', '2H'], '2S', 'My major is spades.', {}, DONT);
+  // Their penalty double of our DONT bid: pass with length in the suit, otherwise redouble to ask for the other suit.
+  for (const c of ['2C', '2D', '2H']) {
+    const s = c[1];
+    def([...pre, c, '(X)'], 'P', `Doubled: I have ${nm(s)} (4+): play here.`, { len: { [s]: [4, 13] } }, DONT);
+    def([...pre, c, '(X)'], 'XX', `Doubled: I am short in ${nm(s)}: please bid your other suit.`, { len: { [s]: [0, 3] } }, DONT);
+  }
+  for (const s of ['D', 'H', 'S']) def([...pre, '2C', '(X)', 'XX'], s === 'D' ? '2D' : `2${s}`, `My other suit is ${nm(s)}.`, {}, DONT);
+  for (const s of ['H', 'S']) def([...pre, '2D', '(X)', 'XX'], `2${s}`, `My major is ${nm(s)}.`, {}, DONT);
+  def([...pre, '2D', '(X)', 'XX'], 'P', 'Stay in diamonds (redoubled).', {}, DONT);
+  def([...pre, '2H', '(X)', 'XX'], '2S', 'My other major is spades.', {}, DONT);
+  def([...pre, '2H', '(X)', 'XX'], 'P', 'Stay in hearts (redoubled).', {}, DONT);
 }
 
 export function dont(e, vul = 'none') {
@@ -67,6 +78,20 @@ for (const pre of [['(1N)'], ['(1N)', 'P']]) {
   advise([...pre, '2D'], (e) => (e.len.D >= 3 ? R('P', ['diamond support: play here']) : R('2H', ['pass or correct'])), [adv('2D')]);
   advise([...pre, '2H'], (e) => (e.len.H >= e.len.S ? R('P', ['hearts: play here']) : R('2S', ['spades are better'])), [adv('2H')]);
   advise([...pre, '2S'], (e) => (e.len.S >= 4 && e.hcp >= 10 ? R('3S', ['a fit and values: raise']) : R('P', ['pass'])), [adv('2S')]);
+  const dbl = (c, ...more) => (bal ? { dealer: 'E', calls: ['1N', 'P', 'P', c, 'X', ...more] } : { dealer: 'W', calls: ['1N', c, 'X', ...more] });
+  for (const c of ['2C', '2D', '2H']) {
+    const s = c[1];
+    advise([...pre, c, '(X)'], (e) => (e.len[s] >= 4 ? R('P', [`${e.len[s]} ${nm(s)}: play here, doubled`]) : R('XX', [`only ${e.len[s]} ${nm(s)}: redouble, partner bids the other suit`])), [dbl(c)]);
+  }
+  advise([...pre, '2C', '(X)', 'XX'], (e) => {
+    const s = longestOf(e, ['D', 'H', 'S']);
+    return R(`2${s}`, [`my other suit is ${nm(s)}`]);
+  }, [dbl('2C', 'XX', 'P')]);
+  advise([...pre, '2D', '(X)', 'XX'], (e) => {
+    const s = e.len.H >= e.len.S ? 'H' : 'S';
+    return e.len[s] >= 4 ? R(`2${s}`, [`my major is ${nm(s)}`]) : R('P', ['stay in diamonds']);
+  }, [dbl('2D', 'XX', 'P')]);
+  advise([...pre, '2H', '(X)', 'XX'], (e) => (e.len.S > e.len.H ? R('2S', ['spades are longer']) : R('P', ['hearts are as long: stay'])), [dbl('2H', 'XX', 'P')]);
   const own = (their, list) => (bal ? { dealer: 'W', calls: ['1N', 'P', 'P', their[0], 'P', their[1], 'P'] } : { dealer: 'E', calls: ['1N', their[0], 'P', their[1], 'P'] });
   advise([...pre, 'X', '2C'], (e) => {
     const s = longestOf(e, SUITS4);
