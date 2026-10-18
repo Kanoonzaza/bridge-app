@@ -152,10 +152,22 @@ export function honest(hand, auction, calls, advisedCall) {
 export function sensible(hand, auction, calls, advisedCall, shown) {
   const seat = nextSeat(auction);
   const pard = SEATS[(SEATS.indexOf(seat) + 2) % 4];
+  const legal = legalCalls(auction);
+  const known = (x) => hand[x].length + (shown?.[pard]?.len?.[x]?.[0] ?? 0);
   return calls.filter((c) => {
-    if (c === advisedCall || !/^[5-7][CDHSN]$/.test(c)) return true;
-    if (c[1] === 'N') return false;
-    return hand[c[1]].length + (shown?.[pard]?.len?.[c[1]]?.[0] ?? 0) >= 8;
+    if (c === advisedCall) return true;
+    if (/^[5-7][CDHSN]$/.test(c)) {
+      if (c[1] === 'N') return false;
+      if (known(c[1]) < 8) return false;
+    }
+    // No surprise jumps: a suit bid two or more levels above the cheapest way to bid it needs a known 9-card fit
+    // (or 8 cards of my own), because partner cannot read it as anything but a guess.
+    const m = /^([1-7])([CDHS])$/.exec(c);
+    if (m) {
+      const cheap = legal.find((x) => x.length === 2 && x[1] === m[2] && /^[1-7]/.test(x));
+      if (cheap && Number(m[1]) - Number(cheap[0]) >= 2 && known(m[2]) < 9 && hand[m[2]].length < 8) return false;
+    }
+    return true;
   });
 }
 

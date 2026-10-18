@@ -111,3 +111,16 @@ test('board 25: no phantom sacrifice at the 5-level in a suit our side never bid
   // The Advisor's own call is never removed.
   assert.deepEqual(sensible(north, auction, ['5D'], '5D', shown), ['5D']);
 });
+
+test('board 31: no surprise jumps from the simulation (a jump of two levels needs a known 9-card fit or 8 cards of my own)', () => {
+  const east = unpackHand('JT8543.865.963.7');
+  const auction = { dealer: 'S', vul: 'NS', calls: ['1D', 'X', '1H'] };
+  const none = {};
+  assert.deepEqual(sensible(east, auction, ['P', '1S', '2S', '3S', '4S'], 'P', none), ['P', '1S', '2S'], '6 spades alone: no 3♠ or 4♠');
+  // Partner has shown 3+ spades: 9 trumps, so the jump is allowed.
+  const fit = { W: { len: { S: [3, 13] } } };
+  assert.deepEqual(sensible(east, auction, ['P', '4S'], 'P', fit), ['P', '4S']);
+  // Eight cards of my own are enough.
+  const long = unpackHand('KJT85432.86.96.7');
+  assert.deepEqual(sensible(long, auction, ['P', '4S'], 'P', none), ['P', '4S']);
+});
