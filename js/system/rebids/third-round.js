@@ -78,8 +78,10 @@ for (const [x, y] of [['C', 'D'], ['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S']
   });
   const jump = [['P', 'Decline.'], ['3N', 'To play.']];
   if (isMajor(x)) jump.push([`4${x}`, 'Game.']);
+  else jump.push(['6N', 'Slam: 14+ opposite a good 6-card minor and 16–18.']);
   sit([`1${x}`, `1${y}`, `3${x}`], jump, (e) => {
     if (e.hcp < 8) return R('P', [`${e.hcp} HCP opposite 16–18: decline`]);
+    if (!isMajor(x) && e.hcp >= 14) return R('6N', [`${e.hcp} HCP opposite 16–18 and a good minor suit: ${e.hcp + 16}+ points make small slam`]);
     return isMajor(x) && e.len[x] >= 2 ? R(`4${x}`, [`${e.len[x]} ${nm(x)}: game`]) : R('3N', [`${e.hcp} HCP: game`]);
   });
   sit([`1${x}`, `1${y}`, '3N'], [['P', 'To play.']], () => R('P', ['opener bid game']));

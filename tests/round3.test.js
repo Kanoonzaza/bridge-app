@@ -56,3 +56,10 @@ test('round 3 sweep', () => {
     }
   }
 });
+
+test('board 50: 14+ HCP opposite a jump rebid in a minor bids 6NT, not 3NT', () => {
+  const full = (calls, hand) => advise(parseHand(hand), { dealer: 'E', vul: 'NS', calls }).call;
+  assert.equal(full(['P', '1C', 'P', '1S', 'P', '3C', 'P'], 'AKQ92 K9 A54 843'), '6N', '16 HCP');
+  assert.equal(full(['P', '1C', 'P', '1S', 'P', '3C', 'P'], 'AKJ92 K9 Q54 843'), '3N', '12 HCP: game only');
+  assert.equal(full(['P', '1D', 'P', '1H', 'P', '3D', 'P'], 'K4 AKJ92 Q54 K83'), '6N', 'diamonds too');
+});
