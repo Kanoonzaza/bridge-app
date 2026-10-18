@@ -124,3 +124,11 @@ test('board 31: no surprise jumps from the simulation (a jump of two levels need
   const long = unpackHand('KJT85432.86.96.7');
   assert.deepEqual(sensible(long, auction, ['P', '4S'], 'P', none), ['P', '4S']);
 });
+
+test('board 82: no pushing the same suit higher over our own doubled bid, and no simulated slams', () => {
+  const east = unpackHand('764.J7653.K98.A9');
+  const doubled = { dealer: 'E', vul: 'NS', calls: 'P P 1D 1S X XX 2H 2S 4H X P 4S 5H X P P'.split(' ') };
+  assert.deepEqual(sensible(east, doubled, ['P', '6H', '6S'], 'P', {}), ['P'], 'over our doubled 5♥: neither 6♥ nor any 6-level');
+  const over = { dealer: 'E', vul: 'NS', calls: 'P P 1D 1S X XX 2H 2S 4H X P 4S'.split(' ') };
+  assert.deepEqual(sensible(east, over, ['P', '5H'], 'P', { W: { len: { H: [4, 13] } } }), ['P', '5H'], 'after their 4♠ over our doubled 4♥ a 5♥ push is an ordinary competitive call');
+});

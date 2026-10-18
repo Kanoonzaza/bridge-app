@@ -154,8 +154,15 @@ export function sensible(hand, auction, calls, advisedCall, shown) {
   const pard = SEATS[(SEATS.indexOf(seat) + 2) % 4];
   const legal = legalCalls(auction);
   const known = (x) => hand[x].length + (shown?.[pard]?.len?.[x]?.[0] ?? 0);
+  // Our own bid that was doubled (the doubler's call is the last that is not a pass): no second pull in the same suit.
+  // Bidding the doubled suit higher after partner passed the double is a wild push, not a decision.
+  const live = auction.calls.map((c, i) => ({ c, i })).filter((x) => x.c !== 'P');
+  const doubled = live.at(-1)?.c === 'X' && live.length >= 2 && /^[1-7]/.test(live.at(-2).c) && sideOf(seatAt(auction, live.at(-2).i)) === sideOf(seat) ? live.at(-2).c : null;
   return calls.filter((c) => {
     if (c === advisedCall) return true;
+    // Slams are the Advisor's business (its slam rules ask for key cards); a simulated slam or sacrifice at the 6-level is a guess.
+    if (/^[67]/.test(c)) return false;
+    if (doubled && /^[1-7][CDHSN]$/.test(c) && c[1] === doubled[1] && c > doubled) return false;
     if (/^[5-7][CDHSN]$/.test(c)) {
       if (c[1] === 'N') return false;
       if (known(c[1]) < 8) return false;
