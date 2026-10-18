@@ -133,12 +133,11 @@ test('opener after partner\'s pass and their balancing double (board 15)', () =>
 });
 
 test('a pass over their opening says why no overcall (board 16)', () => {
-  const r = advise(parseHand('KQ A94 632 AJ863'), { dealer: 'W', vul: 'EW', calls: ['P', 'P', '1D'] });
+  const r = advise(parseHand('Q5 A94 632 AJ863'), { dealer: 'W', vul: 'EW', calls: ['P', 'P', '1D'] });
   assert.equal(r.call, 'P');
   const why = r.reasons.join(' | ');
   assert.match(why, /5 clubs with A: a 2-level overcall needs a good suit/);
   assert.match(why, /3 diamonds: too many in their suit for a takeout double/);
-  assert.ok(r.close, 'flagged as a close call');
 });
 
 test('a weak jump overcall at the 3-level needs 7 cards (board 18)', () => {
@@ -334,4 +333,12 @@ test('after a negative double and their 1NT, 12+ with four cards in their suit d
   assert.equal(ask('A5 KJ94 Q3 AQ853'), 'X', '14 HCP, four hearts');
   assert.equal(ask('A5 KJ94 53 AQ853'), 'X', '12 HCP, four hearts');
   assert.equal(ask('A5 KJ9 Q3 AQ8532'), '2C', 'three hearts and a six-card suit: compete');
+});
+
+test('boards 73 and 86: 12+ HCP with a 5-card suit holding one top honour overcalls at the 2-level; 10–11 passes', () => {
+  const over = (hand, calls, dealer = 'N') => advise(parseHand(hand), { dealer, vul: 'EW', calls }).call;
+  assert.equal(over('K109 J92 AT753 A3', ['P', 'P', '1H']), '2D', '12 HCP, A10753');
+  assert.equal(over('AQJ4 A10862 T3 J7', ['1S'], 'E'), '2H', 'board 86: 12 HCP, A10862');
+  assert.equal(over('K109 J92 AT753 63', ['P', 'P', '1H']), 'P', '8 HCP');
+  assert.equal(over('Q109 J92 AT753 A3', ['P', 'P', '1H']), 'P', '10 HCP: needs two top honours');
 });

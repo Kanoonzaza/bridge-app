@@ -140,10 +140,14 @@ export function overcall(e, x, balancing, vul = 'none') {
     const six = !balancing && L[s] >= 6 && [...'AKQJT'].filter((r) => e.hand[s].includes(r)).length >= 2;
     if (lv === 1 && h >= (balancing || six ? 7 : 8) && h <= 16) return R(`1${s}`, [`${L[s]} ${nm(s)}, ${h} HCP: overcall`, ...(h < 8 && !balancing ? ['a good 6-card suit makes up for the missing point'] : [])]);
     if (lv === 2 && h >= (balancing ? 9 : 10) && h <= 16 && (top3(e, s) >= 2 || L[s] >= 6)) return R(`2${s}`, [`${L[s]} good ${nm(s)}, ${h} HCP: 2-level overcall`]);
+    // A 5-card suit with one top honour is enough when the hand has the points (12+): the extras make up for the suit.
+    if (lv === 2 && !balancing && h >= 12 && h <= 16 && top3(e, s) >= 1) return R(`2${s}`, [`${L[s]} ${nm(s)} with ${honors5(e, s)}, ${h} HCP: the points make up for a suit with one top honor`]);
   }
   if (L[x] <= 2 && others.every((s) => L[s] >= 3) && h >= (balancing ? 9 : 12)) return R('X', [`short in ${nm(x)}, support for the other suits`, `${h} HCP: takeout double`]);
   return overcallPass(e, x, balancing);
 }
+
+const honors5 = (e, s) => ['A', 'K', 'Q'].filter((r) => e.hand[s].includes(r)).join('');
 
 // Why no overcall: name the options that came closest and what each one lacks.
 function overcallPass(e, x, balancing) {
@@ -168,7 +172,7 @@ function overcallPass(e, x, balancing) {
   const long = [...others].filter((t) => L[t] >= 5).sort((a, b) => L[b] - L[a])[0];
   if (long && cheapest(`1${x}`, long) === 2) {
     if (h >= minTwo && h <= 16) {
-      why.push(`${L[long]} ${nm(long)} with ${honors(long)}: a 2-level overcall needs a good suit (two of the A-K-Q) or 6 cards`);
+      why.push(`${L[long]} ${nm(long)} with ${honors(long)}: a 2-level overcall needs a good suit (two of the A-K-Q), 6 cards, or 12+ HCP with one top honor`);
       if (h >= 13) close = `${h} HCP and ${L[long]} ${nm(long)}: many players would overcall 2 of ${nm(long)} anyway, especially not vulnerable. Our agreement asks for a better suit: at the 2-level, a weak suit opposite a weak partner can be doubled and go for a big penalty.`;
     } else if (h < minTwo) why.push(`${h} HCP: too few for a 2-level overcall (${minTwo}+)`);
   }
