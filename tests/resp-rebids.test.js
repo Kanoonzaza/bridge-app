@@ -61,3 +61,9 @@ test('responder second-bid sweep', () => {
     }
   }
 });
+
+test('board 56: 19+ balanced with no fit bids 6NT after 1D-1H-1S, 13-18 bids 3NT', () => {
+  const full = (calls, hand) => advise(parseHand(hand), { dealer: 'W', vul: 'none', calls }).call;
+  assert.equal(full(['P', '1D', 'P', '1H', 'P', '1S', 'P'], 'A5 A9842 A93 AK3'), '6N', '19 HCP');
+  assert.equal(full(['P', '1D', 'P', '1H', 'P', '1S', 'P'], 'A5 KJ842 A93 KQ3'), '3N', '17 HCP: game');
+});
