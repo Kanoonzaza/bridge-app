@@ -68,5 +68,21 @@ export function reviewRows(b, seats) {
   });
 }
 
+// Where a robot's call departed from the Advisor's (the table's simulation chose it): each robot seat's first difference.
+export function robotDepartures(b, seats) {
+  const a = auctionOf(b);
+  const seen = new Set();
+  const out = [];
+  a.calls.forEach((call, i) => {
+    const seat = seatAt(a, i);
+    if (seats[seat].kind !== 'robot' || seen.has(seat)) return;
+    const r = advise(handOf(b, seat), { ...a, calls: a.calls.slice(0, i) });
+    if (r.notCovered || r.call === call) return;
+    seen.add(seat);
+    out.push({ seat, call, advisor: r });
+  });
+  return out;
+}
+
 // "4♠ by North, doubled" style summary of the final contract.
 export { contract } from './play.js';

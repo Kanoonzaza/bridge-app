@@ -5,7 +5,7 @@ import { callLabel } from './format.js';
 import { SEATS } from './auction.js';
 import { auctionOf, handOf, packHand, playOf } from './table/model.js';
 import { score } from './table/play.js';
-import { reviewRows, systemAuction, contract } from './table/review.js';
+import { reviewRows, robotDepartures, systemAuction, contract } from './table/review.js';
 import { parLine, tableRows } from './table/ddtext.js';
 import { confidence } from './confidence.js';
 
@@ -50,6 +50,7 @@ export function boardReport(t, me, dd = null) {
   };
   const hands = Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)]));
   const rows = reviewRows(b, t.seats).filter((r) => r.differs);
+  const robots = robotDepartures(b, t.seats);
   const sys = systemAuction(b, t.seats);
   return [
     'Bridge Coach: board for review',
@@ -64,8 +65,9 @@ export function boardReport(t, me, dd = null) {
     `The Advisor would bid: ${calls(sys.calls)} → ${kText(contract(sys))}`,
     ...(dd ? ['', `Double dummy (tricks as declarer, N E S W): ${tableRows(dd.table).map((r) => `${r.strain} ${r.N} ${r.E} ${r.S} ${r.W}`).join(' · ')}`, ...(parLine(dd, { name: (x) => COMPASS[x] }) ? [parLine(dd, { name: (x) => COMPASS[x] })] : [])] : []),
     '',
-    rows.length ? 'Where the Advisor differs (each player\'s first difference only):' : 'Every player\'s call matched the Advisor.',
+    rows.length ? 'Where the Advisor differs (each player\'s first difference only):' : t.seats && Object.values(t.seats).some((x) => x.kind === 'human') ? 'Every human player\'s call matched the Advisor.' : 'No human calls to compare.',
     ...rows.map((r) => `- ${COMPASS[r.seat]} bid ${callLabel(r.call)}; Advisor: ${callLabel(r.advisor.call)}${r.advisor.conf ? ` [${r.advisor.conf.label}]` : ''} (${r.advisor.meaning}${r.advisor.reasons?.length ? `; ${r.advisor.reasons.join('; ')}` : ''})${r.advisor.close ? ` Close call: ${r.advisor.close}` : ''}${r.misfit?.length ? ` [Why ${callLabel(r.call)} does not fit the hand: ${r.misfit.join('; ')}]` : ''}`),
+    ...(robots.length ? ['', 'Robots that chose differently from the Advisor (their first difference; the table\'s simulation picks these):', ...robots.map((r) => `- ${COMPASS[r.seat]} bid ${callLabel(r.call)}; Advisor: ${callLabel(r.advisor.call)}${r.advisor.reasons?.length ? ` (${r.advisor.reasons.join('; ')})` : ''}`)] : []),
     '',
     'My question:',
     '',

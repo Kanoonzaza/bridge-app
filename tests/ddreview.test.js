@@ -34,3 +34,12 @@ test('the copied board report carries the double-dummy table and par when they a
   assert.match(boardReport(t, 'S', dd), /\nPar: no score\n/);
   assert.doesNotMatch(boardReport(t, 'S'), /Double dummy/);
 });
+
+test('the report names a robot call that departs from the Advisor, and does not claim robots matched (board 32)', () => {
+  let t = newTable({ code: 'ABC234', uid: 'me', name: 'Kan', opponents: 'robot', rand: mulberry32(3) });
+  const packed = { N: 'AJ.QT93.T873.Q84', E: 'K2.A8765.Q.KT975', S: 'QT854.KJ.KJ42.62', W: '9763.42.A965.AJ3' };
+  t = { ...t, board: { ...t.board, n: 32, dealer: 'W', vul: 'EW', hands: Object.fromEntries(Object.entries(packed).map(([s, h]) => [s, h])), calls: 'P P 1H 1S X 1N P P X P P P' } };
+  const text = boardReport(t, 'S');
+  assert.match(text, /Every human player's call matched the Advisor\./);
+  assert.match(text, /Robots that chose differently[^\n]*\n- West bid Dbl; Advisor: Pass/);
+});
