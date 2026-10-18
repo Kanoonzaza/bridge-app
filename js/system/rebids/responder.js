@@ -28,6 +28,7 @@ export function afterXYZ(e, o, r, z) {
   if (o === 'C' && r === 'D' && z === 'H' && L.S >= 4 && h >= 6 && h <= 12) return R('1S', [`${L.S} spades: natural at the 1-level`]);
   if (h >= 13) {
     if (L[r] >= 6 && top3(e, r) >= 2) return R(`3${r}`, [`${h} HCP`, `good ${L[r]}-card ${NAME[r]}: jump to force game`]);
+    if (h >= 19 && e.balanced && !(z === 'N' && isMajor(r) && L[r] >= 5)) return R('6N', [`${h} HCP, balanced: opener has 12 or more, so about 31+ points`, 'slam is better than even money']);
     if (e.balanced && !(z === 'N' && isMajor(r) && L[r] >= 5)) return R('3N', [`${h} HCP, balanced: game`, z === 'N' ? 'opener is 12–14' : 'no fit found']);
     return R('2D', [`${h} HCP: game forcing`, 'artificial: opener describes further'],
       { plan: z === 'N' && isMajor(r) ? `Opener shows 3-card ${NAME[r]} support first; then choose the game.` : 'Opener describes; then choose the game.' });
@@ -66,6 +67,7 @@ function xyzSituation(o, r, z) {
   put('2N', 'Puppet: opener must bid 3♣ (to play in clubs, or 3♦ next).', {});
   put(`3${r}`, `Good 6+ ${NAME[r]}, game forcing.`, { hcp: [13, 37], len: { [r]: [6, 13] } }, 'game');
   put('3N', 'To play.', { hcp: [13, 37] });
+  put('6N', 'Slam: 19+ balanced.', { hcp: [19, 37], balanced: true });
   if (z !== 'N') put(`4${z}`, `4 ${NAME[z]}, game: to play.`, { len: { [z]: [4, 13] } });
   return { after: [`1${o}`, `1${r}`, `1${z}`], calls, decide: (e) => afterXYZ(e, o, r, z) };
 }
