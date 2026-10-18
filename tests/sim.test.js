@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { advise } from '../js/engine.js';
 import { unpackHand } from '../js/table/model.js';
-import { sampleHands, candidatesFor, honest, isSacrifice, simulateParts, mergeParts, decideBid, imps, MIN_GAIN } from '../js/sim-bid.js';
+import { sampleHands, candidatesFor, honest, sensible, isSacrifice, simulateParts, mergeParts, decideBid, imps, MIN_GAIN } from '../js/sim-bid.js';
 import { misfit } from '../js/table/review.js';
 import { explain } from '../js/engine.js';
 import { confidence } from '../js/confidence.js';
@@ -97,6 +97,17 @@ test('board 25: a push to the 5- or 6-level over their bid is a sacrifice, score
   const hand = unpackHand('2..KT97532.J9876');
   const auction = { dealer: 'N', vul: 'EW', calls: 'P 1C 1S 2H P 3H P 4H 5D X P P'.split(' ') };
   const r = simulateParts({ hand, auction, baseCall: 'P', dds, rand: rng(3), samples: 12, minSamples: 12, timeMs: 1e9 });
-  assert.ok(r.n >= 8);
-  assert.ok(!r.sums['6D'] || r.sums['6D'].sum / r.n < MIN_GAIN, '6♦ does not beat passing');
+  assert.ok(!r.sums['6D'] || r.sums['6D'].sum / r.n < MIN_GAIN, '6♦ is not tried, or does not beat passing');
+});
+
+test('board 25: no phantom sacrifice at the 5-level in a suit our side never bid and has no known fit in', () => {
+  const north = unpackHand('2..KT97532.J9876');
+  const auction = { dealer: 'N', vul: 'EW', calls: 'P 1C 1S 2H P 3H P 4H'.split(' ') };
+  const shown = { S: { len: { S: [5, 13], H: [0, 13], D: [0, 13], C: [0, 13] } } };
+  assert.deepEqual(sensible(north, auction, ['P', 'X', '5D', '5C', '5N'], 'P', shown), ['P', 'X'], '7 diamonds and nothing from partner: no 5♦');
+  // With a known fit (partner has shown spades) the 5-level is open: 5♠ with 3-card support.
+  const withFit = unpackHand('K32..KT975.J9876');
+  assert.deepEqual(sensible(withFit, auction, ['P', '5S'], 'P', shown), ['P', '5S']);
+  // The Advisor's own call is never removed.
+  assert.deepEqual(sensible(north, auction, ['5D'], '5D', shown), ['5D']);
 });

@@ -145,13 +145,27 @@ export function honest(hand, auction, calls, advisedCall) {
   });
 }
 
+// No phantom sacrifices: at the 5-level or higher the simulation may bid only a suit in which our side has a known
+// fit (8+ cards between my length and what partner has shown), never notrump or a suit that comes out of nowhere.
+// A sacrifice without a fit gives partner nothing to judge by and goes for a big number when the suit splits badly.
+// The Advisor's own call is always kept.
+export function sensible(hand, auction, calls, advisedCall, shown) {
+  const seat = nextSeat(auction);
+  const pard = SEATS[(SEATS.indexOf(seat) + 2) % 4];
+  return calls.filter((c) => {
+    if (c === advisedCall || !/^[5-7][CDHSN]$/.test(c)) return true;
+    if (c[1] === 'N') return false;
+    return hand[c[1]].length + (shown?.[pard]?.len?.[c[1]]?.[0] ?? 0) >= 8;
+  });
+}
+
 // Simulate a share of the samples: for each candidate call, the IMPs it gains against the Advisor's call (baseCall)
 // summed over the sampled deals, and on how many deals it does better. One worker runs one share; shares from
 // several workers are combined with mergeParts and judged with decideBid.
 export function simulateParts({ hand, auction, baseCall, dds, rand = Math.random, samples = 16, minSamples = 0, timeMs = 2500, now = () => Date.now(), candidates }) {
   const seat = nextSeat(auction);
   const ranges = shownRanges(auction);
-  const calls = candidates ?? honest(hand, auction, candidatesFor(hand, auction, baseCall, ranges), baseCall);
+  const calls = candidates ?? sensible(hand, auction, honest(hand, auction, candidatesFor(hand, auction, baseCall, ranges), baseCall), baseCall, ranges);
   const sums = Object.fromEntries(calls.map((c) => [c, { sum: 0, win: 0 }]));
   if (calls.length < 2) return { n: 0, sums };
   const mySide = sideOf(seat);
