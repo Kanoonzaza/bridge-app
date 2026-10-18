@@ -1,5 +1,5 @@
-// Duplicate match: the Advisor that also simulates its judgment calls (with the neural trick estimator) against the plain Advisor.
-// Same deals and scoring as tools/match.mjs. Usage: node tools/simmatch.mjs <model.bin> [deals=1000] [seed=1] [procs=4] [samples=40]
+// Duplicate match between two ways of choosing calls: plain Advisor, nn:N (simulation with the trick estimator on N deals) or dds:N (exact solver).
+// Same deals and scoring as tools/match.mjs. Usage: node tools/simmatch.mjs <model.bin> [deals=1000] [seed=1] [procs=4] [teamA=nn:40] [teamB=plain]
 // (The old header follows.) Duplicate match between two versions of the Advisor on the same random deals, scored double dummy.
 // On every deal the NEW version (this checkout) sits North-South at table 1 and East-West at table 2, with the BASE
 // version (another checkout, e.g. `git worktree add ../base main`) on the other side of each table. The new team's
@@ -37,7 +37,7 @@ function bid(hands, dealer, vul, ns, ew) {
   return a;
 }
 
-async function play({ base, deals, seed, start, step, samples }) {
+async function play({ base, deals, seed, start, step, specA, specB }) {
   const { loadDds, Dds } = await import('../js/vendor/dds/api.js');
   const dds = new Dds(await loadDds());
   const plain = (await import('../js/engine.js')).advise;
@@ -46,13 +46,19 @@ async function play({ base, deals, seed, start, step, samples }) {
   const { readFileSync } = await import('node:fs');
   const buf = readFileSync(base);
   const estimate = makeEstimator(parseModel(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)));
-  const theirs = plain;
-  const mine = (hand, auction) => {
-    const r = plain(hand, auction);
-    if (r.notCovered || r.fallback !== 'judgment') return r;
-    const d = decideBid(r.call, simulateParts({ hand, auction, baseCall: r.call, estimate, samples, timeMs: 1e9 }));
-    return d.changed ? { ...r, call: d.call } : r;
+  // A team's way of choosing a call: plain (Advisor only), nn:N (simulate N deals with the trick estimator) or dds:N (N deals, exact solver).
+  const team = (spec) => {
+    const [kind, n = '0'] = spec.split(':');
+    if (kind === 'plain') return plain;
+    return (hand, auction) => {
+      const r = plain(hand, auction);
+      if (r.notCovered || r.fallback !== 'judgment') return r;
+      const d = decideBid(r.call, simulateParts({ hand, auction, baseCall: r.call, dds, estimate: kind === 'nn' ? estimate : null, samples: Number(n), timeMs: 1e9 }));
+      return d.changed ? { ...r, call: d.call } : r;
+    };
   };
+  const mine = team(specA);
+  const theirs = team(specB);
   const r = rng(seed);
   const out = { boards: 0, differ: 0, imps: 0, won: 0, lost: 0, sumSq: 0, rows: [] };
   for (let i = 0; i < deals; i++) {
@@ -80,7 +86,7 @@ export function report(parts, base) {
   const mean = t.imps / t.boards;
   const sd = Math.sqrt(Math.max(0, t.sumSq / t.boards - mean * mean));
   const lines = [
-    `Simulating Advisor vs plain Advisor: ${t.boards} boards, the two tables differ on ${t.differ} (${((100 * t.differ) / t.boards).toFixed(1)}%).`,
+    `${process.env.SPEC_LABEL ?? 'Team A vs team B'}: ${t.boards} boards, the two tables differ on ${t.differ} (${((100 * t.differ) / t.boards).toFixed(1)}%).`,
     `New version ${mean >= 0 ? 'gains' : 'loses'} ${Math.abs(mean).toFixed(3)} IMPs per board (± ${(sd / Math.sqrt(t.boards)).toFixed(3)}); wins ${t.won}, loses ${t.lost} of the differing boards.`,
   ];
   const rows = t.rows.sort((a, b) => a.g - b.g);
@@ -92,14 +98,14 @@ export function report(parts, base) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [, , base, d = '1000', s = '1', p = '4', smp = '40'] = process.argv;
-  if (!base) { console.error('Usage: node tools/simmatch.mjs <model.bin> [deals] [seed] [procs] [samples]'); process.exit(1); }
+  const [, , base, d = '1000', s = '1', p = '4', specA = 'nn:40', specB = 'plain'] = process.argv;
+  if (!base) { console.error('Usage: node tools/simmatch.mjs <model.bin> [deals] [seed] [procs] [teamA] [teamB]'); process.exit(1); }
   if (process.env.MATCH_WORKER) {
-    process.stdout.write(JSON.stringify(await play({ base, deals: Number(d), seed: Number(s), start: Number(process.env.MATCH_WORKER) - 1, step: Number(p), samples: Number(smp) })));
+    process.stdout.write(JSON.stringify(await play({ base, deals: Number(d), seed: Number(s), start: Number(process.env.MATCH_WORKER) - 1, step: Number(p), specA, specB })));
   } else {
     const procs = Number(p);
     const parts = await Promise.all(Array.from({ length: procs }, (_, k) => new Promise((res, rej) => {
-      const c = spawn(process.execPath, [process.argv[1], base, d, s, p, smp], { env: { ...process.env, MATCH_WORKER: String(k + 1) } });
+      const c = spawn(process.execPath, [process.argv[1], base, d, s, p, specA, specB], { env: { ...process.env, MATCH_WORKER: String(k + 1) } });
       let buf = '';
       c.stdout.on('data', (x) => { buf += x; });
       c.stderr.on('data', (x) => process.stderr.write(x));
