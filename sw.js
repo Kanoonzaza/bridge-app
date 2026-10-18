@@ -1,4 +1,4 @@
-const CACHE = 'bc-40f09789';
+const CACHE = 'bc-b6d79b36';
 const FILES = [
   './',
   'index.html',

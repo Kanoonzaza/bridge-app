@@ -328,3 +328,10 @@ test('DONT bid doubled: pass with 4+ in the suit, otherwise redouble; the bidder
   assert.equal(adv('KJ853 A762 3 J854', ['1N', '2D', 'X', 'XX', 'P']), '2S', 'diamonds and spades');
   assert.equal(adv('KJ8532 AJ762 3 4', ['1N', '2H', 'X', 'XX', 'P']), '2S', 'spades longer than hearts');
 });
+
+test('after a negative double and their 1NT, 12+ with four cards in their suit doubles for penalty', () => {
+  const ask = (hand, calls = ['1C', '1H', 'X', '1N']) => advise(parseHand(hand), { dealer: 'W', vul: 'both', calls }).call;
+  assert.equal(ask('A5 KJ94 Q3 AQ853'), 'X', '14 HCP, four hearts');
+  assert.equal(ask('A5 KJ94 53 AQ853'), 'X', '12 HCP, four hearts');
+  assert.equal(ask('A5 KJ9 Q3 AQ8532'), '2C', 'three hearts and a six-card suit: compete');
+});
