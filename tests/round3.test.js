@@ -62,4 +62,7 @@ test('board 50: 14+ HCP opposite a jump rebid in a minor bids 6NT, not 3NT', () 
   assert.equal(full(['P', '1C', 'P', '1S', 'P', '3C', 'P'], 'AKQ92 K9 A54 843'), '6N', '16 HCP');
   assert.equal(full(['P', '1C', 'P', '1S', 'P', '3C', 'P'], 'AKJ92 K9 Q54 843'), '3N', '12 HCP: game only');
   assert.equal(full(['P', '1D', 'P', '1H', 'P', '3D', 'P'], 'K4 AKJ92 Q54 K83'), '6N', 'diamonds too');
+  assert.equal(full(['P', '1H', 'P', '1S', 'P', '3H', 'P'], 'AKJ92 K9 Q54 A83'), '6H', 'major jump rebid: 14+ with a heart fit bids the slam');
+  assert.equal(full(['P', '1H', 'P', '1S', 'P', '3H', 'P'], 'AKJ92 7 Q54 AK83'), '6N', '14+ with a singleton heart: notrump');
+  assert.equal(full(['P', '1H', 'P', '1S', 'P', '3H', 'P'], 'KJ92 K97 Q54 A83'), '4H', '12 HCP: just game');
 });
