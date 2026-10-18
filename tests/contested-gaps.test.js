@@ -305,3 +305,14 @@ test('board 29: over their 3NT, 4 trumps opposite a weak two is not a reason to 
   assert.equal(after('T8752 T9 K976 32', 'none'), '4S', '5-card support: 11 trumps, a save');
   assert.equal(after('T8752 T9 K976 32', 'NS'), 'P', 'not when only we are vulnerable');
 });
+
+test('board 31: advancing partner\'s takeout double after (1♦)–X–(1♥): a 5+ card suit is bid, even with 1 HCP', () => {
+  const adv = (hand, calls = ['1D', 'X', '1H']) => advise(parseHand(hand), { dealer: 'S', vul: 'NS', calls });
+  assert.equal(adv('JT8543 865 963 7').call, '1S');
+  assert.equal(adv('A8543 K65 963 72').call, '1S');
+  assert.equal(adv('AQ8543 K65 96 72').call, '1S', '9 HCP: not a jump yet');
+  assert.equal(adv('AQ8543 KJ5 96 72').call, '2S', '10 HCP: jump to invite');
+  assert.equal(adv('AKQ843 K65 96 72').call, '1S');
+  assert.equal(adv('A842 865 963 K72').call, 'P', 'no 5-card suit: pass');
+  assert.equal(adv('A8543 K65 963 72', ['1C', 'X', '1S']).call, 'P', 'their suit is the one I hold: no suit of my own');
+});

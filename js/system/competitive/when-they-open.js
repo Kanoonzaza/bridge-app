@@ -565,6 +565,35 @@ for (const x of SUITS4) {
   }
 }
 
+// ---------- Advancing partner's takeout double when their partner has bid a suit: (1♦)–X–(1♥) ----------
+// The double still asks for our suit. Measured double dummy (5+ spades after (1♦)–X–(1♥)): bidding the suit beat passing,
+// which the Advisor used to do for lack of a rule.
+export function advanceDoubleAfterResponse(e, x, rb) {
+  const h = e.hcp;
+  const L = e.len;
+  const theirs = [x, rb[1]];
+  const own = SUITS4.filter((t) => !theirs.includes(t) && L[t] >= 5).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a]);
+  const t = own[0];
+  if (t) {
+    const lv = cheapest(rb, t);
+    if (lv <= 2 && h >= 10 && lv + 1 <= 3) return R(`${lv + 1}${t}`, [`${L[t]} ${nm(t)}, ${h} HCP: jump to invite`]);
+    if (lv <= 2) return R(`${lv}${t}`, [`${L[t]} ${nm(t)}: partner's double asked for a suit`, `${h} HCP: bid it, even though they bid in between`]);
+  }
+  return R('P', [`${h} HCP and no 5-card suit to bid: pass, partner can still bid`]);
+}
+for (const x of SUITS4) {
+  for (const rb of SUITS4.filter((u) => u !== x).map((u) => `${cheapest(`1${x}`, u) <= 1 ? 1 : 2}${u}`).filter((c) => c[0] === '1')) {
+    const k = [`(1${x})`, 'X', `(${rb})`];
+    def(k, 'P', 'Pass: no suit of our own to bid.', {});
+    for (const t of SUITS4.filter((u) => u !== x && u !== rb[1])) {
+      const lv = cheapest(rb, t);
+      if (lv <= 2) def(k, `${lv}${t}`, `Natural: 5+ ${nm(t)}. Partner's double asked for a suit.`, { len: { [t]: [5, 13] } });
+      if (lv + 1 <= 3) def(k, `${lv + 1}${t}`, `Invitational jump: 5+ ${nm(t)}, 10+.`, { hcp: [10, 37], len: { [t]: [5, 13] } });
+    }
+    advise(k, (e) => advanceDoubleAfterResponse(e, x, rb), [{ dealer: 'E', calls: [`1${x}`, 'X', rb] }]);
+  }
+}
+
 // ---------- Overcaller after advancer's cue-bid raise (major overcalls) ----------
 const CUE_RAISE = 'overcaller-after-the-cue-bid-raise';
 
