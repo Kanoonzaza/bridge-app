@@ -289,7 +289,15 @@ function responsiveDouble(c) {
 
 // Compete with a fit, by the Law of Total Tricks.
 function competeByTotalTricks(c) {
-  const { e, auction, side, P, theyBidLast, mustBid, T, mine, combined, trumps, cheapest, why } = c;
+  const { e, auction, side, P, theyBidLast, lastBid, mustBid, T, mine, combined, trumps, cheapest, why } = c;
+  // Over their notrump game the Law does not apply: they have no trump fit to lose tricks in, and a strong notrump hand
+  // doubles a failing save. Measured double dummy over 2♠–(3NT): raising to 4♠ with 4 trumps lost 5–10 IMPs a deal.
+  // Only 5-card support (11 trumps) is worth a save, and not when we are vulnerable and they are not.
+  if (T && theyBidLast && lastBid[1] === 'N' && Number(lastBid[0]) >= 3) {
+    const c = cheapest(T);
+    if (c && trumps >= 11 && relativeVul(auction.vul, side) !== 'we') return { call: c, why: [...why, `${trumps} trumps: a save over their notrump`] };
+    return { call: 'P', why: [...why, `${trumps} trumps, but they are in notrump: no trump fight to compete in, and a strong hand doubles a failing save`] };
+  }
   // Compete with a fit, by the Law of Total Tricks (trumps − 6).
   if (T) {
     const c = cheapest(T);

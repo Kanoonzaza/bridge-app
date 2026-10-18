@@ -297,3 +297,11 @@ test('board 23: 5 clubs and 4 diamonds opens 1♣ and says why (the longer minor
   assert.equal(s.call, '1C');
   assert.match(s.close ?? '', /4-card diamonds is stronger than your 5-card clubs: some players open 1D/);
 });
+
+test('board 29: over their 3NT, 4 trumps opposite a weak two is not a reason to bid 4♠', () => {
+  const after = (hand, vul) => advise(parseHand(hand), { dealer: 'N', vul, calls: ['2S', '3N'] }).call;
+  assert.equal(after('T852 T9 K976 432', 'both'), 'P');
+  assert.equal(after('T852 T9 K976 432', 'EW'), 'P', 'even at favourable vulnerability');
+  assert.equal(after('T8752 T9 K976 32', 'none'), '4S', '5-card support: 11 trumps, a save');
+  assert.equal(after('T8752 T9 K976 32', 'NS'), 'P', 'not when only we are vulnerable');
+});
