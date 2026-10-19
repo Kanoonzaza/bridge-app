@@ -415,7 +415,7 @@ export function tableView(root, store) {
       el('span', { class: 'tcount' }, String(n)), el('span', { class: 'tlabel' }, label));
     const wide = (w) => ['dummy', 'declarer', 'peek'].includes(shows(w));
     const widths = `${wide('left') ? 112 : 72}px minmax(0,1fr) ${wide('right') ? 112 : 72}px`;
-    return el('div', { class: 'felt', style: wide('left') || wide('right') ? `grid-template-columns:${widths}` : null },
+    return el('div', { class: `felt${st ? ' play' : ''}`, style: wide('left') || wide('right') ? `grid-template-columns:${widths}` : null },
       el('div', { class: 'f-board' }, boardBox(t, me)),
       el('div', { class: 'f-top' }, hand('top', backs(st ? st.remaining[pos.top].length : 13)), plate(t, pos.top, me)),
       el('div', { class: 'f-left' }, hand('left', backs(5, ' side')), plate(t, pos.left, me)),
@@ -456,7 +456,7 @@ export function tableView(root, store) {
       ? el('div', {}, el('div', { class: 'label' }, me === dummy ? 'Your hand (dummy: partner plays it)' : mine(me) ? 'Your turn: play a card' : 'Your hand'),
         cards(handFromCards(st.remaining[me]), { play: playableBy(st, me, me), hcp: false, trump: st.trump }))
       : null;
-    return el('div', { class: 'stack' }, note, myBlock);
+    return el('div', { class: 'play-hand' }, note, myBlock);
   }
 
   function meanings(t, me) {
@@ -776,17 +776,22 @@ export function tableView(root, store) {
     const waiting = now && t.seats[now].kind === 'open' ? `Waiting for a player in the ${COMPASS[now]} seat.` : now && t.seats[now].kind === 'human' ? `Waiting for ${relative(me, now) === 'Partner' ? 'partner' : t.seats[now].name || COMPASS[now]}…` : now ? 'The robot is thinking…' : '';
     const someoneMissing = SEATS.some((s) => t.seats[s].kind === 'open');
     return el('div', { class: 'stack' },
-      el('div', { class: 'table-head' },
+      st ? el('div', { class: 'table-head compact' },
+        el('div', { class: 'compact-line' }, el('b', {}, t.code), ` · Board ${b.n} · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`),
+        el('div', { class: 'row-buttons' },
+          el('button', { type: 'button', class: 'pill small', 'data-key': 'share', onclick: () => share(t.code) }, 'Invite'),
+          el('button', { type: 'button', class: 'pill small', 'data-key': 'leave', onclick: exit }, 'Leave')))
+      : [el('div', { class: 'table-head' },
         el('div', {}, el('div', { class: 'label' }, 'Table'), el('div', { class: 'code-big' }, t.code)),
         el('div', { class: 'row-buttons' },
           el('button', { type: 'button', class: 'pill', 'data-key': 'share', onclick: () => share(t.code) }, 'Invite'),
           el('button', { type: 'button', class: 'pill', 'data-key': 'leave', onclick: exit }, 'Leave'))),
-      el('div', { class: 'board-line' }, el('b', {}, `Board ${b.n}`), ` · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`),
+      el('div', { class: 'board-line' }, el('b', {}, `Board ${b.n}`), ` · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`)],
       b.swap ? el('p', { class: 'muted', 'data-key': 'swap-note' }, `Your partner (a robot) was the declarer, so you moved to ${COMPASS[b.swap[2]]} and play the contract; the robot sits ${COMPASS[b.swap[0]]} as dummy.`) : null,
       prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = prev.n; render(); } }, `← Earlier boards (${Math.min(b.n - 1, Object.keys(t.history).length)})`)) : null,
       felt(t, me),
-      chatPanel(t, me),
-      st ? playArea(t, me, st) : me ? myHand(handOf(b, me)) : null,
+      st ? playArea(t, me, st) : chatPanel(t, me),
+      st ? chatPanel(t, me) : me ? myHand(handOf(b, me)) : null,
       ph === 'over' ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
       st && me ? claimControls(t, me) : null,
       undoButton(t) || (st && me) ? el('div', { class: 'row-buttons' }, undoButton(t),
@@ -809,7 +814,18 @@ export function tableView(root, store) {
     keepFocus(root, () => {
       const sv = ui.viewSaved && saved.boards.find((x) => x.id === ui.viewSaved);
       if (sv) root.replaceChildren(savedScreen(sv));
-      else if (ui.table) root.replaceChildren(tableScreen(ui.table));
+      else if (ui.table) {
+        root.replaceChildren(tableScreen(ui.table));
+        // When the play of a board starts, bring the table to the top of the screen once, so it and my hand fit together.
+        const t = ui.table;
+        const key = `${t.code}:${t.board.n}`;
+        if (phase(t) === 'play' && ui.scrolledFor !== key && !ui.prev) {
+          ui.scrolledFor = key;
+          const head = root.querySelector('.table-head.compact');
+          const bar = document.querySelector('header.top')?.getBoundingClientRect().height ?? 0; // the sticky title and tabs
+          if (head) window.scrollTo({ top: window.scrollY + head.getBoundingClientRect().top - bar - 4 });
+        }
+      }
       else if (saved.code && ui.busy) root.replaceChildren(el('p', { class: 'muted' }, 'Connecting…'));
       else root.replaceChildren(lobby());
     });
