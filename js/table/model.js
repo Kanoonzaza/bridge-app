@@ -72,7 +72,11 @@ export function normalize(raw) {
   const n = Number.isInteger(b.n) && b.n > 0 ? b.n : 1;
   const history = {};
   for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true, ...(Number.isInteger(h.claim) ? { claim: h.claim } : {}) };
+  // Fields this version does not know (added by a newer version) pass through, so rewriting the table never drops them.
+  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq']);
+  const extra = Object.fromEntries(Object.entries(raw).filter(([k, v]) => !known.has(k) && v !== undefined && v !== null));
   return {
+    ...extra,
     code: String(raw.code ?? ''),
     created: Number(raw.created ?? 0),
     opponents: OPPONENTS.includes(raw.opponents) ? raw.opponents : 'robot',
@@ -142,6 +146,21 @@ function normalChat(raw) {
   return list.filter((m) => m && typeof m.text === 'string' && m.text)
     .map((m) => ({ id: Number(m.id ?? 0), uid: String(m.uid ?? ''), name: String(m.name ?? '').slice(0, 24), seat: SEATS.includes(m.seat) ? m.seat : '', text: m.text.slice(0, CHAT_MAX), at: Number(m.at ?? 0) }))
     .slice(-CHAT_KEEP);
+}
+
+export const chatKey = (m) => `${m.uid}|${m.at}|${m.text}`;
+const mergeChat = (a, b) => {
+  const seen = new Set();
+  return [...a, ...b].filter((m) => (seen.has(chatKey(m)) ? false : seen.add(chatKey(m)))).sort((x, y) => x.at - y.at || x.id - y.id).slice(-CHAT_KEEP)
+    .map((m, i) => ({ ...m, id: i + 1 }));
+};
+
+// Put back messages the table lost (an older version of the app that does not know about chat rewrites the table
+// without it): the ones in msgs that the table does not have are merged in by time. undefined when nothing is missing.
+export function restoreChat(t, msgs) {
+  const have = new Set((t.chat ?? []).map(chatKey));
+  const missing = msgs.filter((m) => m && m.text && !have.has(chatKey(m)));
+  return missing.length ? { ...t, chat: mergeChat(t.chat ?? [], missing.map((m) => ({ id: 0, uid: String(m.uid), name: String(m.name ?? '').slice(0, 24), seat: SEATS.includes(m.seat) ? m.seat : '', text: String(m.text).slice(0, CHAT_MAX), at: Number(m.at) || 0 }))) } : undefined;
 }
 
 // A seated player says something to the table. Returns undefined for an empty message or someone not seated.

@@ -5,7 +5,7 @@ import { callLabel, rankLabel } from '../format.js';
 import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
 import {
-  CODE, parseCode, say, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
+  CODE, parseCode, say, restoreChat, chatKey, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
   setOpponents, sit, leave, setSeatKind, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
@@ -34,6 +34,9 @@ function cleanSaved(raw) {
     handStyle: r.handStyle === 'list' ? 'list' : 'cards',
     chatOpen: r.chatOpen === true,
     chatDraft: typeof r.chatDraft === 'string' ? r.chatDraft.slice(0, 200) : '',
+    // What this phone has seen said at the table it is at: kept here too, so a reload or a lost write never empties the chat.
+    chatCode: typeof r.chatCode === 'string' ? r.chatCode : '',
+    chatLog: Array.isArray(r.chatLog) ? r.chatLog.filter((m) => m && typeof m.text === 'string' && m.text).slice(-200).map((m) => ({ uid: String(m.uid ?? ''), name: String(m.name ?? '').slice(0, 24), seat: String(m.seat ?? ''), text: m.text.slice(0, 200), at: Number(m.at) || 0 })) : [],
   };
 }
 
@@ -74,6 +77,7 @@ export function tableView(root, store) {
     ui.unwatch?.();
     ui.unwatch = ui.sync.watch(code, (t) => {
       ui.table = t;
+      if (t) mirrorChat(t);
       if (!t) ui.error = `Table ${code} was not found.`;
       ui.hint = null;
       // Start the solvers while the board is being read, if a robot will need them.
@@ -84,6 +88,23 @@ export function tableView(root, store) {
       driveRobots();
       render();
     });
+  }
+
+  // Keep a copy of the table's chat on this phone, and put back anything the table has lost.
+  function mirrorChat(t) {
+    if (saved.chatCode !== t.code) { saved.chatCode = t.code; saved.chatLog = []; }
+    const have = new Set(saved.chatLog.map(chatKey));
+    const fresh = (t.chat ?? []).filter((m) => !have.has(chatKey(m)));
+    if (fresh.length) {
+      saved.chatLog = [...saved.chatLog, ...fresh.map(({ uid, name, seat, text, at }) => ({ uid, name, seat, text, at }))].sort((a, b) => a.at - b.at).slice(-200);
+      save();
+    }
+    const onTable = new Set((t.chat ?? []).map(chatKey));
+    const lost = saved.chatLog.filter((m) => !onTable.has(chatKey(m)));
+    if (lost.length && ui.sync && mySeat(t, ui.sync.uid) && Date.now() - (ui.lastHeal ?? 0) > 4000) {
+      ui.lastHeal = Date.now();
+      act((cur) => cur && restoreChat(cur, lost));
+    }
   }
 
   async function act(fn, failure) {
@@ -450,24 +471,31 @@ export function tableView(root, store) {
   const section = (key, summary, ...children) => el('details', { class: 'manage', 'data-key': key, open: !!ui.open[key], ontoggle: (e) => { ui.open[key] = e.target.open; if (key === 'chat') { saved.chatOpen = e.target.open; save(); } } },
     el('summary', {}, summary), ...children);
 
-  // Table talk: the last messages of this table, newest at the bottom.
+  // Table talk: the last messages of this table, newest at the bottom. A message not yet on the table shows "sending…".
   function chatPanel(t, me) {
-    const msgs = t.chat ?? [];
-    const last = msgs.at(-1)?.id ?? 0;
+    const onTable = new Set((t.chat ?? []).map(chatKey));
+    const mine = saved.chatCode === t.code ? saved.chatLog : [];
+    const msgs = [...(t.chat ?? []), ...mine.filter((m) => !onTable.has(chatKey(m)))].sort((a, b) => a.at - b.at);
+    const lastAt = msgs.at(-1)?.at ?? 0;
     const open = !!ui.open.chat;
-    if (open) ui.chatSeen = last;
-    const unread = open ? 0 : msgs.filter((m) => m.id > (ui.chatSeen ?? 0) && m.uid !== ui.sync.uid).length;
+    if (open) ui.chatSeenAt = lastAt;
+    const unread = open ? 0 : msgs.filter((m) => m.at > (ui.chatSeenAt ?? 0) && m.uid !== ui.sync.uid).length;
     const send = () => {
       const text = ui.chatDraft.trim();
-      if (!text) return;
+      if (!text || !me) return;
+      const at = Date.now();
       ui.chatDraft = '';
       saved.chatDraft = '';
+      if (saved.chatCode !== t.code) { saved.chatCode = t.code; saved.chatLog = []; }
+      saved.chatLog = [...saved.chatLog, { uid: ui.sync.uid, name: t.seats[me].name || 'Player', seat: me, text: text.slice(0, 200), at }].slice(-200);
       save();
-      act((cur) => cur && say(cur, ui.sync.uid, text, Date.now()), 'Could not send. Are you seated at the table?');
+      render();
+      act((cur) => cur && say(cur, ui.sync.uid, text, at), 'The table did not take that message. It stays on this phone and is sent again.');
     };
     return section('chat', `Chat${unread ? ` (${unread} new)` : msgs.length ? ` (${msgs.length})` : ''}`,
       el('div', { class: 'chat-log', 'data-key': 'chat-log', role: 'log', 'aria-live': 'polite' },
-        ...(msgs.length ? msgs.map((m) => el('div', { class: `chat-msg${m.uid === ui.sync.uid ? ' mine' : ''}` }, el('b', {}, `${m.name || COMPASS[m.seat]} (${m.seat}): `), m.text))
+        ...(msgs.length ? msgs.map((m) => el('div', { class: `chat-msg${m.uid === ui.sync.uid ? ' mine' : ''}` }, el('b', {}, `${m.name || COMPASS[m.seat]} (${m.seat}): `), m.text,
+          onTable.has(chatKey(m)) ? null : el('span', { class: 'muted' }, ' · sending…')))
           : [el('p', { class: 'muted' }, 'No messages yet.')])),
       me ? el('form', { class: 'chat-form', onsubmit: (e) => { e.preventDefault(); send(); } },
         el('input', { class: 'field', 'data-key': 'chat-input', value: ui.chatDraft, maxlength: 200, placeholder: 'Say something to the table', autocomplete: 'off', 'aria-label': 'Chat message', oninput: (e) => { ui.chatDraft = e.target.value; saved.chatDraft = ui.chatDraft; save(); } }),

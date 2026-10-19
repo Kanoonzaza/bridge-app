@@ -5,7 +5,7 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
-  parseCode, say, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../js/table/model.js';
 import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
@@ -474,4 +474,22 @@ test('claiming: robot defenders accept a claim that is right double dummy, human
   // Only between tricks, and only the declarer.
   assert.equal(claimChance({ ...t, board: { ...t.board, play: 'CA H2' } }, 'me'), null);
   assert.equal(claimChance(t, 'pard'), null);
+});
+
+test('chat: messages an older app version dropped are put back, and unknown table fields pass through', () => {
+  let t = fresh('robot');
+  t = say(t, 'me', 'first', 100);
+  t = say(t, 'me', 'second', 200);
+  const kept = t.chat.map(({ uid, name, seat, text, at }) => ({ uid, name, seat, text, at }));
+  const wiped = { ...t, chat: [] };
+  const back = restoreChat(wiped, kept);
+  assert.deepEqual(back.chat.map((m) => m.text), ['first', 'second']);
+  assert.deepEqual(back.chat.map((m) => m.id), [1, 2]);
+  assert.equal(restoreChat(back, kept), undefined, 'nothing missing: no change');
+  // One message missing in the middle of what others have said since: merged by time.
+  const other = { ...say(sit(wiped, 'N', 'pard', 'Ploy'), 'pard', 'third', 300) };
+  assert.deepEqual(restoreChat(other, kept).chat.map((m) => m.text), ['first', 'second', 'third']);
+  assert.equal(new Set(back.chat.map(chatKey)).size, 2);
+  // A field added by a newer version survives a rewrite by this one.
+  assert.equal(normalize({ ...t, futureThing: { a: 1 } }).futureThing.a, 1);
 });
