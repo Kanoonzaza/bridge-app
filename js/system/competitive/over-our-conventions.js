@@ -1,10 +1,10 @@
 import {
-  LEB, SLAM, STRONG, SUITS4, RANK, MAJORS, isMajor, nm, cheapest, top3, stopper, longestOf, R, entries, def, advise,
+  LEB, SLAM, STRONG, SUITS4, RANK, MAJORS, isMajor, nm, cheapest, top3, stopper, longestOf, above, R, entries, def, advise,
 } from './shared.js';
 import { respond1NT } from '../opening/notrump.js';
 import { agreedSuit } from '../rebids/slam.js';
 
-// They interfere over our 1NT (Lebensohl; systems on after a double), our strong 2♣ and our 4NT.
+// They interfere over our 1NT (Lebensohl; systems on after a double), our strong 2♣, Jacoby 2NT and our 4NT.
 // Notes: "Lebensohl", "1NT opening and responses", "Strong 2♣ opening", "RKCB 1430 and slam tools".
 // Meanings come first (def: what each call says), then the Advisor's decisions (advise: which call to make).
 
@@ -159,5 +159,38 @@ for (const y of SUITS4) {
     else def(k, `4${x}`, `No ${nm(y)} stopper: raise the minor.`, { len: { [x]: [2, 13] } }, LEB);
     def(k, '3N', `A stopper in ${nm(y)}: 3NT.`, {}, LEB);
     advise(k, (e) => openerAfterGameForce(e, y, x), [{ dealer: 'N', calls: ['1N', `2${y}`, `3${x}`, 'P'] }]);
+  }
+}
+
+// ---------- Jacoby 2NT overcalled: 1M–2NT–(3♣/3♦/3 other major/4♣/4♦) ----------
+// The raise is still game forcing, so opener keeps the Jacoby replies where the overcall leaves room (a shortness
+// bid above their suit, 3M = 18+, 3NT = 15–17 with their suit stopped) and otherwise just bids game. A double
+// is for penalty, which needs a long, strong holding: game is already ours.
+export function jacobyOvercalled(e, M, ov) {
+  const y = ov[1];
+  const L = e.len;
+  const h = e.hcp;
+  if (L[y] >= 5 && top3(e, y) >= 2) return R('X', [`${L[y]} ${nm(y)} with two of the top three honors`, 'partner is game forcing, so a penalty double is safe']);
+  const short = SUITS4.filter((s) => s !== M && s !== y && L[s] <= 1 && above(`3${s}`, ov)).sort((a, b) => L[a] - L[b])[0];
+  if (short) return R(`3${short}`, [`${L[short] ? 'singleton' : 'void'} in ${nm(short)}: show it, as without their bid`]);
+  const side = SUITS4.filter((s) => s !== M && s !== y && L[s] >= 5 && top3(e, s) >= 2 && above(`4${s}`, ov))[0];
+  if (side) return R(`4${side}`, [`good 5-card ${nm(side)}`]);
+  if (h >= 18 && above(`3${M}`, ov)) return R(`3${M}`, [`${h} HCP, no shortness: slam interest`]);
+  if (h >= 15 && h <= 17 && above('3N', ov) && stopper(e, y)) return R('3N', [`${h} HCP, no shortness, ${nm(y)} stopped`]);
+  return R(`4${M}`, [`${h} HCP, no shortness to show: game in ${nm(M)}`]);
+}
+for (const M of MAJORS) {
+  const other = M === 'H' ? 'S' : 'H';
+  for (const ov of ['3C', '3D', `3${other}`, '4C', '4D', ...(M === 'S' ? ['4H'] : [])]) {
+    const k = [`1${M}`, '2N', `(${ov})`];
+    def(k, 'X', `Penalty: 5+ ${nm(ov[1])} with two of the top three honors. We are game forcing already.`, { len: { [ov[1]]: [5, 13] } });
+    def(k, `4${M}`, `Game in ${nm(M)}: a minimum, or nothing to show at this level.`, {});
+    if (above(`3${M}`, ov)) def(k, `3${M}`, '18+, no shortness. Slam interest.', { hcp: [18, 21] });
+    if (above('3N', ov)) def(k, '3N', `15–17, no shortness, ${nm(ov[1])} stopped.`, { hcp: [15, 17] });
+    for (const s of SUITS4.filter((t) => t !== M && t !== ov[1])) {
+      if (above(`3${s}`, ov)) def(k, `3${s}`, `Singleton or void in ${nm(s)}.`, { len: { [s]: [0, 1] } });
+      if (above(`4${s}`, ov)) def(k, `4${s}`, `Good 5-card ${nm(s)} (two of the top three honors).`, { len: { [s]: [5, 13] } });
+    }
+    advise(k, (e) => jacobyOvercalled(e, M, ov), [{ dealer: 'N', calls: [`1${M}`, 'P', '2N', ov] }]);
   }
 }

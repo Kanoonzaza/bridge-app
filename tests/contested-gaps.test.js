@@ -35,6 +35,16 @@ const CASES = [
   // Opener after a negative double and their raise
   ['E', ['P', 'P', '1D', '1H', 'X', '3H'], 'QJ6 AK6 AQ743 K10', '3N', '19 with a heart stopper'],
   ['S', ['1C', '1D', 'X', '3D'], 'A87 Q842 A2 K1076', '3H', 'the major partner showed'],
+  // Jacoby 2NT overcalled: still game forcing, replies kept where there is room
+  ['N', ['1H', 'P', '2N', '3D'], 'K5 AQJ73 642 K92', '4H', 'minimum: game, not a double'],
+  ['N', ['1H', 'P', '2N', '3D'], '4 AQJ73 K42 KJ92', '3S', 'spade singleton is above their 3♦: show it'],
+  ['N', ['1H', 'P', '2N', '3S'], '4 AQJ73 K42 KJ92', '4H', 'their suit is the short one: nothing to show'],
+  ['N', ['1H', 'P', '2N', '3D'], 'Q5 AKJ73 K42 Q92', '3N', '15, diamonds stopped'],
+  ['N', ['1H', 'P', '2N', '3D'], 'Q5 AKJ73 642 AQ2', '4H', '16 but no diamond stopper'],
+  ['N', ['1H', 'P', '2N', '3C'], 'KQ5 AKJ73 AQ2 52', '3H', '19 with no shortness and room for 3♥: slam interest'],
+  ['N', ['1H', 'P', '2N', '3S'], 'KQ5 AKJ73 AQ2 Q2', '4H', '3♥ is not available over 3♠: game'],
+  ['N', ['1H', 'P', '2N', '3D'], 'K5 AQJ7 AKQ95 92', 'X', 'five good diamonds: penalty double'],
+  ['N', ['1S', 'P', '2N', '3H'], 'AQJ73 K5 642 K92', '4S', 'minimum: game, not a double'],
   // Judgment
   ['S', ['1H', '1S', '2H', '2S'], 'Q3 AKJ82 KJ95 A7', '3H', 'fit and extra values: compete'],
   ['W', ['1S', 'X', '3S'], '2 K108 AQ654 KQ42', 'X', 'too strong to pass: responsive double'],
