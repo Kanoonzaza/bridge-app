@@ -63,7 +63,7 @@ export function tableView(root, store) {
   const params = new URLSearchParams(location.search);
   const urlCode = parseCode(params.get('table') ?? '');
   const mode = params.get('sync') === 'local' ? 'local' : FIREBASE ? 'firebase' : 'none';
-  const ui = { peek: {}, peekTimers: {}, open: { chat: saved.chatOpen }, claiming: false, claimN: null, chatDraft: saved.chatDraft, chatSeen: 0, sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '', prev: false, dd: new Map() };
+  const ui = { peek: {}, open: { chat: saved.chatOpen }, claiming: false, claimN: null, chatDraft: saved.chatDraft, chatSeen: 0, sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '', prev: false, dd: new Map() };
   if (CODE.test(urlCode) && urlCode !== saved.code) saved.code = '';
 
   const save = () => store.save('table', saved);
@@ -382,12 +382,20 @@ export function tableView(root, store) {
         }))));
   }
 
-  // Peeking: the dummy sees the declarer's hand, and can tap a defender's cards to take a quick look (shaded, for a moment).
-  function peekAt(seat) {
-    ui.peek[seat] = true;
-    render();
-    clearTimeout(ui.peekTimers[seat]);
-    ui.peekTimers[seat] = setTimeout(() => { delete ui.peek[seat]; render(); }, 3000);
+  // Peeking: the dummy sees the declarer's hand, and can look at a defender's cards for as long as a finger stays on them
+  // (shaded, as if looking over a shoulder). The cards are in the page already; touching only shows them, so nothing redraws.
+  function peekButton(seat, hand, back, trump) {
+    const open = !!ui.peek[seat];
+    const btn = el('button', { type: 'button', class: `peek-btn${open ? ' open' : ''}`, 'data-key': `peek-${seat}`, 'aria-label': `Hold to peek at ${COMPASS[seat]}'s hand`, title: 'Hold to peek' },
+      back, el('div', { class: 'peek-open', 'aria-hidden': 'true' }, el('div', { class: 'dlabel' }, 'Peeking…'), dummyAt(hand, null, trump)));
+    const show = (on) => { ui.peek[seat] = on; btn.classList.toggle('open', on); };
+    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); show(true); });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) btn.addEventListener(ev, () => show(false));
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+    btn.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); show(true); } });
+    btn.addEventListener('keyup', () => show(false));
+    btn.addEventListener('blur', () => show(false));
+    return btn;
   }
 
   function felt(t, me) {
@@ -398,22 +406,20 @@ export function tableView(root, store) {
     const iAmDummy = !!st && !!me && st.dummy === me;
     const shows = (where) => (where === ['top', 'left', 'right'].find((w) => pos[w] === dummy) ? 'dummy'
       : iAmDummy && pos[where] === st.declarer ? 'declarer'
-      : iAmDummy && ui.peek[pos[where]] ? 'peek' : null);
+      : null);
     const hand = (where, back) => {
       const kind = shows(where);
       const seat = pos[where];
       if (kind === 'dummy') return el('div', { class: 'dwrap' }, el('div', { class: 'dlabel' }, 'Dummy'), dummyAt(handFromCards(st.remaining[dummy]), playableBy(st, me, dummy), st.trump));
       if (kind === 'declarer') return el('div', { class: 'dwrap' }, el('div', { class: 'dlabel' }, 'Declarer'), dummyAt(handFromCards(st.remaining[seat]), null, st.trump));
-      if (kind === 'peek') return el('button', { type: 'button', class: 'dwrap peeking', 'data-key': `peek-${seat}`, 'aria-label': `Peeking at ${COMPASS[seat]}'s hand`, onclick: () => peekAt(seat) },
-        el('div', { class: 'dlabel' }, 'Peeking…'), dummyAt(handFromCards(st.remaining[seat]), null, st.trump));
-      if (iAmDummy && pos[where] !== st.declarer) return el('button', { type: 'button', class: 'peek-btn', 'data-key': `peek-${seat}`, 'aria-label': `Peek at ${COMPASS[seat]}'s hand`, title: 'Tap to peek', onclick: () => peekAt(seat) }, back);
+      if (iAmDummy && pos[where] !== st.declarer) return peekButton(seat, handFromCards(st.remaining[seat]), back, st.trump);
       return back;
     };
     // Corners: the bidding record (small) and the tricks of declarer and defenders, as on Bridge Base Online.
     const tally = (label, n, cls) => el('div', { class: `tally ${cls}`, 'aria-label': `${label}: ${n} trick${n === 1 ? '' : 's'}` },
       el('span', { class: 'pile', 'aria-hidden': 'true' }, ...Array.from({ length: Math.min(n, 7) }, (_, i) => el('span', { class: 'pback', style: `--i:${i}` }))),
       el('span', { class: 'tcount' }, String(n)), el('span', { class: 'tlabel' }, label));
-    const wide = (w) => ['dummy', 'declarer', 'peek'].includes(shows(w));
+    const wide = (w) => ['dummy', 'declarer'].includes(shows(w));
     const widths = `${wide('left') ? 112 : 72}px minmax(0,1fr) ${wide('right') ? 112 : 72}px`;
     return el('div', { class: `felt${st ? ' play' : ''}`, style: wide('left') || wide('right') ? `grid-template-columns:${widths}` : null },
       el('div', { class: 'f-board' }, boardBox(t, me)),

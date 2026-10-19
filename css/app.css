@@ -223,13 +223,15 @@ button.card{font:inherit;font-weight:700;cursor:pointer;padding:3px 0 0;appearan
 @keyframes frog-hop{0%,100%{transform:translateY(0)}45%{transform:translateY(-16px) rotate(-8deg)}}
 @media (prefers-reduced-motion:reduce){.frog{animation:none;left:calc(50% - 13px)}}
 
-/* ---------- Peeking at hands (as dummy) ---------- */
-button.peek-btn{appearance:none;background:none;border:0;padding:0;cursor:pointer;border-radius:6px}
-button.peek-btn:focus-visible,button.peeking:focus-visible{outline:2px solid var(--turn);outline-offset:2px}
-button.peeking{appearance:none;background:none;border:0;padding:0;font:inherit;cursor:pointer;position:relative}
-.peeking .drow{filter:brightness(.62) saturate(.8);box-shadow:inset 0 0 10px rgba(0,0,0,.75),0 2px 8px rgba(0,0,0,.55)}
-.peeking .dlabel{color:var(--turn)}
-
+/* ---------- Peeking at hands (as dummy): the cards show while a finger is on them ---------- */
+button.peek-btn{appearance:none;background:none;border:0;padding:0;cursor:pointer;border-radius:6px;position:relative;font:inherit;color:inherit;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+button.peek-btn:focus-visible{outline:2px solid var(--turn);outline-offset:2px}
+.peek-open{display:none;position:absolute;z-index:6;top:-4px;width:124px;padding:4px;border-radius:8px;background:rgba(10,30,20,.72);box-shadow:0 6px 16px rgba(0,0,0,.55)}
+.f-left .peek-open{left:-4px}
+.f-right .peek-open{right:-4px}
+.peek-btn.open .peek-open{display:block}
+.peek-open .dlabel{color:var(--turn);text-align:center}
+.peek-open .drow{filter:brightness(.62) saturate(.8);box-shadow:inset 0 0 10px rgba(0,0,0,.75),0 2px 8px rgba(0,0,0,.55)}
 /* ---------- Table corners, taps ---------- */
 button.bnum.tap{appearance:none;cursor:pointer;font-family:inherit;box-shadow:0 2px 0 rgba(0,0,0,.25)}
 button.bnum.tap:focus-visible{outline:2px solid var(--turn);outline-offset:2px}
