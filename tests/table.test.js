@@ -5,7 +5,7 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
-  phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard,
+  parseCode, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../js/table/model.js';
 import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
@@ -141,7 +141,7 @@ test('two phones racing to make the robot call: only one call goes through', asy
   assert.equal(auctionOf(seen.board).calls.length, 1);
 });
 
-test('undo takes back my last call and the robot replies after it, not other players\' calls', () => {
+test('undo takes back my last call and everything after it, for every player', () => {
   let t = sit(fresh('robot'), 'N', 'pard', 'Ploy');
   t = { ...t, board: { ...t.board, dealer: 'S', calls: '' } };
   assert.equal(undo(t, 'me'), undefined, 'nothing to undo yet');
@@ -150,7 +150,7 @@ test('undo takes back my last call and the robot replies after it, not other pla
   assert.equal(lastOwnCall(t, 'me'), 0);
   assert.equal(undo(t, 'me').board.calls, '', 'my 1♥ and the robot reply are gone');
   t = call(t, 'N', '2H', 'pard');
-  assert.equal(undo(t, 'me'), undefined, 'partner has called since');
+  assert.equal(undo(t, 'me').board.calls, '', 'I can take back my 1♥ even after partner has called (their call goes too)');
   assert.equal(undo(t, 'pard').board.calls.split(' ').length, 2, 'partner can take back 2♥');
   assert.equal(undo(t, 'stranger'), undefined);
 });
@@ -385,4 +385,40 @@ test('four humans at one table: each plays only their own seat, a whole board an
   await sync.opp2.change('ABC234', (t) => nextBoard(t, rand));
   assert.equal(seen.board.n, 2);
   assert.ok(seen.history[1], 'the finished board is kept for the review');
+});
+
+test('a take-back needs the OK of every human who called after it, like on BBO', () => {
+  let t = fresh('robot');
+  t = sit(t, 'N', 'pard', 'Ploy');
+  t = { ...t, board: { ...t.board, dealer: 'S', calls: '' } };
+  t = call(t, 'S', '1H', 'me');
+  t = playRobot(t, advise); // West
+  assert.equal(requestUndo(t, 'me').board.calls, '', 'only a robot called after it: taken back at once');
+  t = call(t, 'N', '2H', 'pard');
+  const asked = requestUndo(t, 'me');
+  assert.equal(asked.board.calls, t.board.calls, 'partner called after my 1♥: nothing changes yet');
+  assert.deepEqual(pendingUndo(asked).need, ['pard']);
+  assert.equal(requestUndo(asked, 'me'), undefined, 'one request at a time');
+  assert.equal(answerUndo(asked, 'me', true), undefined, 'I cannot allow my own request');
+  assert.equal(answerUndo(asked, 'stranger', true), undefined);
+  const no = answerUndo(asked, 'pard', false);
+  assert.equal(pendingUndo(no), null, 'denied: the request is gone');
+  assert.equal(no.board.calls, t.board.calls);
+  const yes = answerUndo(asked, 'pard', true);
+  assert.equal(yes.board.calls, '', 'allowed: my call and partner\'s call are taken back');
+  assert.equal(pendingUndo(yes), null);
+  assert.equal(pendingUndo(cancelUndo(asked, 'me')), null, 'the asker can withdraw');
+  // A request goes stale as soon as anything is called after it was made.
+  const moved = call(asked, 'E', 'P', 'rob');
+  assert.equal(pendingUndo(moved), null);
+});
+
+test('a table code is found in whatever was typed or pasted', () => {
+  assert.equal(parseCode('abc234'), 'ABC234');
+  assert.equal(parseCode(' ABC 234 '), 'ABC234');
+  assert.equal(parseCode('https://kanoonzaza.github.io/bridge-app/?table=abc234&sync=local'), 'ABC234');
+  assert.equal(parseCode('Join my table: ABC234 :)'), 'ABC234');
+  assert.equal(parseCode('ABC1O0'), '', 'no 0, 1, I or O in a code');
+  assert.equal(parseCode('ABC23'), '');
+  assert.equal(parseCode(null), '');
 });

@@ -6,7 +6,7 @@ import { SEATS, legalCalls, isComplete, nextSeat, partnerOf, seatAt } from '../a
 import { contract, playState, legalCards, controller, robotCard, splitPlay } from './play.js';
 
 export const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-export const CODE = /^[A-Z2-9]{6}$/;
+export const CODE = /^[ABCDEFGHJKLMNPQRSTUVWXYZ2-9]{6}$/;
 export const KINDS = ['open', 'human', 'robot', 'pass'];
 export const OPPONENTS = ['robot', 'pass', 'players'];
 const HISTORY = 30;
@@ -15,6 +15,17 @@ const HISTORY = 30;
 export const boardDealer = (n) => SEATS[(n - 1) % 4];
 const VUL = ['none', 'NS', 'EW', 'both', 'NS', 'EW', 'both', 'none', 'EW', 'both', 'none', 'NS', 'both', 'none', 'NS', 'EW'];
 export const boardVul = (n) => VUL[(n - 1) % 16];
+
+// The table code in whatever was typed or pasted: the code itself, an invite link (?table=ABC234), or a sentence
+// around it ("Table code: abc 234"). Returns '' when there is no valid code in it.
+export function parseCode(text) {
+  const t = String(text ?? '').toUpperCase();
+  const fromLink = /[?&]TABLE=([A-Z0-9]{6})/.exec(t);
+  if (fromLink && CODE.test(fromLink[1])) return fromLink[1];
+  const squeezed = t.replace(/[^A-Z0-9]/g, '');
+  if (CODE.test(squeezed)) return squeezed;
+  return (t.match(/[A-Z0-9]{6}/g) ?? []).find((x) => CODE.test(x)) ?? '';
+}
 
 export function newCode(rand) {
   return Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(rand() * CODE_CHARS.length)]).join('');
@@ -68,7 +79,14 @@ export function normalize(raw) {
     seats,
     board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true },
     history,
+    ...(normalUndo(raw.undoReq) ? { undoReq: normalUndo(raw.undoReq) } : {}),
   };
+}
+
+// A pending take-back request (see requestUndo). need and ok are space-separated uids, so no database turns them into objects.
+function normalUndo(u) {
+  if (!u || typeof u !== 'object' || !u.uid || !['call', 'card'].includes(u.kind) || !Number.isInteger(u.i)) return null;
+  return { uid: String(u.uid), n: Number(u.n ?? 0), kind: u.kind, i: u.i, len: Number(u.len ?? 0), need: String(u.need ?? ''), ok: String(u.ok ?? '') };
 }
 
 export function newTable({ code, uid, name, seat = 'S', opponents = 'robot', rand, now = 0 }) {
@@ -121,7 +139,7 @@ export function playCard(t, seat, card, uid) {
 // Stop playing this board: go straight to the review.
 export const skipPlay = (t) => (phase(t) === 'play' ? { ...t, board: { ...t.board, skip: true } } : undefined);
 
-// Take back my last card (or the card I played from dummy): allowed while only robots have played since.
+// Take back my last card (or the card I played from dummy), and everything played after it.
 export function lastOwnCard(t, uid) {
   const me = mySeat(t, uid);
   if (!me || phase(t) !== 'play') return -1;
@@ -129,9 +147,7 @@ export function lastOwnCard(t, uid) {
   const cards = splitPlay(t.board.play);
   const seats = [...st.tricks.flatMap((tr) => tr.cards), ...st.current].map((p) => p.seat);
   for (let i = cards.length - 1; i >= 0; i--) {
-    const who = controller(st, seats[i]);
-    if (who === me) return i;
-    if (t.seats[who].kind === 'human' || t.seats[who].kind === 'open') return -1;
+    if (controller(st, seats[i]) === me) return i;
   }
   return -1;
 }
@@ -140,6 +156,64 @@ export function undoCard(t, uid) {
   if (i < 0) return undefined;
   return { ...t, board: { ...t.board, play: splitPlay(t.board.play).slice(0, i).join(' ') } };
 }
+
+// ---------- Taking a call or card back, as on Bridge Base Online ----------
+// Anyone can ask to take back their last call (or card) and everything after it. Robots and always-pass seats
+// never object; any other human who has called or played since must allow it first.
+const length = (t) => (phase(t) === 'play' ? splitPlay(t.board.play).length : auctionOf(t.board).calls.length);
+
+// What I would take back: { kind, i } or null.
+function undoTarget(t, uid) {
+  const i = phase(t) === 'play' ? lastOwnCard(t, uid) : lastOwnCall(t, uid);
+  return i < 0 ? null : { kind: phase(t) === 'play' ? 'card' : 'call', i };
+}
+
+// The humans who acted after position i (they must allow it), other than uid.
+function actedAfter(t, uid, { kind, i }) {
+  const who = new Set();
+  if (kind === 'call') {
+    const a = auctionOf(t.board);
+    for (let j = i + 1; j < a.calls.length; j++) { const st = t.seats[seatAt(a, j)]; if (st.kind === 'human' && st.uid !== uid) who.add(st.uid); }
+  } else {
+    const st = playOf(t.board);
+    const seats = [...st.tricks.flatMap((tr) => tr.cards), ...st.current].map((p) => p.seat);
+    for (let j = i + 1; j < seats.length; j++) { const h = t.seats[controller(st, seats[j])]; if (h.kind === 'human' && h.uid !== uid) who.add(h.uid); }
+  }
+  return [...who];
+}
+
+// The request that still applies (nothing has been called or played since it was made), or null.
+export function pendingUndo(t) {
+  const u = t.undoReq;
+  if (!u || u.n !== t.board.n || u.len !== length(t) || u.kind !== (phase(t) === 'play' ? 'card' : 'call')) return null;
+  return { ...u, need: u.need.split(' ').filter(Boolean), ok: u.ok.split(' ').filter(Boolean) };
+}
+
+const withoutRequest = (t) => { const { undoReq, ...rest } = t; return rest; };
+
+// Ask to take back my last call or card. With nobody to ask (only robots after it) it happens at once.
+export function requestUndo(t, uid) {
+  const target = undoTarget(t, uid);
+  if (!target || pendingUndo(t)) return undefined;
+  const need = actedAfter(t, uid, target);
+  if (!need.length) return withoutRequest(target.kind === 'card' ? undoCard(t, uid) : undo(t, uid));
+  return { ...t, undoReq: { uid, n: t.board.n, kind: target.kind, i: target.i, len: length(t), need: need.join(' '), ok: '' } };
+}
+
+// A player who must allow the request says yes or no. When everyone has allowed it, it is done.
+export function answerUndo(t, uid, yes) {
+  const u = pendingUndo(t);
+  if (!u || !u.need.includes(uid) || u.ok.includes(uid)) return undefined;
+  if (!yes) return withoutRequest(t);
+  const ok = [...u.ok, uid];
+  if (u.need.every((x) => ok.includes(x))) {
+    const done = u.kind === 'card' ? undoCard(t, u.uid) : undo(t, u.uid);
+    return done ? withoutRequest(done) : withoutRequest(t);
+  }
+  return { ...t, undoReq: { ...t.undoReq, ok: ok.join(' ') } };
+}
+
+export const cancelUndo = (t, uid) => (pendingUndo(t)?.uid === uid ? withoutRequest(t) : undefined);
 
 // The home pair (North-South: the table's creator and partner) chooses who sits East-West:
 // robots, always pass, or open for players (anyone already seated there stays).
@@ -217,16 +291,14 @@ export function nextBoard(t, rand) {
   return { ...t, board: board(t.board.n + 1, rand), history };
 }
 
-// Take back my last call: allowed while no other player has called after it (robot and
-// always-pass replies after it are taken back too). Returns undefined when not allowed.
+// Take back my last call and everything called after it (any player can do this, whoever has called since).
+// Returns undefined when I have not called or the play has started.
 export function lastOwnCall(t, uid) {
   const me = mySeat(t, uid);
   if (!me || (isDone(t) && t.board.play)) return -1;
   const a = auctionOf(t.board);
   for (let i = a.calls.length - 1; i >= 0; i--) {
-    const s = seatAt(a, i);
-    if (s === me) return i;
-    if (t.seats[s].kind === 'human' || t.seats[s].kind === 'open') return -1;
+    if (seatAt(a, i) === me) return i;
   }
   return -1;
 }

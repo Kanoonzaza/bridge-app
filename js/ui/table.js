@@ -5,9 +5,9 @@ import { callLabel, rankLabel } from '../format.js';
 import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
 import {
-  CODE, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
+  CODE, parseCode, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
   setOpponents, sit, leave, setSeatKind, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
-  phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard,
+  phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
 import { legalCards, controller } from '../table/play.js';
 import { sharedPool, poolChoose } from '../table/pool.js';
@@ -55,7 +55,7 @@ function handView(hand, title) {
 export function tableView(root, store) {
   const saved = cleanSaved(store.load('table', {}));
   const params = new URLSearchParams(location.search);
-  const urlCode = (params.get('table') ?? '').toUpperCase();
+  const urlCode = parseCode(params.get('table') ?? '');
   const mode = params.get('sync') === 'local' ? 'local' : FIREBASE ? 'firebase' : 'none';
   const ui = { sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '', prev: false, dd: new Map() };
   if (CODE.test(urlCode) && urlCode !== saved.code) saved.code = '';
@@ -175,7 +175,8 @@ export function tableView(root, store) {
 
   async function open(code) {
     if (!saved.name.trim()) return fail('Enter your name first.');
-    if (!CODE.test(code)) return fail('A table code has 6 letters and digits.');
+    code = parseCode(code);
+    if (!CODE.test(code)) return fail('A table code has 6 letters and digits (no 0, 1, I or O). You can also paste the invite link.');
     ui.busy = true;
     render();
     try {
@@ -239,8 +240,8 @@ export function tableView(root, store) {
       el('div', { class: 'panel' },
         el('div', { class: 'eyebrow' }, 'Join a table'),
         el('div', { class: 'join' },
-          el('input', { 'data-key': 'tbl-code', class: 'field code', value: ui.joinCode, maxlength: 6, placeholder: 'CODE', autocapitalize: 'characters', 'aria-label': 'Table code', oninput: (e) => { ui.joinCode = e.target.value.toUpperCase(); } }),
-          el('button', { type: 'button', class: 'pill on', 'data-key': 'join', disabled: ui.busy, onclick: () => open(ui.joinCode.trim()) }, 'Join'))),
+          el('input', { 'data-key': 'tbl-code', class: 'field code', value: ui.joinCode, maxlength: 200, placeholder: 'CODE or invite link', autocapitalize: 'characters', 'aria-label': 'Table code', oninput: (e) => { ui.joinCode = e.target.value.toUpperCase(); } }),
+          el('button', { type: 'button', class: 'pill on', 'data-key': 'join', disabled: ui.busy, onclick: () => open(ui.joinCode) }, 'Join'))),
       ui.error ? el('p', { class: 'muted', role: 'status' }, ui.error) : null);
   }
 
@@ -443,13 +444,49 @@ export function tableView(root, store) {
     });
   }
 
+  // My calls so far, each beside what the Advisor would have bid at that point (for the hand and auction I had then).
+  function myCallsCheck(t, me) {
+    if (!me) return null;
+    const a = auctionOf(t.board);
+    const hand = handOf(t.board, me);
+    const rows = a.calls.map((c, i) => (seatAt(a, i) === me ? { i, c, r: advise(hand, { ...a, calls: a.calls.slice(0, i) }) } : null)).filter(Boolean);
+    if (!rows.length) return null;
+    return el('details', { class: 'manage', 'data-key': 'my-calls' },
+      el('summary', {}, "The Advisor's view of my calls"),
+      el('div', { class: 'lines' }, ...rows.map(({ c, r }) => {
+        const call = r.notCovered ? 'P' : r.call;
+        const same = call === c;
+        return el('div', { class: `line${same ? '' : ' differs'}` },
+          el('div', { class: 'row' }, el('span', { class: 'who' }, 'You'), el('span', { class: 'bid-l' }, callLabel(c)),
+            el('span', {}, same ? 'Same as the Advisor' : `Advisor: ${callLabel(call)}${r.meaning ? ` (${r.meaning}${r.reasons?.length ? `; ${r.reasons.join('; ')}` : ''})` : ''}`)));
+      })));
+  }
+
+  // Taking a call or card back works like on Bridge Base Online: ask, and any human who played after it must allow it.
+  const humanName = (t, id) => SEATS.map((s) => t.seats[s]).find((x) => x.kind === 'human' && x.uid === id)?.name || 'A player';
   function undoButton(t) {
-    if (phase(t) === 'play') {
-      if (lastOwnCard(t, ui.sync.uid) < 0) return null;
-      return el('button', { type: 'button', class: 'pill', 'data-key': 'undo-card', onclick: () => act((cur) => cur && undoCard(cur, ui.sync.uid), 'Too late to undo: another player has played since.') }, '↶ Undo my last card');
+    if (pendingUndo(t)) return null;
+    const play = phase(t) === 'play';
+    if ((play ? lastOwnCard(t, ui.sync.uid) : lastOwnCall(t, ui.sync.uid)) < 0) return null;
+    return el('button', { type: 'button', class: 'pill', 'data-key': play ? 'undo-card' : 'undo', onclick: () => act((cur) => cur && requestUndo(cur, ui.sync.uid), 'Nothing to take back.') }, play ? '↶ Take back my last card' : '↶ Take back my last call');
+  }
+  // The open request: the asker waits (and can withdraw); the players who must allow it see Allow / Deny.
+  function undoPanel(t) {
+    const u = pendingUndo(t);
+    if (!u) return null;
+    const what = u.kind === 'card' ? 'card' : 'call';
+    const waiting = u.need.filter((x) => !u.ok.includes(x)).map((x) => humanName(t, x)).join(', ');
+    if (u.uid === ui.sync.uid) {
+      return el('div', { class: 'panel', 'data-key': 'undo-wait' }, el('p', {}, `Waiting for ${waiting} to allow taking back your last ${what} (and everything after it)…`),
+        el('button', { type: 'button', class: 'pill', 'data-key': 'undo-cancel', onclick: () => act((cur) => cur && cancelUndo(cur, ui.sync.uid)) }, 'Cancel the request'));
     }
-    if (lastOwnCall(t, ui.sync.uid) < 0) return null;
-    return el('button', { type: 'button', class: 'pill', 'data-key': 'undo', onclick: () => act((cur) => cur && undo(cur, ui.sync.uid), 'Too late to undo: another player has called since.') }, '↶ Undo my last call');
+    if (u.need.includes(ui.sync.uid) && !u.ok.includes(ui.sync.uid)) {
+      return el('div', { class: 'panel', 'data-key': 'undo-ask' }, el('p', {}, el('b', {}, humanName(t, u.uid)), ` asks to take back their last ${what} and everything after it.`),
+        el('div', { class: 'row-buttons' },
+          el('button', { type: 'button', class: 'pill on', 'data-key': 'undo-allow', onclick: () => act((cur) => cur && answerUndo(cur, ui.sync.uid, true), 'That request is no longer open.') }, 'Allow'),
+          el('button', { type: 'button', class: 'pill', 'data-key': 'undo-deny', onclick: () => act((cur) => cur && answerUndo(cur, ui.sync.uid, false), 'That request is no longer open.') }, 'Deny')));
+    }
+    return el('p', { class: 'muted', role: 'status' }, `${humanName(t, u.uid)} asked to take back their last ${what}; waiting for ${waiting}.`);
   }
 
   // Double dummy, once the board is over: the tricks each seat takes in each strain, and par.
@@ -552,9 +589,11 @@ export function tableView(root, store) {
       felt(t, me),
       st ? playArea(t, me, st) : me ? myHand(handOf(b, me)) : null,
       ph === 'over' ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
+      undoPanel(t),
       undoButton(t) || (st && me) ? el('div', { class: 'row-buttons' }, undoButton(t),
         st && me ? el('button', { type: 'button', class: 'pill', 'data-key': 'skip-play', onclick: () => act((cur) => cur && skipPlay(cur)) }, 'Skip the play') : null) : null,
       ph === 'over' ? review(t, me) : ph === 'bidding' && me && now === me ? myTurn(t, me) : null,
+      ph === 'over' ? null : myCallsCheck(t, me),
       st ? el('details', { class: 'manage' }, el('summary', {}, 'The bidding'), auctionBox(t, me)) : null,
       ph === 'bidding' ? el('label', { class: 'toggle' },
         el('input', { type: 'checkbox', 'data-key': 'hints', checked: saved.hints, onchange: (e) => { saved.hints = e.target.checked; save(); render(); } }),
