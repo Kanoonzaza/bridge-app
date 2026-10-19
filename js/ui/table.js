@@ -333,15 +333,38 @@ export function tableView(root, store) {
   }
   const playedCard = (c) => el('span', { class: `card small${c[0] === 'H' || c[0] === 'D' ? ' redc' : ''}` }, el('span', { class: 'rank' }, rankLabel(c[1])), el('span', { class: 'pip' }, SYMBOL[c[0]]));
 
+  // The cards I may play now: from my own hand, or from the dummy when I am the declarer.
+  const playableBy = (st, me, seat) => (me && controller(st, seat) === me && st.next === seat
+    ? { legal: new Set(legalCards(st, seat)), onPlay: (c) => act((cur) => cur && playCard(cur, seat, c, ui.sync.uid), 'That card did not go through. Try again.') }
+    : null);
+
+  // The dummy, face up at its own seat, listed by suit (the cards I may play are buttons when I am the declarer).
+  function dummyAt(hand, play) {
+    return el('div', { class: 'dcol', 'data-key': 'dummy-hand', role: play ? 'group' : 'img', 'aria-label': `Dummy: ${SUITS.map((s) => `${SYMBOL[s]} ${hand[s] ? [...hand[s]].map(rankLabel).join(' ') : 'none'}`).join(', ')}` },
+      ...['S', 'H', 'C', 'D'].map((s) => el('div', { class: `drow${s === 'H' || s === 'D' ? ' redc' : ''}` },
+        el('span', { class: 'dpip' }, SYMBOL[s]),
+        ...[...hand[s]].map((r) => {
+          if (!play) return el('span', { class: 'dcard' }, rankLabel(r));
+          const ok = play.legal.has(s + r);
+          return el('button', { type: 'button', class: `dcard${ok ? ' playable' : ' dim'}`, disabled: !ok, 'data-key': `card-${s}${r}`, 'aria-label': `${rankLabel(r)} ${SYMBOL[s]}`, onclick: () => play.onPlay(s + r) }, rankLabel(r));
+        }))));
+  }
+
   function felt(t, me) {
     const pos = around(me);
     const st = phase(t) === 'play' ? playOf(t.board) : null;
-    return el('div', { class: 'felt' },
+    // After the opening lead the dummy's cards are shown at the dummy's seat (unless that seat is mine).
+    const dummy = st && st.started && st.dummy !== me ? st.dummy : null;
+    const dummyWhere = dummy ? ['top', 'left', 'right'].find((w) => pos[w] === dummy) : null;
+    const hand = (where, back) => (where === dummyWhere
+      ? el('div', { class: 'dwrap' }, el('div', { class: 'dlabel' }, 'Dummy'), dummyAt(handFromCards(st.remaining[dummy]), playableBy(st, me, dummy)))
+      : back);
+    return el('div', { class: `felt${dummyWhere === 'left' || dummyWhere === 'right' ? ` dum-${dummyWhere}` : ''}` },
       el('div', { class: 'f-board' }, boardBox(t, me)),
-      el('div', { class: 'f-top' }, backs(st ? st.remaining[pos.top].length : 13), plate(t, pos.top, me)),
-      el('div', { class: 'f-left' }, backs(5, ' side'), plate(t, pos.left, me)),
+      el('div', { class: 'f-top' }, hand('top', backs(st ? st.remaining[pos.top].length : 13)), plate(t, pos.top, me)),
+      el('div', { class: 'f-left' }, hand('left', backs(5, ' side')), plate(t, pos.left, me)),
       el('div', { class: 'f-center' }, st ? trickBox(t, me, st) : auctionBox(t, me)),
-      el('div', { class: 'f-right' }, backs(5, ' side'), plate(t, pos.right, me)),
+      el('div', { class: 'f-right' }, hand('right', backs(5, ' side')), plate(t, pos.right, me)),
       el('div', { class: 'f-bottom' }, plate(t, pos.bottom, me)));
   }
 
@@ -365,18 +388,14 @@ export function tableView(root, store) {
 
   // During the play: dummy (face up after the opening lead) and my hand, with the cards I may play now.
   function playArea(t, me, st) {
-    const mine = (seat) => me && controller(st, seat) === me && st.next === seat;
-    const playFor = (seat) => (mine(seat) ? { legal: new Set(legalCards(st, seat)), onPlay: (c) => act((cur) => cur && playCard(cur, seat, c, ui.sync.uid), 'That card did not go through. Try again.') } : null);
     const dummy = st.dummy;
-    const dummyBlock = st.started && dummy !== me
-      ? el('div', {}, el('div', { class: 'label' }, `Dummy (${relative(me, dummy)})${mine(dummy) ? ' · your turn to play from dummy' : ''}`),
-        cards(handFromCards(st.remaining[dummy]), { play: playFor(dummy), who: 'Dummy', hcp: false }))
-      : null;
+    const mine = (seat) => me && controller(st, seat) === me && st.next === seat;
+    const note = st.started && dummy !== me && mine(dummy) ? el('div', { class: 'label' }, `Your turn to play from dummy (${relative(me, dummy)}): tap a card at that seat`) : null;
     const myBlock = me
       ? el('div', {}, el('div', { class: 'label' }, me === dummy ? 'Your hand (dummy: partner plays it)' : mine(me) ? 'Your turn: play a card' : 'Your hand'),
-        cards(handFromCards(st.remaining[me]), { play: playFor(me), hcp: false }))
+        cards(handFromCards(st.remaining[me]), { play: playableBy(st, me, me), hcp: false }))
       : null;
-    return el('div', { class: 'stack' }, dummyBlock, myBlock);
+    return el('div', { class: 'stack' }, note, myBlock);
   }
 
   function meanings(t, me) {
