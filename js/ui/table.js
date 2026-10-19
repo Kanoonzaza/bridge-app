@@ -5,7 +5,7 @@ import { callLabel, rankLabel } from '../format.js';
 import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
 import {
-  CODE, parseCode, say, restoreChat, chatKey, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
+  CODE, parseCode, seatsAtBidding, say, restoreChat, chatKey, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
   setOpponents, sit, leave, setSeatKind, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
@@ -374,16 +374,36 @@ export function tableView(root, store) {
         }))));
   }
 
+  // Peeking: the dummy sees the declarer's hand, and can tap a defender's cards to take a quick look (shaded, for a moment).
+  function peekAt(seat) {
+    ui.peek[seat] = true;
+    render();
+    clearTimeout(ui.peekTimers[seat]);
+    ui.peekTimers[seat] = setTimeout(() => { delete ui.peek[seat]; render(); }, 3000);
+  }
+
   function felt(t, me) {
     const pos = around(me);
     const st = phase(t) === 'play' ? playOf(t.board) : null;
     // After the opening lead the dummy's cards are shown at the dummy's seat (unless that seat is mine).
     const dummy = st && st.started && st.dummy !== me ? st.dummy : null;
-    const dummyWhere = dummy ? ['top', 'left', 'right'].find((w) => pos[w] === dummy) : null;
-    const hand = (where, back) => (where === dummyWhere
-      ? el('div', { class: 'dwrap' }, el('div', { class: 'dlabel' }, 'Dummy'), dummyAt(handFromCards(st.remaining[dummy]), playableBy(st, me, dummy)))
-      : back);
-    return el('div', { class: `felt${dummyWhere === 'left' || dummyWhere === 'right' ? ` dum-${dummyWhere}` : ''}` },
+    const iAmDummy = !!st && !!me && st.dummy === me;
+    const shows = (where) => (where === ['top', 'left', 'right'].find((w) => pos[w] === dummy) ? 'dummy'
+      : iAmDummy && pos[where] === st.declarer ? 'declarer'
+      : iAmDummy && ui.peek[pos[where]] ? 'peek' : null);
+    const hand = (where, back) => {
+      const kind = shows(where);
+      const seat = pos[where];
+      if (kind === 'dummy') return el('div', { class: 'dwrap' }, el('div', { class: 'dlabel' }, 'Dummy'), dummyAt(handFromCards(st.remaining[dummy]), playableBy(st, me, dummy)));
+      if (kind === 'declarer') return el('div', { class: 'dwrap' }, el('div', { class: 'dlabel' }, 'Declarer'), dummyAt(handFromCards(st.remaining[seat]), null));
+      if (kind === 'peek') return el('button', { type: 'button', class: 'dwrap peeking', 'data-key': `peek-${seat}`, 'aria-label': `Peeking at ${COMPASS[seat]}'s hand`, onclick: () => peekAt(seat) },
+        el('div', { class: 'dlabel' }, 'Peeking…'), dummyAt(handFromCards(st.remaining[seat]), null));
+      if (iAmDummy && pos[where] !== st.declarer) return el('button', { type: 'button', class: 'peek-btn', 'data-key': `peek-${seat}`, 'aria-label': `Peek at ${COMPASS[seat]}'s hand`, title: 'Tap to peek', onclick: () => peekAt(seat) }, back);
+      return back;
+    };
+    const wide = (w) => ['dummy', 'declarer', 'peek'].includes(shows(w));
+    const widths = `${wide('left') ? 112 : 72}px minmax(0,1fr) ${wide('right') ? 112 : 72}px`;
+    return el('div', { class: 'felt', style: wide('left') || wide('right') ? `grid-template-columns:${widths}` : null },
       el('div', { class: 'f-board' }, boardBox(t, me)),
       el('div', { class: 'f-top' }, hand('top', backs(st ? st.remaining[pos.top].length : 13)), plate(t, pos.top, me)),
       el('div', { class: 'f-left' }, hand('left', backs(5, ' side')), plate(t, pos.left, me)),
@@ -630,8 +650,9 @@ export function tableView(root, store) {
     const b = t.board;
     const a = auctionOf(b);
     const k = contract(a);
-    const rows = reviewRows(b, t.seats);
-    const sys = systemAuction(b, t.seats);
+    const rows = reviewRows(b, seatsAtBidding(t));
+    const meBid = b.swap ? b.swap[0] : me; // who I was while bidding
+    const sys = systemAuction(b, seatsAtBidding(t));
     const sysK = contract(sys);
     const kText = (x) => (x ? `${callLabel(x.bid)}${x.doubled ? ` ${x.doubled === 'XX' ? 'redoubled' : 'doubled'}` : ''} by ${relative(me, x.declarer)}` : 'Passed out');
     return el('div', { class: 'stack' },
@@ -646,7 +667,7 @@ export function tableView(root, store) {
         el('div', { class: 'label' }, 'Call by call'),
         rows.some((r) => r.skipped) ? el('p', { class: 'muted' }, 'Only each player\'s first difference from the Advisor is shown: the calls after it depend on it.') : null,
         el('div', { class: 'lines' }, ...rows.filter((r) => r.call !== 'P' || r.human).map((r) => el('details', { class: `line${r.differs ? ' differs' : ''}${r.human ? '' : ' opp'}` },
-          el('summary', {}, el('span', { class: 'who' }, relative(me, r.seat)), el('span', { class: 'bid-l' }, callLabel(r.call)),
+          el('summary', {}, el('span', { class: 'who' }, relative(meBid, r.seat)), el('span', { class: 'bid-l' }, callLabel(r.call)),
             el('span', {}, r.differs ? `Advisor: ${callLabel(r.advisor.call)}` : r.meaning ?? (r.call === 'P' ? 'Pass' : 'No agreement'))),
           r.meaning ? el('p', {}, r.meaning) : null,
           r.differs ? el('p', {}, el('b', {}, `Advisor's ${callLabel(r.advisor.call)}: `), `${r.advisor.meaning}${r.advisor.reasons?.length ? ` (${r.advisor.reasons.join('; ')})` : ''}`) : null,
@@ -688,6 +709,7 @@ export function tableView(root, store) {
           el('button', { type: 'button', class: 'pill', 'data-key': 'share', onclick: () => share(t.code) }, 'Invite'),
           el('button', { type: 'button', class: 'pill', 'data-key': 'leave', onclick: exit }, 'Leave'))),
       el('div', { class: 'board-line' }, el('b', {}, `Board ${b.n}`), ` · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`),
+      b.swap ? el('p', { class: 'muted', 'data-key': 'swap-note' }, `Your partner (a robot) was the declarer, so you moved to ${COMPASS[b.swap[2]]} and play the contract; the robot sits ${COMPASS[b.swap[0]]} as dummy.`) : null,
       prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = true; render(); } }, `← Previous board (${prev.n})`)) : null,
       felt(t, me),
       chatPanel(t, me),

@@ -3,7 +3,7 @@
 import { formatHand } from './cards.js';
 import { callLabel } from './format.js';
 import { SEATS } from './auction.js';
-import { auctionOf, handOf, packHand, playOf } from './table/model.js';
+import { auctionOf, handOf, packHand, playOf, seatsAtBidding } from './table/model.js';
 import { score } from './table/play.js';
 import { reviewRows, robotDepartures, systemAuction, contract } from './table/review.js';
 import { parLine, tableRows } from './table/ddtext.js';
@@ -51,14 +51,15 @@ export function boardReport(t, me, dd = null) {
   const b = t.board;
   const a = auctionOf(b);
   const who = (s) => {
-    const st = t.seats[s];
+    const st = seatsAtBidding(t)[s];
     const name = st.kind === 'human' ? st.name || 'Player' : st.kind === 'robot' ? 'Robot' : st.kind === 'pass' ? 'Always passes' : 'Empty';
-    return `${COMPASS[s]} (${name}${s === me ? ', me' : ''})`;
+    return `${COMPASS[s]} (${name}${s === (b.swap ? b.swap[0] : me) ? ', me' : ''})`;
   };
   const hands = Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)]));
-  const rows = reviewRows(b, t.seats).filter((r) => r.differs);
-  const robots = robotDepartures(b, t.seats);
-  const sys = systemAuction(b, t.seats);
+  const bid = seatsAtBidding(t); // who was where while bidding (a swap to play a robot partner's contract comes after)
+  const rows = reviewRows(b, bid).filter((r) => r.differs);
+  const robots = robotDepartures(b, bid);
+  const sys = systemAuction(b, bid);
   return [
     'Bridge Coach: board for review',
     `Table ${t.code} · Board ${b.n} · Dealer ${COMPASS[b.dealer]} · ${VUL[b.vul]}`,
@@ -67,7 +68,7 @@ export function boardReport(t, me, dd = null) {
     '',
     'Auction:',
     ...rounds(a),
-    `Contract: ${kText(contract(a))}`,
+    `Contract: ${kText(contract(a))}${b.swap ? ' (declarer was my robot partner: I took over that seat for the play)' : ''}`,
     ...(contract(a) ? [`Result: ${resultText(b)}`] : []),
     `The Advisor would bid: ${calls(sys.calls)} → ${kText(contract(sys))}`,
     ...(dd ? ['', `Double dummy (tricks as declarer, N E S W): ${tableRows(dd.table).map((r) => `${r.strain} ${r.N} ${r.E} ${r.S} ${r.W}`).join(' · ')}`, ...(parLine(dd, { name: (x) => COMPASS[x] }) ? [parLine(dd, { name: (x) => COMPASS[x] })] : [])] : []),

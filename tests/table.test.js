@@ -5,7 +5,7 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
-  parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../js/table/model.js';
 import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
@@ -492,4 +492,32 @@ test('chat: messages an older app version dropped are put back, and unknown tabl
   assert.equal(new Set(back.chat.map(chatKey)).size, 2);
   // A field added by a newer version survives a rewrite by this one.
   assert.equal(normalize({ ...t, futureThing: { a: 1 } }).futureThing.a, 1);
+});
+
+test('alone with a robot partner and robot opponents, the human takes over partner\'s contract', () => {
+  let t = fresh('robot');
+  t = setSeatKind(t, 'N', 'robot');
+  // Dealer North: North opens 1♠ and everyone passes, so North (the robot) declares.
+  assert.equal(t.board.swap, undefined);
+  t = { ...t, board: { ...t.board, calls: '1S P P P' } };
+  t = autoDeclare(t);
+  assert.equal(t.board.swap, 'S>N', 'I moved from South to North');
+  assert.equal(t.seats.N.kind, 'human');
+  assert.equal(t.seats.N.uid, 'me');
+  assert.equal(t.seats.S.kind, 'robot');
+  assert.equal(mySeat(t, 'me'), 'N');
+  assert.equal(autoDeclare(t), t, 'only once');
+  assert.equal(seatsAtBidding(t).S.uid, 'me', 'the review still sees me as South');
+  assert.equal(seatsAtBidding(t).N.kind, 'robot');
+  // Taking my last call back rewinds the swap; the call is found at my bidding seat.
+  assert.equal(lastOwnCall(t, 'me'), 2, 'my pass is call 2, found at my bidding seat');
+  const back = unswap(t);
+  assert.equal(back.board.swap, undefined);
+  assert.equal(back.seats.S.uid, 'me');
+  assert.equal(back.seats.N.kind, 'robot');
+  // Not when I would declare myself, when the opponents are people, or when another human is seated.
+  const mine = { ...fresh('robot'), board: { ...fresh('robot').board, dealer: 'S', calls: '1S P P P' } };
+  assert.equal(autoDeclare(setSeatKind(mine, 'N', 'robot')).board.swap, undefined);
+  const withPlayers = { ...setSeatKind(fresh('players'), 'N', 'robot'), board: { ...fresh('robot').board, dealer: 'N', calls: '1S P P P' } };
+  assert.equal(autoDeclare(withPlayers).board.swap, undefined);
 });

@@ -2,7 +2,7 @@
 // Pure functions only: every change returns a new table (or undefined when the change is not allowed),
 // so the same code runs inside a Firebase transaction, in tests, and in the local two-tab mode.
 import { SUITS, RANKS } from '../cards.js';
-import { SEATS, legalCalls, isComplete, nextSeat, partnerOf, seatAt } from '../auction.js';
+import { SEATS, legalCalls, isComplete, nextSeat, partnerOf, seatAt, sideOf } from '../auction.js';
 import { contract, playState, legalCards, controller, robotCard, splitPlay } from './play.js';
 
 export const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -58,6 +58,7 @@ function board(n, rand) {
   return { n, dealer: boardDealer(n), vul: boardVul(n), hands: dealHands(rand), calls: '', play: '', skip: false };
 }
 
+const validSwap = (x) => typeof x === 'string' && /^[NESW]>[NESW]$/.test(x) && x[0] !== x[2];
 const splitCalls = (s) => (s ? String(s).split(' ').filter(Boolean) : []);
 
 // Whatever the database returns (missing fields, arrays as objects) becomes a well-formed table, or null.
@@ -71,7 +72,7 @@ export function normalize(raw) {
   const b = raw.board;
   const n = Number.isInteger(b.n) && b.n > 0 ? b.n : 1;
   const history = {};
-  for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true, ...(Number.isInteger(h.claim) ? { claim: h.claim } : {}) };
+  for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true, ...(Number.isInteger(h.claim) ? { claim: h.claim } : {}), ...(validSwap(h.swap) ? { swap: h.swap } : {}) };
   // Fields this version does not know (added by a newer version) pass through, so rewriting the table never drops them.
   const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq']);
   const extra = Object.fromEntries(Object.entries(raw).filter(([k, v]) => !known.has(k) && v !== undefined && v !== null));
@@ -81,7 +82,7 @@ export function normalize(raw) {
     created: Number(raw.created ?? 0),
     opponents: OPPONENTS.includes(raw.opponents) ? raw.opponents : 'robot',
     seats,
-    board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true, ...(Number.isInteger(b.claim) ? { claim: b.claim } : {}) },
+    board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true, ...(Number.isInteger(b.claim) ? { claim: b.claim } : {}), ...(validSwap(b.swap) ? { swap: b.swap } : {}) },
     history,
     chat: normalChat(raw.chat),
     ...(normalUndo(raw.undoReq) ? { undoReq: normalUndo(raw.undoReq) } : {}),
@@ -263,7 +264,7 @@ function actedAfter(t, uid, { kind, i }) {
   const who = new Set();
   if (kind === 'call') {
     const a = auctionOf(t.board);
-    for (let j = i + 1; j < a.calls.length; j++) { const st = t.seats[seatAt(a, j)]; if (st.kind === 'human' && st.uid !== uid) who.add(st.uid); }
+    for (let j = i + 1; j < a.calls.length; j++) { const st = seatsAtBidding(t)[seatAt(a, j)]; if (st.kind === 'human' && st.uid !== uid) who.add(st.uid); }
   } else {
     const st = playOf(t.board);
     const seats = [...st.tricks.flatMap((tr) => tr.cards), ...st.current].map((p) => p.seat);
@@ -339,13 +340,40 @@ export function setSeatKind(t, seat, kind) {
   return { ...t, seats: { ...t.seats, [seat]: { kind } } };
 }
 
+// ---------- Playing a robot partner's contract ----------
+// Alone at the table with a robot partner and robot (or always-pass) opponents, when partner would be the declarer the
+// human takes over: we move to the declarer's seat (the robot takes ours and becomes dummy), so we play the contract.
+// board.swap remembers "from>to" so the review still shows who bid what.
+export function autoDeclare(t) {
+  if (phase(t) !== 'play' || t.board.swap || t.board.play) return t;
+  const k = contract(auctionOf(t.board));
+  const humans = SEATS.filter((s) => t.seats[s].kind === 'human');
+  if (!k || humans.length !== 1) return t;
+  const me = humans[0];
+  const d = k.declarer;
+  if (d === me || d !== partnerOf(me) || t.seats[d].kind !== 'robot') return t;
+  if (!SEATS.filter((s) => sideOf(s) !== sideOf(me)).every((s) => ['robot', 'pass'].includes(t.seats[s].kind))) return t;
+  return { ...t, seats: { ...t.seats, [d]: t.seats[me], [me]: { kind: 'robot' } }, board: { ...t.board, swap: `${me}>${d}` } };
+}
+
+// Undo the move above (taking calls back, or bidding the board again).
+export function unswap(t) {
+  if (!t.board.swap) return t;
+  const [from, to] = t.board.swap.split('>');
+  const { swap, ...board } = t.board;
+  return { ...t, seats: { ...t.seats, [from]: t.seats[to], [to]: { kind: 'robot' } }, board };
+}
+
+// The seats as they were during the bidding, for reviewing who made which call.
+export const seatsAtBidding = (t) => (t.board.swap ? unswap(t).seats : t.seats);
+
 export function call(t, seat, c, uid) {
   if (turn(t) !== seat) return undefined;
   const who = t.seats[seat];
   if (who.kind === 'human' ? who.uid !== uid : who.kind === 'open') return undefined;
   const a = auctionOf(t.board);
   if (!legalCalls(a).includes(c)) return undefined;
-  return { ...t, board: { ...t.board, calls: [...a.calls, c].join(' ') } };
+  return autoDeclare({ ...t, board: { ...t.board, calls: [...a.calls, c].join(' ') } });
 }
 
 // The call a robot (or an always-pass seat) makes now; `advise` is the engine's Advisor.
@@ -384,7 +412,7 @@ export function nextBoard(t, rand) {
 // Take back my last call and everything called after it (any player can do this, whoever has called since).
 // Returns undefined when I have not called or the play has started.
 export function lastOwnCall(t, uid) {
-  const me = mySeat(t, uid);
+  const me = mySeat({ ...t, seats: seatsAtBidding(t) }, uid);
   if (!me || (isDone(t) && t.board.play)) return -1;
   const a = auctionOf(t.board);
   for (let i = a.calls.length - 1; i >= 0; i--) {
@@ -395,12 +423,13 @@ export function lastOwnCall(t, uid) {
 export function undo(t, uid) {
   const i = lastOwnCall(t, uid);
   if (i < 0) return undefined;
-  return { ...t, board: { ...t.board, calls: auctionOf(t.board).calls.slice(0, i).join(' ') } };
+  return unswap({ ...t, board: { ...t.board, calls: auctionOf(t.board).calls.slice(0, i).join(' ') } });
 }
 
 // Restart the current board's bidding (same cards), e.g. after a mis-click.
 export function rebid(t) {
-  return t.board.calls ? { ...withoutClaim(t), board: (({ claim, ...b }) => ({ ...b, calls: '', play: '', skip: false }))(t.board) } : undefined;
+  const u = unswap(t);
+  return u.board.calls ? { ...withoutClaim(u), board: (({ claim, ...b }) => ({ ...b, calls: '', play: '', skip: false }))(u.board) } : undefined;
 }
 
 export const partnerSeat = partnerOf;
