@@ -389,7 +389,8 @@ export function tableView(root, store) {
       el('div', { class: 'f-left' }, hand('left', backs(5, ' side')), plate(t, pos.left, me)),
       el('div', { class: 'f-center' }, st ? trickBox(t, me, st) : auctionBox(t, me)),
       el('div', { class: 'f-right' }, hand('right', backs(5, ' side')), plate(t, pos.right, me)),
-      el('div', { class: 'f-bottom' }, plate(t, pos.bottom, me)));
+      el('div', { class: 'f-bottom' }, plate(t, pos.bottom, me)),
+      requestNote(t));
   }
 
   // A hand as cards: spades, hearts, clubs, diamonds (alternating colours), overlapping to fit the screen.
@@ -536,22 +537,7 @@ export function tableView(root, store) {
     act((cur) => cur && requestClaim(cur, ui.sync.uid, n, dd), 'That claim did not go through (the position has changed).');
   }
   function claimControls(t, me) {
-    const c = pendingClaim(t);
-    if (c) {
-      const left = playOf(t.board).remaining[playOf(t.board).declarer].length;
-      const text = `${c.tricks === left ? 'all' : c.tricks} of the last ${left} tricks`;
-      if (c.uid === ui.sync.uid) {
-        return el('div', { class: 'panel', 'data-key': 'claim-wait' }, el('p', {}, `You claim ${text}. Waiting for ${c.need.filter((x) => !c.ok.includes(x)).map((x) => humanName(t, x)).join(', ')} to accept…`),
-          el('button', { type: 'button', class: 'pill', 'data-key': 'claim-cancel', onclick: () => act((cur) => cur && cancelClaim(cur, ui.sync.uid)) }, 'Withdraw the claim'));
-      }
-      if (c.need.includes(ui.sync.uid) && !c.ok.includes(ui.sync.uid)) {
-        return el('div', { class: 'panel', 'data-key': 'claim-ask' }, el('p', {}, el('b', {}, humanName(t, c.uid)), ` claims ${text}.`),
-          el('div', { class: 'row-buttons' },
-            el('button', { type: 'button', class: 'pill on', 'data-key': 'claim-accept', onclick: () => act((cur) => cur && answerClaim(cur, ui.sync.uid, true), 'That claim is no longer open.') }, 'Accept'),
-            el('button', { type: 'button', class: 'pill', 'data-key': 'claim-reject', onclick: () => act((cur) => cur && answerClaim(cur, ui.sync.uid, false), 'That claim is no longer open.') }, 'Reject, play on')));
-      }
-      return el('p', { class: 'muted', role: 'status' }, `${humanName(t, c.uid)} claims ${text}; waiting for ${c.need.filter((x) => !c.ok.includes(x)).map((x) => humanName(t, x)).join(', ')}.`);
-    }
+    if (pendingClaim(t)) return null;
     const chance = claimChance(t, ui.sync.uid);
     if (!chance) return null;
     if (!ui.claiming) return el('button', { type: 'button', class: 'pill', 'data-key': 'claim', onclick: () => { ui.claiming = true; ui.claimN = chance.left; render(); } }, 'Claim');
@@ -573,23 +559,37 @@ export function tableView(root, store) {
     if ((play ? lastOwnCard(t, ui.sync.uid) : lastOwnCall(t, ui.sync.uid)) < 0) return null;
     return el('button', { type: 'button', class: 'pill', 'data-key': play ? 'undo-card' : 'undo', onclick: () => act((cur) => cur && requestUndo(cur, ui.sync.uid), 'Nothing to take back.') }, play ? '↶ Take back my last card' : '↶ Take back my last call');
   }
-  // The open request: the asker waits (and can withdraw); the players who must allow it see Allow / Deny.
-  function undoPanel(t) {
+  // An open take-back or claim, shown on the table itself with a hopping frog. The asker waits (and can withdraw);
+  // the players who must answer see Allow / Deny (Accept / Reject for a claim).
+  function requestNote(t) {
+    const me = ui.sync.uid;
     const u = pendingUndo(t);
-    if (!u) return null;
-    const what = u.kind === 'card' ? 'card' : 'call';
-    const waiting = u.need.filter((x) => !u.ok.includes(x)).map((x) => humanName(t, x)).join(', ');
-    if (u.uid === ui.sync.uid) {
-      return el('div', { class: 'panel', 'data-key': 'undo-wait' }, el('p', {}, `Waiting for ${waiting} to allow taking back your last ${what} (and everything after it)…`),
-        el('button', { type: 'button', class: 'pill', 'data-key': 'undo-cancel', onclick: () => act((cur) => cur && cancelUndo(cur, ui.sync.uid)) }, 'Cancel the request'));
+    const c = u ? null : pendingClaim(t);
+    const r = u ?? c;
+    if (!r) return null;
+    const waiting = r.need.filter((x) => !r.ok.includes(x)).map((x) => humanName(t, x)).join(', ');
+    const asker = humanName(t, r.uid);
+    let text;
+    let buttons;
+    if (u) {
+      const what = u.kind === 'card' ? 'card' : 'call';
+      const answer = (yes) => act((cur) => cur && answerUndo(cur, me, yes), 'That request is no longer open.');
+      if (u.uid === me) { text = `Taking back your last ${what} (and everything after it): waiting for ${waiting}…`; buttons = [['undo-cancel', 'Cancel the request', false, () => act((cur) => cur && cancelUndo(cur, me))]]; }
+      else if (u.need.includes(me) && !u.ok.includes(me)) { text = `${asker} asks to take back their last ${what} and everything after it.`; buttons = [['undo-allow', 'Allow', true, () => answer(true)], ['undo-deny', 'Deny', false, () => answer(false)]]; }
+      else text = `${asker} asks to take back their last ${what}. Waiting for ${waiting}…`;
+    } else {
+      const left = playOf(t.board).remaining[playOf(t.board).declarer].length;
+      const what = `${c.tricks === left ? 'all' : c.tricks} of the last ${left} tricks`;
+      const answer = (yes) => act((cur) => cur && answerClaim(cur, me, yes), 'That claim is no longer open.');
+      if (c.uid === me) { text = `You claim ${what}. Waiting for ${waiting}…`; buttons = [['claim-cancel', 'Withdraw the claim', false, () => act((cur) => cur && cancelClaim(cur, me))]]; }
+      else if (c.need.includes(me) && !c.ok.includes(me)) { text = `${asker} claims ${what}.`; buttons = [['claim-accept', 'Accept', true, () => answer(true)], ['claim-reject', 'Reject, play on', false, () => answer(false)]]; }
+      else text = `${asker} claims ${what}. Waiting for ${waiting}…`;
     }
-    if (u.need.includes(ui.sync.uid) && !u.ok.includes(ui.sync.uid)) {
-      return el('div', { class: 'panel', 'data-key': 'undo-ask' }, el('p', {}, el('b', {}, humanName(t, u.uid)), ` asks to take back their last ${what} and everything after it.`),
-        el('div', { class: 'row-buttons' },
-          el('button', { type: 'button', class: 'pill on', 'data-key': 'undo-allow', onclick: () => act((cur) => cur && answerUndo(cur, ui.sync.uid, true), 'That request is no longer open.') }, 'Allow'),
-          el('button', { type: 'button', class: 'pill', 'data-key': 'undo-deny', onclick: () => act((cur) => cur && answerUndo(cur, ui.sync.uid, false), 'That request is no longer open.') }, 'Deny')));
-    }
-    return el('p', { class: 'muted', role: 'status' }, `${humanName(t, u.uid)} asked to take back their last ${what}; waiting for ${waiting}.`);
+    return el('div', { class: 'req', 'data-key': u ? 'undo-request' : 'claim-request', role: 'alertdialog', 'aria-label': u ? 'Take-back request' : 'Claim' },
+      el('div', { class: 'frog-track', 'aria-hidden': 'true' }, el('span', { class: 'frog' }, '🐸')),
+      el('div', { class: 'req-title' }, u ? 'Take-back request' : 'Claim'),
+      el('p', {}, text),
+      buttons ? el('div', { class: 'row-buttons' }, ...buttons.map(([key, label, on, fn]) => el('button', { type: 'button', class: `pill${on ? ' on' : ''}`, 'data-key': key, onclick: fn }, label))) : null);
   }
 
   // Double dummy, once the board is over: the tricks each seat takes in each strain, and par.
@@ -693,7 +693,6 @@ export function tableView(root, store) {
       chatPanel(t, me),
       st ? playArea(t, me, st) : me ? myHand(handOf(b, me)) : null,
       ph === 'over' ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
-      undoPanel(t),
       st && me ? claimControls(t, me) : null,
       undoButton(t) || (st && me) ? el('div', { class: 'row-buttons' }, undoButton(t),
         st && me ? el('button', { type: 'button', class: 'pill', 'data-key': 'skip-play', onclick: () => act((cur) => cur && skipPlay(cur)) }, 'Skip the play') : null) : null,
