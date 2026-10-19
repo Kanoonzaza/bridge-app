@@ -5,7 +5,7 @@ import { callLabel, rankLabel } from '../format.js';
 import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
 import {
-  CODE, parseCode, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
+  CODE, parseCode, say, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
   setOpponents, sit, leave, setSeatKind, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
@@ -57,7 +57,7 @@ export function tableView(root, store) {
   const params = new URLSearchParams(location.search);
   const urlCode = parseCode(params.get('table') ?? '');
   const mode = params.get('sync') === 'local' ? 'local' : FIREBASE ? 'firebase' : 'none';
-  const ui = { sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '', prev: false, dd: new Map() };
+  const ui = { open: {}, chatDraft: '', chatSeen: 0, sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '', prev: false, dd: new Map() };
   if (CODE.test(urlCode) && urlCode !== saved.code) saved.code = '';
 
   const save = () => store.save('table', saved);
@@ -444,6 +444,33 @@ export function tableView(root, store) {
     });
   }
 
+  // A section that remembers whether it is open across redraws.
+  const section = (key, summary, ...children) => el('details', { class: 'manage', 'data-key': key, open: !!ui.open[key], ontoggle: (e) => { ui.open[key] = e.target.open; } },
+    el('summary', {}, summary), ...children);
+
+  // Table talk: the last messages of this table, newest at the bottom.
+  function chatPanel(t, me) {
+    const msgs = t.chat ?? [];
+    const last = msgs.at(-1)?.id ?? 0;
+    const open = !!ui.open.chat;
+    if (open) ui.chatSeen = last;
+    const unread = open ? 0 : msgs.filter((m) => m.id > (ui.chatSeen ?? 0) && m.uid !== ui.sync.uid).length;
+    const send = () => {
+      const text = ui.chatDraft.trim();
+      if (!text) return;
+      ui.chatDraft = '';
+      act((cur) => cur && say(cur, ui.sync.uid, text, Date.now()), 'Could not send. Are you seated at the table?');
+    };
+    return section('chat', `Chat${unread ? ` (${unread} new)` : msgs.length ? ` (${msgs.length})` : ''}`,
+      el('div', { class: 'chat-log', 'data-key': 'chat-log', role: 'log', 'aria-live': 'polite' },
+        ...(msgs.length ? msgs.map((m) => el('div', { class: `chat-msg${m.uid === ui.sync.uid ? ' mine' : ''}` }, el('b', {}, `${m.name || COMPASS[m.seat]} (${m.seat}): `), m.text))
+          : [el('p', { class: 'muted' }, 'No messages yet.')])),
+      me ? el('form', { class: 'chat-form', onsubmit: (e) => { e.preventDefault(); send(); } },
+        el('input', { class: 'field', 'data-key': 'chat-input', value: ui.chatDraft, maxlength: 200, placeholder: 'Say something to the table', autocomplete: 'off', 'aria-label': 'Chat message', oninput: (e) => { ui.chatDraft = e.target.value; } }),
+        el('button', { type: 'submit', class: 'pill on', 'data-key': 'chat-send' }, 'Send'))
+        : el('p', { class: 'muted' }, 'Sit at the table to chat.'));
+  }
+
   // My calls so far, each beside what the Advisor would have bid at that point (for the hand and auction I had then).
   function myCallsCheck(t, me) {
     if (!me) return null;
@@ -451,8 +478,7 @@ export function tableView(root, store) {
     const hand = handOf(t.board, me);
     const rows = a.calls.map((c, i) => (seatAt(a, i) === me ? { i, c, r: advise(hand, { ...a, calls: a.calls.slice(0, i) }) } : null)).filter(Boolean);
     if (!rows.length) return null;
-    return el('details', { class: 'manage', 'data-key': 'my-calls' },
-      el('summary', {}, "The Advisor's view of my calls"),
+    return section('my-calls', "The Advisor's view of my calls",
       el('div', { class: 'lines' }, ...rows.map(({ c, r }) => {
         const call = r.notCovered ? 'P' : r.call;
         const same = call === c;
@@ -603,6 +629,7 @@ export function tableView(root, store) {
         el('summary', {}, 'Seats and opponents'),
         seatsView(t, me),
         me === 'N' || me === 'S' ? segmented('Opponents', [['robot', 'Robots'], ['pass', 'Always pass'], ['players', 'Players']], t.opponents, (v) => act((cur) => cur && setOpponents(cur, v))) : null),
+      chatPanel(t, me),
       ui.error ? el('p', { class: 'muted', role: 'status' }, ui.error) : null);
   }
 

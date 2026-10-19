@@ -202,3 +202,10 @@ button.card{font:inherit;font-weight:700;cursor:pointer;padding:3px 0 0;appearan
 .dd-table thead th{font-size:.8em;color:var(--muted);font-weight:600}
 .dd-table tbody th{text-align:left}
 .dd-hit{font-weight:700;background:var(--accent-soft)}
+
+/* ---------- Table chat ---------- */
+.chat-log{display:grid;gap:4px;max-height:220px;overflow-y:auto;padding:4px 0;font-size:.95rem}
+.chat-msg{overflow-wrap:anywhere}
+.chat-msg.mine b{color:var(--accent)}
+.chat-form{display:flex;gap:8px;margin-top:6px}
+.chat-form .field{flex:1;min-width:0}

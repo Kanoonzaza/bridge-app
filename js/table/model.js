@@ -79,8 +79,30 @@ export function normalize(raw) {
     seats,
     board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true },
     history,
+    chat: normalChat(raw.chat),
     ...(normalUndo(raw.undoReq) ? { undoReq: normalUndo(raw.undoReq) } : {}),
   };
+}
+
+// ---------- Chat ----------
+// The last messages of the table, oldest first: { id, uid, name, seat, text, at }.
+export const CHAT_KEEP = 50;
+export const CHAT_MAX = 200;
+function normalChat(raw) {
+  const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? Object.values(raw) : [];
+  return list.filter((m) => m && typeof m.text === 'string' && m.text)
+    .map((m) => ({ id: Number(m.id ?? 0), uid: String(m.uid ?? ''), name: String(m.name ?? '').slice(0, 24), seat: SEATS.includes(m.seat) ? m.seat : '', text: m.text.slice(0, CHAT_MAX), at: Number(m.at ?? 0) }))
+    .slice(-CHAT_KEEP);
+}
+
+// A seated player says something to the table. Returns undefined for an empty message or someone not seated.
+export function say(t, uid, text, now = 0) {
+  const seat = mySeat(t, uid);
+  const clean = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
+  if (!seat || !clean) return undefined;
+  const chat = t.chat ?? [];
+  const id = (chat.at(-1)?.id ?? 0) + 1;
+  return { ...t, chat: [...chat, { id, uid, name: t.seats[seat].name || 'Player', seat, text: clean, at: now }].slice(-CHAT_KEEP) };
 }
 
 // A pending take-back request (see requestUndo). need and ok are space-separated uids, so no database turns them into objects.

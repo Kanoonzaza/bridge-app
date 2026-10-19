@@ -5,7 +5,7 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
-  parseCode, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  parseCode, say, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../js/table/model.js';
 import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
@@ -421,4 +421,25 @@ test('a table code is found in whatever was typed or pasted', () => {
   assert.equal(parseCode('ABC1O0'), '', 'no 0, 1, I or O in a code');
   assert.equal(parseCode('ABC23'), '');
   assert.equal(parseCode(null), '');
+});
+
+test('chat: seated players talk to the table, messages are trimmed and capped', () => {
+  let t = fresh('robot');
+  assert.equal(say(t, 'me', '   ', 5), undefined, 'empty message');
+  assert.equal(say(t, 'stranger', 'hello', 5), undefined, 'not seated');
+  t = say(t, 'me', '  Nice  bid!  ', 5);
+  assert.equal(t.chat.length, 1);
+  assert.deepEqual({ ...t.chat[0] }, { id: 1, uid: 'me', name: 'Kan', seat: 'S', text: 'Nice bid!', at: 5 });
+  t = sit(t, 'N', 'pard', 'Ploy');
+  t = say(t, 'pard', 'x'.repeat(500), 6);
+  assert.equal(t.chat[1].text.length, 200);
+  assert.equal(t.chat[1].id, 2);
+  for (let i = 0; i < 70; i++) t = say(t, 'me', `m${i}`, 7);
+  assert.equal(t.chat.length, 50, 'only the last 50 are kept');
+  assert.equal(t.chat.at(-1).text, 'm69');
+  // The database may hand the list back as an object.
+  const back = normalize(JSON.parse(JSON.stringify({ ...t, chat: { ...t.chat } })));
+  assert.equal(back.chat.length, 50);
+  assert.equal(back.chat.at(-1).text, 'm69');
+  assert.deepEqual(normalize({ ...t, chat: undefined }).chat, []);
 });
