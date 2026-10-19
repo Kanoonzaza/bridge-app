@@ -7,7 +7,7 @@ import { firebaseSync, localSync } from '../table/sync.js';
 import {
   CODE, parseCode, say, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
   setOpponents, sit, leave, setSeatKind, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
-  phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
 import { legalCards, controller } from '../table/play.js';
 import { sharedPool, poolChoose } from '../table/pool.js';
@@ -32,6 +32,8 @@ function cleanSaved(raw) {
     name: typeof r.name === 'string' ? r.name.slice(0, 24) : '',
     hints: r.hints !== false,
     handStyle: r.handStyle === 'list' ? 'list' : 'cards',
+    chatOpen: r.chatOpen === true,
+    chatDraft: typeof r.chatDraft === 'string' ? r.chatDraft.slice(0, 200) : '',
   };
 }
 
@@ -57,7 +59,7 @@ export function tableView(root, store) {
   const params = new URLSearchParams(location.search);
   const urlCode = parseCode(params.get('table') ?? '');
   const mode = params.get('sync') === 'local' ? 'local' : FIREBASE ? 'firebase' : 'none';
-  const ui = { open: {}, chatDraft: '', chatSeen: 0, sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '', prev: false, dd: new Map() };
+  const ui = { open: { chat: saved.chatOpen }, claiming: false, claimN: null, chatDraft: saved.chatDraft, chatSeen: 0, sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '', prev: false, dd: new Map() };
   if (CODE.test(urlCode) && urlCode !== saved.code) saved.code = '';
 
   const save = () => store.save('table', saved);
@@ -445,7 +447,7 @@ export function tableView(root, store) {
   }
 
   // A section that remembers whether it is open across redraws.
-  const section = (key, summary, ...children) => el('details', { class: 'manage', 'data-key': key, open: !!ui.open[key], ontoggle: (e) => { ui.open[key] = e.target.open; } },
+  const section = (key, summary, ...children) => el('details', { class: 'manage', 'data-key': key, open: !!ui.open[key], ontoggle: (e) => { ui.open[key] = e.target.open; if (key === 'chat') { saved.chatOpen = e.target.open; save(); } } },
     el('summary', {}, summary), ...children);
 
   // Table talk: the last messages of this table, newest at the bottom.
@@ -459,6 +461,8 @@ export function tableView(root, store) {
       const text = ui.chatDraft.trim();
       if (!text) return;
       ui.chatDraft = '';
+      saved.chatDraft = '';
+      save();
       act((cur) => cur && say(cur, ui.sync.uid, text, Date.now()), 'Could not send. Are you seated at the table?');
     };
     return section('chat', `Chat${unread ? ` (${unread} new)` : msgs.length ? ` (${msgs.length})` : ''}`,
@@ -466,7 +470,7 @@ export function tableView(root, store) {
         ...(msgs.length ? msgs.map((m) => el('div', { class: `chat-msg${m.uid === ui.sync.uid ? ' mine' : ''}` }, el('b', {}, `${m.name || COMPASS[m.seat]} (${m.seat}): `), m.text))
           : [el('p', { class: 'muted' }, 'No messages yet.')])),
       me ? el('form', { class: 'chat-form', onsubmit: (e) => { e.preventDefault(); send(); } },
-        el('input', { class: 'field', 'data-key': 'chat-input', value: ui.chatDraft, maxlength: 200, placeholder: 'Say something to the table', autocomplete: 'off', 'aria-label': 'Chat message', oninput: (e) => { ui.chatDraft = e.target.value; } }),
+        el('input', { class: 'field', 'data-key': 'chat-input', value: ui.chatDraft, maxlength: 200, placeholder: 'Say something to the table', autocomplete: 'off', 'aria-label': 'Chat message', oninput: (e) => { ui.chatDraft = e.target.value; saved.chatDraft = ui.chatDraft; save(); } }),
         el('button', { type: 'submit', class: 'pill on', 'data-key': 'chat-send' }, 'Send'))
         : el('p', { class: 'muted' }, 'Sit at the table to chat.'));
   }
@@ -486,6 +490,51 @@ export function tableView(root, store) {
           el('div', { class: 'row' }, el('span', { class: 'who' }, 'You'), el('span', { class: 'bid-l' }, callLabel(c)),
             el('span', {}, same ? 'Same as the Advisor' : `Advisor: ${callLabel(call)}${r.meaning ? ` (${r.meaning}${r.reasons?.length ? `; ${r.reasons.join('; ')}` : ''})` : ''}`)));
       })));
+  }
+
+  // Claiming the rest of the tricks. The defenders (people, or the solver for robots) accept or reject it.
+  async function makeClaim(t, n) {
+    const b = t.board;
+    const k = contract(auctionOf(b));
+    ui.claiming = false;
+    let dd = n;
+    if (SEATS.some((x) => ['robot', 'pass'].includes(t.seats[x].kind) && sideOf(x) !== sideOf(k.declarer))) {
+      let part = null;
+      try { part = await sharedPool().one({ kind: 'claim', hands: Object.fromEntries(SEATS.map((x) => [x, handOf(b, x)])), contract: k, play: b.play }); } catch { /* no solver */ }
+      if (!part) { ui.error = 'The robot defenders cannot judge a claim here (no solver on this device). Play on, or skip the play.'; render(); return; }
+      dd = part.dd;
+      if (n > dd) { ui.error = `The defenders do not accept: with every card in view you can take at most ${dd} of the last ${part.left} tricks. Play on, or claim ${dd}.`; render(); return; }
+    }
+    act((cur) => cur && requestClaim(cur, ui.sync.uid, n, dd), 'That claim did not go through (the position has changed).');
+  }
+  function claimControls(t, me) {
+    const c = pendingClaim(t);
+    if (c) {
+      const left = playOf(t.board).remaining[playOf(t.board).declarer].length;
+      const text = `${c.tricks === left ? 'all' : c.tricks} of the last ${left} tricks`;
+      if (c.uid === ui.sync.uid) {
+        return el('div', { class: 'panel', 'data-key': 'claim-wait' }, el('p', {}, `You claim ${text}. Waiting for ${c.need.filter((x) => !c.ok.includes(x)).map((x) => humanName(t, x)).join(', ')} to accept…`),
+          el('button', { type: 'button', class: 'pill', 'data-key': 'claim-cancel', onclick: () => act((cur) => cur && cancelClaim(cur, ui.sync.uid)) }, 'Withdraw the claim'));
+      }
+      if (c.need.includes(ui.sync.uid) && !c.ok.includes(ui.sync.uid)) {
+        return el('div', { class: 'panel', 'data-key': 'claim-ask' }, el('p', {}, el('b', {}, humanName(t, c.uid)), ` claims ${text}.`),
+          el('div', { class: 'row-buttons' },
+            el('button', { type: 'button', class: 'pill on', 'data-key': 'claim-accept', onclick: () => act((cur) => cur && answerClaim(cur, ui.sync.uid, true), 'That claim is no longer open.') }, 'Accept'),
+            el('button', { type: 'button', class: 'pill', 'data-key': 'claim-reject', onclick: () => act((cur) => cur && answerClaim(cur, ui.sync.uid, false), 'That claim is no longer open.') }, 'Reject, play on')));
+      }
+      return el('p', { class: 'muted', role: 'status' }, `${humanName(t, c.uid)} claims ${text}; waiting for ${c.need.filter((x) => !c.ok.includes(x)).map((x) => humanName(t, x)).join(', ')}.`);
+    }
+    const chance = claimChance(t, ui.sync.uid);
+    if (!chance) return null;
+    if (!ui.claiming) return el('button', { type: 'button', class: 'pill', 'data-key': 'claim', onclick: () => { ui.claiming = true; ui.claimN = chance.left; render(); } }, 'Claim');
+    const n = Math.min(ui.claimN ?? chance.left, chance.left);
+    return el('div', { class: 'panel', 'data-key': 'claim-form' },
+      el('p', {}, `Claim how many of the last ${chance.left} tricks?`),
+      el('div', { class: 'row-buttons' }, ...Array.from({ length: chance.left + 1 }, (_, i) => chance.left - i).map((v) =>
+        el('button', { type: 'button', class: `pill${v === n ? ' on' : ''}`, 'data-key': `claim-n-${v}`, 'aria-pressed': String(v === n), onclick: () => { ui.claimN = v; render(); } }, v === chance.left ? `All ${v}` : String(v)))),
+      el('div', { class: 'row-buttons' },
+        el('button', { type: 'button', class: 'pill on', 'data-key': 'claim-confirm', onclick: () => makeClaim(t, n) }, 'Claim'),
+        el('button', { type: 'button', class: 'pill', 'data-key': 'claim-close', onclick: () => { ui.claiming = false; render(); } }, 'Cancel')));
   }
 
   // Taking a call or card back works like on Bridge Base Online: ask, and any human who played after it must allow it.
@@ -613,9 +662,11 @@ export function tableView(root, store) {
       el('div', { class: 'board-line' }, el('b', {}, `Board ${b.n}`), ` · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`),
       prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = true; render(); } }, `← Previous board (${prev.n})`)) : null,
       felt(t, me),
+      chatPanel(t, me),
       st ? playArea(t, me, st) : me ? myHand(handOf(b, me)) : null,
       ph === 'over' ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
       undoPanel(t),
+      st && me ? claimControls(t, me) : null,
       undoButton(t) || (st && me) ? el('div', { class: 'row-buttons' }, undoButton(t),
         st && me ? el('button', { type: 'button', class: 'pill', 'data-key': 'skip-play', onclick: () => act((cur) => cur && skipPlay(cur)) }, 'Skip the play') : null) : null,
       ph === 'over' ? review(t, me) : ph === 'bidding' && me && now === me ? myTurn(t, me) : null,
@@ -629,7 +680,6 @@ export function tableView(root, store) {
         el('summary', {}, 'Seats and opponents'),
         seatsView(t, me),
         me === 'N' || me === 'S' ? segmented('Opponents', [['robot', 'Robots'], ['pass', 'Always pass'], ['players', 'Players']], t.opponents, (v) => act((cur) => cur && setOpponents(cur, v))) : null),
-      chatPanel(t, me),
       ui.error ? el('p', { class: 'muted', role: 'status' }, ui.error) : null);
   }
 

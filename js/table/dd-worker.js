@@ -26,6 +26,17 @@ self.onmessage = async (e) => {
       self.postMessage({ id, part: ddReview(dds, { hands, dealer: e.data.dealer, vul: e.data.vul }) });
       return;
     }
+    if (kind === 'claim') {
+      // The most tricks the declarer's side takes from here with every card visible (for the defenders to judge a claim).
+      const { solve } = await import('./dd.js');
+      const st = playState(hands, contract, play);
+      const sc = Object.values(solve(dds, st, st.remaining));
+      const left = st.remaining[st.declarer].length;
+      const best = Math.max(...sc);
+      const sameSide = (a, b) => (a === 'N' || a === 'S') === (b === 'N' || b === 'S');
+      self.postMessage({ id, part: { dd: sameSide(st.next, st.declarer) ? best : left - best, left } });
+      return;
+    }
     if (kind === 'bid') {
       const { simulateParts } = await import('../sim-bid.js');
       const { hand, auction, baseCall } = e.data;

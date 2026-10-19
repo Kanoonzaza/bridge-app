@@ -71,22 +71,71 @@ export function normalize(raw) {
   const b = raw.board;
   const n = Number.isInteger(b.n) && b.n > 0 ? b.n : 1;
   const history = {};
-  for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true };
+  for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true, ...(Number.isInteger(h.claim) ? { claim: h.claim } : {}) };
   return {
     code: String(raw.code ?? ''),
     created: Number(raw.created ?? 0),
     opponents: OPPONENTS.includes(raw.opponents) ? raw.opponents : 'robot',
     seats,
-    board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true },
+    board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true, ...(Number.isInteger(b.claim) ? { claim: b.claim } : {}) },
     history,
     chat: normalChat(raw.chat),
     ...(normalUndo(raw.undoReq) ? { undoReq: normalUndo(raw.undoReq) } : {}),
+    ...(normalClaim(raw.claimReq) ? { claimReq: normalClaim(raw.claimReq) } : {}),
   };
 }
 
+// ---------- Claiming ----------
+// The declarer claims the rest of the tricks (or some of them) between two tricks. Human defenders accept or reject
+// it; robot and always-pass defenders accept when the claim is right double dummy (the declarer's screen asks the
+// solver and passes the answer in as dd). An accepted claim ends the play: board.claim is the tricks claimed.
+function normalClaim(c) {
+  if (!c || typeof c !== 'object' || !c.uid || !Number.isInteger(c.tricks)) return null;
+  return { uid: String(c.uid), n: Number(c.n ?? 0), len: Number(c.len ?? 0), tricks: c.tricks, need: String(c.need ?? ''), ok: String(c.ok ?? '') };
+}
+const withoutClaim = (t) => { const { claimReq, ...rest } = t; return rest; };
+
+// { left, dd? }: how many tricks are left and whether I (the declarer) may claim now, or null.
+export function claimChance(t, uid) {
+  if (phase(t) !== 'play') return null;
+  const st = playOf(t.board);
+  const me = mySeat(t, uid);
+  if (!me || me !== st.declarer || !st.started || st.current.length) return null;
+  return { left: st.remaining[st.declarer].length };
+}
+
+export function pendingClaim(t) {
+  const c = t.claimReq;
+  if (!c || phase(t) !== 'play' || c.n !== t.board.n || c.len !== splitPlay(t.board.play).length) return null;
+  return { ...c, need: c.need.split(' ').filter(Boolean), ok: c.ok.split(' ').filter(Boolean) };
+}
+
+// dd: the most tricks the declarer's side can take from here double dummy.
+export function requestClaim(t, uid, tricks, dd) {
+  const chance = claimChance(t, uid);
+  if (!chance || pendingClaim(t) || !Number.isInteger(tricks) || tricks < 0 || tricks > chance.left) return undefined;
+  const defenders = SEATS.filter((s) => s !== playOf(t.board).declarer && s !== playOf(t.board).dummy);
+  const machines = defenders.filter((s) => ['robot', 'pass'].includes(t.seats[s].kind));
+  if (machines.length && !(tricks <= dd)) return undefined;
+  const need = defenders.filter((s) => t.seats[s].kind === 'human').map((s) => t.seats[s].uid);
+  if (!need.length) return { ...withoutClaim(t), board: { ...t.board, claim: tricks } };
+  return { ...t, claimReq: { uid, n: t.board.n, len: splitPlay(t.board.play).length, tricks, need: need.join(' '), ok: '' } };
+}
+
+export function answerClaim(t, uid, yes) {
+  const c = pendingClaim(t);
+  if (!c || !c.need.includes(uid) || c.ok.includes(uid)) return undefined;
+  if (!yes) return withoutClaim(t);
+  const ok = [...c.ok, uid];
+  if (c.need.every((x) => ok.includes(x))) return { ...withoutClaim(t), board: { ...t.board, claim: c.tricks } };
+  return { ...t, claimReq: { ...t.claimReq, ok: ok.join(' ') } };
+}
+
+export const cancelClaim = (t, uid) => (pendingClaim(t)?.uid === uid ? withoutClaim(t) : undefined);
+
 // ---------- Chat ----------
 // The last messages of the table, oldest first: { id, uid, name, seat, text, at }.
-export const CHAT_KEEP = 50;
+export const CHAT_KEEP = 200;
 export const CHAT_MAX = 200;
 function normalChat(raw) {
   const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? Object.values(raw) : [];
@@ -136,7 +185,7 @@ export function playOf(b) {
 export function phase(t) {
   if (!isDone(t)) return 'bidding';
   const st = playOf(t.board);
-  return !st || st.complete || t.board.skip ? 'over' : 'play';
+  return !st || st.complete || t.board.skip || Number.isInteger(t.board.claim) ? 'over' : 'play';
 }
 export const isOver = (t) => phase(t) === 'over';
 // The seat whose card it is, and the seat whose player chooses it (declarer plays for dummy).
@@ -332,7 +381,7 @@ export function undo(t, uid) {
 
 // Restart the current board's bidding (same cards), e.g. after a mis-click.
 export function rebid(t) {
-  return t.board.calls ? { ...t, board: { ...t.board, calls: '', play: '', skip: false } } : undefined;
+  return t.board.calls ? { ...withoutClaim(t), board: (({ claim, ...b }) => ({ ...b, calls: '', play: '', skip: false }))(t.board) } : undefined;
 }
 
 export const partnerSeat = partnerOf;

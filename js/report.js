@@ -33,6 +33,13 @@ export function resultText(b, name = (s) => COMPASS[s]) {
   const k = st.contract;
   const need = Number(k.bid[0]) + 6;
   const side = st.declarer === 'N' || st.declarer === 'S' ? 'N-S' : 'E-W';
+  if (Number.isInteger(b.claim) && !st.complete) {
+    const total = st.declarerTricks + b.claim;
+    const left = 13 - st.tricks.length;
+    const ok = total >= need;
+    const sc = score(k, b.vul, total);
+    return `${name(st.declarer)} claimed ${b.claim === left ? 'all' : b.claim} of the last ${left} trick${left === 1 ? '' : 's'}: ${total} tricks in ${callLabel(k.bid)}${k.doubled ? (k.doubled === 'XX' ? ' redoubled' : ' doubled') : ''}, ${ok ? `made${total > need ? ` with ${total - need} overtrick${total - need === 1 ? '' : 's'}` : ''}` : `down ${need - total}`}, ${sc > 0 ? '+' : ''}${sc} for ${side}.`;
+  }
   if (!st.complete) return b.skip ? `Play skipped after ${st.tricks.length} trick${st.tricks.length === 1 ? '' : 's'} (declarer ${st.declarerTricks}, defence ${st.defenderTricks}).` : `In play: declarer ${st.declarerTricks}, defence ${st.defenderTricks}.`;
   const got = st.declarerTricks;
   const sc = score(k, b.vul, got);

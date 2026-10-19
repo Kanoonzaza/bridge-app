@@ -5,7 +5,7 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
-  parseCode, say, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  parseCode, say, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../js/table/model.js';
 import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
@@ -435,11 +435,43 @@ test('chat: seated players talk to the table, messages are trimmed and capped', 
   assert.equal(t.chat[1].text.length, 200);
   assert.equal(t.chat[1].id, 2);
   for (let i = 0; i < 70; i++) t = say(t, 'me', `m${i}`, 7);
-  assert.equal(t.chat.length, 50, 'only the last 50 are kept');
-  assert.equal(t.chat.at(-1).text, 'm69');
+  assert.equal(t.chat.length, 72, 'every message is kept (up to the last 200)');
+  for (let i = 0; i < 300; i++) t = say(t, 'me', `n${i}`, 8);
+  assert.equal(t.chat.length, 200, 'only the last 200 are kept');
+  assert.equal(t.chat.at(-1).text, 'n299');
   // The database may hand the list back as an object.
   const back = normalize(JSON.parse(JSON.stringify({ ...t, chat: { ...t.chat } })));
-  assert.equal(back.chat.length, 50);
-  assert.equal(back.chat.at(-1).text, 'm69');
+  assert.equal(back.chat.length, 200);
+  assert.equal(back.chat.at(-1).text, 'n299');
   assert.deepEqual(normalize({ ...t, chat: undefined }).chat, []);
+});
+
+test('claiming: robot defenders accept a claim that is right double dummy, human defenders decide', () => {
+  // South declares 7NT; West holds every club and leads the ace, so after one trick it is West's lead again.
+  const hands = { N: '.AKQJT98765432..', E: '..AKQJT98765432.', S: 'AKQJT98765432...', W: '...AKQJT98765432' };
+  let t = fresh('robot');
+  t = setSeatKind(t, 'N', 'robot');
+  t = { ...t, board: { ...t.board, dealer: 'S', vul: 'none', hands, calls: '7N P P P', play: 'CA H2 D2 S2' } };
+  assert.equal(phase(t), 'play');
+  assert.equal(claimChance(t, 'me').left, 12);
+  assert.equal(claimChance(t, 'stranger'), null);
+  assert.equal(requestClaim(t, 'me', 12, 0), undefined, 'the solver says the defenders take everything: robots reject');
+  const done = requestClaim(t, 'me', 0, 0);
+  assert.equal(done.board.claim, 0, 'conceding every trick is always accepted');
+  assert.equal(phase(done), 'over');
+  // With a human East the claim waits for East's answer.
+  let h = sit(setSeatKind(t, 'E', 'open'), 'E', 'east', 'Eve');
+  const asked = requestClaim(h, 'me', 0, 0);
+  assert.equal(asked.board.claim, undefined);
+  assert.deepEqual(pendingClaim(asked).need, ['east']);
+  assert.equal(answerClaim(asked, 'me', true), undefined, 'declarer cannot answer');
+  assert.equal(pendingClaim(answerClaim(asked, 'east', false)), null, 'rejected: play on');
+  assert.equal(answerClaim(asked, 'east', true).board.claim, 0);
+  assert.equal(pendingClaim(cancelClaim(asked, 'me')), null);
+  // The robot defender West still checks the number: 5 of 12 is not right.
+  assert.equal(requestClaim(h, 'me', 5, 3), undefined);
+  assert.equal(pendingClaim(requestClaim(h, 'me', 3, 3)).tricks, 3);
+  // Only between tricks, and only the declarer.
+  assert.equal(claimChance({ ...t, board: { ...t.board, play: 'CA H2' } }, 'me'), null);
+  assert.equal(claimChance(t, 'pard'), null);
 });
