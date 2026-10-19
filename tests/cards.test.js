@@ -75,3 +75,12 @@ test('toggleCard validates suit and rank', () => {
   assert.throws(() => toggleCard(emptyHand(), 'X', 'A'), Error);
   assert.throws(() => toggleCard(emptyHand(), 'S', '1'), Error);
 });
+
+test('suits left to right: trump first, colours alternating', async () => {
+  const { suitOrder } = await import('../js/cards.js');
+  assert.deepEqual(suitOrder(null), ['S', 'H', 'C', 'D']);
+  assert.deepEqual(suitOrder('S'), ['S', 'H', 'C', 'D']);
+  assert.deepEqual(suitOrder('H'), ['H', 'S', 'D', 'C']);
+  assert.deepEqual(suitOrder('D'), ['D', 'S', 'H', 'C']);
+  assert.deepEqual(suitOrder('C'), ['C', 'H', 'S', 'D']);
+});

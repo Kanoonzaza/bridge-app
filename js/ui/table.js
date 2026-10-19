@@ -1,4 +1,4 @@
-import { SUITS, SYMBOL, evaluate } from '../cards.js';
+import { SUITS, SYMBOL, evaluate, suitOrder } from '../cards.js';
 import { SEATS, partnerOf, sideOf, seatAt } from '../auction.js';
 import { advise, explain, summarize } from '../engine.js';
 import { callLabel, rankLabel } from '../format.js';
@@ -35,6 +35,7 @@ function cleanSaved(raw) {
     chatOpen: r.chatOpen === true,
     chatDraft: typeof r.chatDraft === 'string' ? r.chatDraft.slice(0, 200) : '',
     // What this phone has seen said at the table it is at: kept here too, so a reload or a lost write never empties the chat.
+    boards: Array.isArray(r.boards) ? r.boards.filter((x) => x && typeof x.id === 'string' && x.board && typeof x.board.hands === 'object' && typeof x.board.calls === 'string' && x.seats && typeof x.seats === 'object').slice(-100) : [],
     chatCode: typeof r.chatCode === 'string' ? r.chatCode : '',
     chatLog: Array.isArray(r.chatLog) ? r.chatLog.filter((m) => m && typeof m.text === 'string' && m.text).slice(-200).map((m) => ({ uid: String(m.uid ?? ''), name: String(m.name ?? '').slice(0, 24), seat: String(m.seat ?? ''), text: m.text.slice(0, 200), at: Number(m.at) || 0 })) : [],
   };
@@ -62,7 +63,7 @@ export function tableView(root, store) {
   const params = new URLSearchParams(location.search);
   const urlCode = parseCode(params.get('table') ?? '');
   const mode = params.get('sync') === 'local' ? 'local' : FIREBASE ? 'firebase' : 'none';
-  const ui = { open: { chat: saved.chatOpen }, claiming: false, claimN: null, chatDraft: saved.chatDraft, chatSeen: 0, sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '', prev: false, dd: new Map() };
+  const ui = { peek: {}, peekTimers: {}, open: { chat: saved.chatOpen }, claiming: false, claimN: null, chatDraft: saved.chatDraft, chatSeen: 0, sync: null, table: null, unwatch: null, error: '', joinCode: CODE.test(urlCode) ? urlCode : '', busy: false, hint: null, robotKey: '', prev: false, dd: new Map() };
   if (CODE.test(urlCode) && urlCode !== saved.code) saved.code = '';
 
   const save = () => store.save('table', saved);
@@ -265,6 +266,7 @@ export function tableView(root, store) {
         el('div', { class: 'join' },
           el('input', { 'data-key': 'tbl-code', class: 'field code', value: ui.joinCode, maxlength: 200, placeholder: 'CODE or invite link', autocapitalize: 'characters', 'aria-label': 'Table code', oninput: (e) => { ui.joinCode = e.target.value.toUpperCase(); } }),
           el('button', { type: 'button', class: 'pill on', 'data-key': 'join', disabled: ui.busy, onclick: () => open(ui.joinCode) }, 'Join'))),
+      savedBoards(),
       ui.error ? el('p', { class: 'muted', role: 'status' }, ui.error) : null);
   }
 
@@ -310,7 +312,13 @@ export function tableView(root, store) {
     const b = t.board;
     const pos = around(me);
     const edge = (where) => (isVul(b, pos[where]) ? ' vul' : '');
-    return el('div', { class: `bnum${edge('top') ? ' vt' : ''}${edge('bottom') ? ' vb' : ''}${edge('left') ? ' vl' : ''}${edge('right') ? ' vr' : ''}`, 'aria-label': `Board ${b.n}, dealer ${COMPASS[b.dealer]}, ${VUL_TEXT[b.vul]}` },
+    const live = ui.table && ui.table.code === t.code ? ui.table : null;
+    const viewing = !!live && b.n !== live.board.n;
+    const target = live ? (viewing ? 0 : live.history[b.n - 1] ? b.n - 1 : 0) : 0;
+    const cls = `bnum${edge('top') ? ' vt' : ''}${edge('bottom') ? ' vb' : ''}${edge('left') ? ' vl' : ''}${edge('right') ? ' vr' : ''}`;
+    const label = `Board ${b.n}, dealer ${COMPASS[b.dealer]}, ${VUL_TEXT[b.vul]}`;
+    if (!live || (!viewing && !target)) return el('div', { class: cls, 'aria-label': label }, el('span', {}, String(b.n)));
+    return el('button', { type: 'button', class: `${cls} tap`, 'data-key': 'board-number', 'aria-label': `${label}. ${viewing ? 'Tap to go back to the current board' : 'Tap to see the last board and its play'}`, title: viewing ? 'Back to the current board' : 'Tap to see the last board', onclick: () => { ui.prev = target || false; render(); } },
       el('span', {}, String(b.n)));
   }
 
@@ -363,9 +371,9 @@ export function tableView(root, store) {
     : null);
 
   // The dummy, face up at its own seat, listed by suit (the cards I may play are buttons when I am the declarer).
-  function dummyAt(hand, play) {
+  function dummyAt(hand, play, trump = null) {
     return el('div', { class: 'dcol', 'data-key': 'dummy-hand', role: play ? 'group' : 'img', 'aria-label': `Dummy: ${SUITS.map((s) => `${SYMBOL[s]} ${hand[s] ? [...hand[s]].map(rankLabel).join(' ') : 'none'}`).join(', ')}` },
-      ...['S', 'H', 'C', 'D'].map((s) => el('div', { class: `drow${s === 'H' || s === 'D' ? ' redc' : ''}` },
+      ...suitOrder(trump).map((s) => el('div', { class: `drow${s === 'H' || s === 'D' ? ' redc' : ''}` },
         el('span', { class: 'dpip' }, SYMBOL[s]),
         ...[...hand[s]].map((r) => {
           if (!play) return el('span', { class: 'dcard' }, rankLabel(r));
@@ -394,13 +402,17 @@ export function tableView(root, store) {
     const hand = (where, back) => {
       const kind = shows(where);
       const seat = pos[where];
-      if (kind === 'dummy') return el('div', { class: 'dwrap' }, el('div', { class: 'dlabel' }, 'Dummy'), dummyAt(handFromCards(st.remaining[dummy]), playableBy(st, me, dummy)));
-      if (kind === 'declarer') return el('div', { class: 'dwrap' }, el('div', { class: 'dlabel' }, 'Declarer'), dummyAt(handFromCards(st.remaining[seat]), null));
+      if (kind === 'dummy') return el('div', { class: 'dwrap' }, el('div', { class: 'dlabel' }, 'Dummy'), dummyAt(handFromCards(st.remaining[dummy]), playableBy(st, me, dummy), st.trump));
+      if (kind === 'declarer') return el('div', { class: 'dwrap' }, el('div', { class: 'dlabel' }, 'Declarer'), dummyAt(handFromCards(st.remaining[seat]), null, st.trump));
       if (kind === 'peek') return el('button', { type: 'button', class: 'dwrap peeking', 'data-key': `peek-${seat}`, 'aria-label': `Peeking at ${COMPASS[seat]}'s hand`, onclick: () => peekAt(seat) },
-        el('div', { class: 'dlabel' }, 'Peeking…'), dummyAt(handFromCards(st.remaining[seat]), null));
+        el('div', { class: 'dlabel' }, 'Peeking…'), dummyAt(handFromCards(st.remaining[seat]), null, st.trump));
       if (iAmDummy && pos[where] !== st.declarer) return el('button', { type: 'button', class: 'peek-btn', 'data-key': `peek-${seat}`, 'aria-label': `Peek at ${COMPASS[seat]}'s hand`, title: 'Tap to peek', onclick: () => peekAt(seat) }, back);
       return back;
     };
+    // Corners: the bidding record (small) and the tricks of declarer and defenders, as on Bridge Base Online.
+    const tally = (label, n, cls) => el('div', { class: `tally ${cls}`, 'aria-label': `${label}: ${n} trick${n === 1 ? '' : 's'}` },
+      el('span', { class: 'pile', 'aria-hidden': 'true' }, ...Array.from({ length: Math.min(n, 7) }, (_, i) => el('span', { class: 'pback', style: `--i:${i}` }))),
+      el('span', { class: 'tcount' }, String(n)), el('span', { class: 'tlabel' }, label));
     const wide = (w) => ['dummy', 'declarer', 'peek'].includes(shows(w));
     const widths = `${wide('left') ? 112 : 72}px minmax(0,1fr) ${wide('right') ? 112 : 72}px`;
     return el('div', { class: 'felt', style: wide('left') || wide('right') ? `grid-template-columns:${widths}` : null },
@@ -410,13 +422,17 @@ export function tableView(root, store) {
       el('div', { class: 'f-center' }, st ? trickBox(t, me, st) : auctionBox(t, me)),
       el('div', { class: 'f-right' }, hand('right', backs(5, ' side')), plate(t, pos.right, me)),
       el('div', { class: 'f-bottom' }, plate(t, pos.bottom, me)),
+      st ? el('button', { type: 'button', class: `f-auc bids-btn${ui.bigAuction ? ' on' : ''}`, 'data-key': 'auction-mini', 'aria-expanded': String(!!ui.bigAuction), 'aria-label': 'Show the bidding', onclick: () => { ui.bigAuction = !ui.bigAuction; render(); } }, 'Bids') : null,
+      st && ui.bigAuction ? el('div', { class: 'req auction-big', 'data-key': 'auction-big' }, el('div', { class: 'req-title' }, 'The bidding'), auctionBox(t, me), el('button', { type: 'button', class: 'pill on', 'data-key': 'auction-close', onclick: () => { ui.bigAuction = false; render(); } }, 'Close')) : null,
+      st ? el('div', { class: 'f-dec' }, tally('Declarer', st.declarerTricks, 'dec')) : null,
+      st ? el('div', { class: 'f-def' }, tally('Defence', st.defenderTricks, 'def')) : null,
       requestNote(t));
   }
 
   // A hand as cards: spades, hearts, clubs, diamonds (alternating colours), overlapping to fit the screen.
   // play: { legal: Set of cards, onPlay(card) } makes the legal cards buttons; who names the hand for screen readers.
-  function cards(hand, { play = null, who = 'Your hand', hcp = true } = {}) {
-    const list = ['S', 'H', 'C', 'D'].flatMap((s) => [...hand[s]].map((r) => [s, r]));
+  function cards(hand, { play = null, who = 'Your hand', hcp = true, trump = null } = {}) {
+    const list = suitOrder(trump).flatMap((s) => [...hand[s]].map((r) => [s, r]));
     const e = evaluate(hand);
     const face = (s, r) => [el('span', { class: 'rank' }, rankLabel(r)), el('span', { class: 'pip' }, SYMBOL[s])];
     return el('div', { class: 'hand-wrap' },
@@ -438,7 +454,7 @@ export function tableView(root, store) {
     const note = st.started && dummy !== me && mine(dummy) ? el('div', { class: 'label' }, `Your turn to play from dummy (${relative(me, dummy)}): tap a card at that seat`) : null;
     const myBlock = me
       ? el('div', {}, el('div', { class: 'label' }, me === dummy ? 'Your hand (dummy: partner plays it)' : mine(me) ? 'Your turn: play a card' : 'Your hand'),
-        cards(handFromCards(st.remaining[me]), { play: playableBy(st, me, me), hcp: false }))
+        cards(handFromCards(st.remaining[me]), { play: playableBy(st, me, me), hcp: false, trump: st.trump }))
       : null;
     return el('div', { class: 'stack' }, note, myBlock);
   }
@@ -582,6 +598,7 @@ export function tableView(root, store) {
   // An open take-back or claim, shown on the table itself with a hopping frog. The asker waits (and can withdraw);
   // the players who must answer see Allow / Deny (Accept / Reject for a claim).
   function requestNote(t) {
+    if (!ui.sync || (!t.undoReq && !t.claimReq)) return null;
     const me = ui.sync.uid;
     const u = pendingUndo(t);
     const c = u ? null : pendingClaim(t);
@@ -663,6 +680,8 @@ export function tableView(root, store) {
         el('p', { class: 'muted' }, `The Advisor would reach: ${kText(sysK)} (${sys.calls.map(callLabel).join(' ')}).`)),
       el('div', { class: 'compass' }, ...['N', 'W', 'E', 'S'].map((s) => el('div', { class: `seat-${s}` }, handView(handOf(b, s), `${COMPASS[s]} (${relative(me, s)})`)))),
       ddPanel(t, me, k),
+      playRecord(t.board),
+      saveBoardButton(t, me),
       el('div', {},
         el('div', { class: 'label' }, 'Call by call'),
         rows.some((r) => r.skipped) ? el('p', { class: 'muted' }, 'Only each player\'s first difference from the Advisor is shown: the calls after it depend on it.') : null,
@@ -681,13 +700,66 @@ export function tableView(root, store) {
       copyButton('Copy this board', () => boardReport(t, me, ui.dd.get(ddKey(t))), 'copy-board'));
   }
 
-  // The board before this one, shown on this phone only; the table carries on for everyone else.
+  // The play of a board, trick by trick: who played what, and who won.
+  function playRecord(b) {
+    const st = playOf(b);
+    if (!st || !b.play) return null;
+    const line = (cards, winner) => el('div', { class: 'trick-line' }, ...cards.flatMap((p) => [el('span', { class: `tseat${p.seat === winner ? ' won' : ''}` }, p.seat), el('span', { class: `tcard${p.seat === winner ? ' won' : ''}` }, `${SYMBOL[p.card[0]]}${rankLabel(p.card[1])}`)]));
+    return el('details', { class: 'manage', 'data-key': 'play-record', open: true },
+      el('summary', {}, `The play (${st.tricks.length} trick${st.tricks.length === 1 ? '' : 's'}${st.trump ? `, trumps ${SYMBOL[st.trump]}` : ', notrump'})`),
+      el('div', { class: 'lines' },
+        ...st.tricks.map((tr, i) => el('div', { class: 'line' }, el('div', { class: 'row' }, el('span', { class: 'who' }, String(i + 1)), line(tr.cards, tr.winner), el('span', { class: 'muted' }, `${tr.winner} wins`)))),
+        ...(st.current.length ? [el('div', { class: 'line' }, el('div', { class: 'row' }, el('span', { class: 'who' }, String(st.tricks.length + 1)), line(st.current, null)))] : [])));
+  }
+
+  // Saving a finished board on this phone, to look at again later (also after the table is gone).
+  const boardId = (t) => `${t.code}:${t.board.n}`;
+  function saveBoardButton(t, me) {
+    const id = boardId(t);
+    const have = saved.boards.some((x) => x.id === id);
+    return el('div', { class: 'row-buttons' },
+      el('button', { type: 'button', class: `pill${have ? ' on' : ''}`, 'data-key': 'save-board', 'aria-pressed': String(have),
+        onclick: () => {
+          if (have) saved.boards = saved.boards.filter((x) => x.id !== id);
+          else saved.boards = [...saved.boards, { id, code: t.code, at: Date.now(), me: me ?? 'S', seats: JSON.parse(JSON.stringify(t.seats)), board: JSON.parse(JSON.stringify(t.board)) }].slice(-100);
+          save(); render();
+        } }, have ? '★ Saved on this phone (tap to remove)' : '☆ Save this board'));
+  }
+
+  // The saved boards: list, view, delete.
+  function savedBoards() {
+    if (!saved.boards.length) return null;
+    return section('saved-boards', `Saved boards (${saved.boards.length})`,
+      el('div', { class: 'lines' }, ...[...saved.boards].reverse().map((x) => {
+        const k = contract(auctionOf(x.board));
+        const text = k ? `${callLabel(k.bid)}${k.doubled ? (k.doubled === 'XX' ? ' XX' : ' X') : ''} by ${COMPASS[k.declarer]}` : 'passed out';
+        return el('div', { class: 'line' }, el('div', { class: 'row' },
+          el('span', { class: 'who' }, `#${x.board.n}`), el('span', {}, `${text} · ${new Date(x.at).toLocaleDateString()}`),
+          el('button', { type: 'button', class: 'pill small', 'data-key': `view-saved-${x.id}`, onclick: () => { ui.viewSaved = x.id; render(); } }, 'View'),
+          el('button', { type: 'button', class: 'pill small', 'data-key': `delete-saved-${x.id}`, 'aria-label': `Delete saved board ${x.board.n}`, onclick: () => { saved.boards = saved.boards.filter((y) => y.id !== x.id); save(); render(); } }, 'Delete')));
+      })));
+  }
+  function savedScreen(x) {
+    const pt = { code: x.code, created: 0, opponents: 'robot', seats: x.seats, board: x.board, history: {} };
+    return el('div', { class: 'stack' },
+      el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill on', 'data-key': 'close-saved', onclick: () => { ui.viewSaved = ''; render(); } }, 'Back')),
+      el('div', { class: 'board-line' }, el('b', {}, `Saved board ${x.board.n}`), ` · Dealer ${COMPASS[x.board.dealer]} · ${VUL_TEXT[x.board.vul]}`),
+      felt(pt, x.me),
+      review(pt, x.me, true));
+  }
+
+  // An earlier board, shown on this phone only; the table carries on for everyone else. Older and newer boards are one tap away.
   function previousScreen(t, me, prev) {
     const pt = { ...t, board: prev };
-    const back = el('button', { type: 'button', class: 'pill on', 'data-key': 'current-board', onclick: () => { ui.prev = false; render(); } }, 'Back to the current board');
+    const older = t.history[prev.n - 1] ? prev.n - 1 : 0;
+    const newer = prev.n + 1 < t.board.n && t.history[prev.n + 1] ? prev.n + 1 : 0;
+    const go = (n) => () => { ui.prev = n || false; render(); };
     return el('div', { class: 'stack' },
-      el('div', { class: 'row-buttons' }, back),
-      el('div', { class: 'board-line' }, el('b', {}, `Board ${prev.n} (previous)`), ` · Dealer ${relative(me, prev.dealer)} · ${VUL_TEXT[prev.vul]}`),
+      el('div', { class: 'row-buttons' },
+        older ? el('button', { type: 'button', class: 'pill', 'data-key': 'older-board', onclick: go(older) }, `← Board ${older}`) : null,
+        newer ? el('button', { type: 'button', class: 'pill', 'data-key': 'newer-board', onclick: go(newer) }, `Board ${newer} →`) : null,
+        el('button', { type: 'button', class: 'pill on', 'data-key': 'current-board', onclick: go(0) }, 'Back to the current board')),
+      el('div', { class: 'board-line' }, el('b', {}, `Board ${prev.n}`), ` (${t.board.n - prev.n} back) · Dealer ${relative(me, prev.dealer)} · ${VUL_TEXT[prev.vul]}`),
       felt(pt, me),
       review(pt, me, true));
   }
@@ -696,7 +768,8 @@ export function tableView(root, store) {
     const me = mySeat(t, ui.sync.uid);
     const b = t.board;
     const prev = t.history[b.n - 1];
-    if (ui.prev && prev) return previousScreen(t, me, prev);
+    const viewed = ui.prev && Number(ui.prev) < b.n ? t.history[Number(ui.prev)] : null;
+    if (viewed) return previousScreen(t, me, viewed);
     const ph = phase(t);
     const st = ph === 'play' ? playOf(b) : null;
     const now = actor(t);
@@ -710,7 +783,7 @@ export function tableView(root, store) {
           el('button', { type: 'button', class: 'pill', 'data-key': 'leave', onclick: exit }, 'Leave'))),
       el('div', { class: 'board-line' }, el('b', {}, `Board ${b.n}`), ` · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`),
       b.swap ? el('p', { class: 'muted', 'data-key': 'swap-note' }, `Your partner (a robot) was the declarer, so you moved to ${COMPASS[b.swap[2]]} and play the contract; the robot sits ${COMPASS[b.swap[0]]} as dummy.`) : null,
-      prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = true; render(); } }, `← Previous board (${prev.n})`)) : null,
+      prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = prev.n; render(); } }, `← Earlier boards (${Math.min(b.n - 1, Object.keys(t.history).length)})`)) : null,
       felt(t, me),
       chatPanel(t, me),
       st ? playArea(t, me, st) : me ? myHand(handOf(b, me)) : null,
@@ -720,7 +793,6 @@ export function tableView(root, store) {
         st && me ? el('button', { type: 'button', class: 'pill', 'data-key': 'skip-play', onclick: () => act((cur) => cur && skipPlay(cur)) }, 'Skip the play') : null) : null,
       ph === 'over' ? review(t, me) : ph === 'bidding' && me && now === me ? myTurn(t, me) : null,
       ph === 'over' ? null : myCallsCheck(t, me),
-      st ? el('details', { class: 'manage' }, el('summary', {}, 'The bidding'), auctionBox(t, me)) : null,
       ph === 'bidding' ? el('label', { class: 'toggle' },
         el('input', { type: 'checkbox', 'data-key': 'hints', checked: saved.hints, onchange: (e) => { saved.hints = e.target.checked; save(); render(); } }),
         ' Show what each call means') : null,
@@ -729,12 +801,15 @@ export function tableView(root, store) {
         el('summary', {}, 'Seats and opponents'),
         seatsView(t, me),
         me === 'N' || me === 'S' ? segmented('Opponents', [['robot', 'Robots'], ['pass', 'Always pass'], ['players', 'Players']], t.opponents, (v) => act((cur) => cur && setOpponents(cur, v))) : null),
+      savedBoards(),
       ui.error ? el('p', { class: 'muted', role: 'status' }, ui.error) : null);
   }
 
   function render() {
     keepFocus(root, () => {
-      if (ui.table) root.replaceChildren(tableScreen(ui.table));
+      const sv = ui.viewSaved && saved.boards.find((x) => x.id === ui.viewSaved);
+      if (sv) root.replaceChildren(savedScreen(sv));
+      else if (ui.table) root.replaceChildren(tableScreen(ui.table));
       else if (saved.code && ui.busy) root.replaceChildren(el('p', { class: 'muted' }, 'Connecting…'));
       else root.replaceChildren(lobby());
     });

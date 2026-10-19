@@ -107,15 +107,16 @@ body.has-update{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 .toggle{display:flex;align-items:center;gap:6px;font-size:.9rem}
 .line.differs summary{background:var(--warn-soft);color:var(--warn-ink)}
 /* ---------- Card table ---------- */
-.felt{display:grid;grid-template-columns:72px minmax(0,1fr) 72px;grid-template-areas:"board top ." "left center right" ". bottom .";gap:8px;align-items:center;background:var(--felt);border:2px solid var(--felt-edge);border-radius:14px;padding:10px 8px}
+.felt{display:grid;grid-template-columns:84px minmax(0,1fr) 84px;grid-template-areas:"board top auc" "left center right" "dec bottom def";gap:10px;align-items:center;background:var(--felt);border:2px solid var(--felt-edge);border-radius:16px;padding:14px 10px}
 .f-board{grid-area:board;align-self:start}
 .f-top{grid-area:top;display:grid;justify-items:center;gap:4px}
 .f-left{grid-area:left;display:grid;justify-items:center;gap:4px}
 .f-right{grid-area:right;display:grid;justify-items:center;gap:4px}
 .f-center{grid-area:center;min-width:0}
 .f-bottom{grid-area:bottom;display:grid;justify-items:center}
-.felt.dum-left{grid-template-columns:112px minmax(0,1fr) 72px}
-.felt.dum-right{grid-template-columns:72px minmax(0,1fr) 112px}
+.f-auc{grid-area:auc;align-self:start}
+.f-dec{grid-area:dec;align-self:end}
+.f-def{grid-area:def;align-self:end}
 .dwrap{display:grid;gap:2px;justify-items:center;width:100%;max-width:100%}
 .f-top .dcol{max-width:240px}
 .dlabel{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#d9e6e3}
@@ -127,7 +128,7 @@ body.has-update{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 button.dcard{cursor:pointer;border-radius:4px;min-width:20px;min-height:26px;padding:0 2px}
 .dcard.playable{background:var(--accent);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .dcard.dim{opacity:.45;cursor:default}
-.plate{display:flex;align-items:center;gap:5px;max-width:100%;background:var(--plate);color:var(--ink);border-radius:6px;padding:2px 6px 2px 2px;font-size:.8rem;font-weight:600;box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.plate{display:flex;align-items:center;gap:6px;max-width:100%;background:var(--plate);color:var(--ink);border-radius:7px;padding:3px 8px 3px 3px;font-size:.9rem;font-weight:600;box-shadow:0 1px 0 rgba(0,0,0,.25)}
 .plate .dir{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:4px;background:#244a3a;color:#fff;font-size:.75rem}
 .plate .dir.vul{background:var(--vul)}
 .plate .pname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -136,10 +137,10 @@ button.dcard{cursor:pointer;border-radius:4px;min-width:20px;min-height:26px;pad
 .f-left .plate,.f-right .plate{flex-direction:column;padding:3px 4px;text-align:center;gap:2px;width:100%}
 .f-left .pname,.f-right .pname{max-width:100%}
 .backs{display:flex;justify-content:center}
-.back{width:14px;height:26px;margin-left:-8px;border-radius:3px;border:1px solid #d9e6e3;background:repeating-linear-gradient(45deg,#0f6f78 0 3px,#0b5b63 3px 6px)}
+.back{width:17px;height:32px;margin-left:-9px;border-radius:3px;border:1px solid #d9e6e3;background:repeating-linear-gradient(45deg,#0f6f78 0 3px,#0b5b63 3px 6px)}
 .back:first-child{margin-left:0}
-.backs.side .back{width:16px;height:24px;margin-left:-11px}
-.bnum{position:relative;display:grid;place-items:center;width:56px;height:56px;border-radius:8px;background:#f4f6f5;color:#111;font-size:1.35rem;font-weight:700;border:5px solid #b9c4c0}
+.backs.side .back{width:19px;height:29px;margin-left:-13px}
+.bnum{position:relative;display:grid;place-items:center;width:68px;height:68px;border-radius:9px;background:#f4f6f5;color:#111;font-size:1.6rem;font-weight:700;border:5px solid #b9c4c0}
 .bnum.vt{border-top-color:var(--vul)}.bnum.vb{border-bottom-color:var(--vul)}.bnum.vl{border-left-color:var(--vul)}.bnum.vr{border-right-color:var(--vul)}
 .abox{background:var(--abox);border-radius:8px;overflow:hidden;min-height:130px}
 .ahead,.abody{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));text-align:center}
@@ -188,12 +189,12 @@ button.card{font:inherit;font-weight:700;cursor:pointer;padding:3px 0 0;appearan
 .card.playable{transform:translateY(-8px);border-color:var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.3)}
 .card.playable:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .card.dim{opacity:.5;cursor:default}
-.card.small{width:34px;height:48px;margin:0;font-size:.85rem;box-shadow:0 1px 3px rgba(0,0,0,.25)}
-.tbox{background:var(--abox);border-radius:8px;min-height:150px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"h h h" ". top ." "left . right" ". bottom ." "f f f";align-items:center;justify-items:center;padding:6px 4px;gap:2px}
+.card.small{width:42px;height:60px;margin:0;font-size:1rem;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.tbox{background:var(--abox);border-radius:10px;min-height:190px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"h h h" ". top ." "left . right" ". bottom ." "f f f";align-items:center;justify-items:center;padding:6px 4px;gap:2px}
 .thead{grid-area:h;font-weight:700;font-size:.85rem}
 .tfoot{grid-area:f;font-size:.72rem;color:var(--muted);text-align:center;line-height:1.25}
 .t-top{grid-area:top}.t-left{grid-area:left}.t-right{grid-area:right}.t-bottom{grid-area:bottom}
-.tspot{min-height:50px;display:flex;align-items:center}
+.tspot{min-height:62px;display:flex;align-items:center}
 .tbox.last .card{opacity:.65}
 
 .dd-wrap{overflow-x:auto}
@@ -228,6 +229,32 @@ button.peek-btn:focus-visible,button.peeking:focus-visible{outline:2px solid var
 button.peeking{appearance:none;background:none;border:0;padding:0;font:inherit;cursor:pointer;position:relative}
 .peeking .drow{filter:brightness(.62) saturate(.8);box-shadow:inset 0 0 10px rgba(0,0,0,.75),0 2px 8px rgba(0,0,0,.55)}
 .peeking .dlabel{color:var(--turn)}
-.peeking .dcol{animation:peek-in .25s ease-out}
-@keyframes peek-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.peeking .dcol{animation:none}}
+
+/* ---------- Table corners, taps ---------- */
+button.bnum.tap{appearance:none;cursor:pointer;font-family:inherit;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+button.bnum.tap:focus-visible{outline:2px solid var(--turn);outline-offset:2px}
+.amini{width:100%;background:var(--abox);border-radius:6px;overflow:hidden;font-size:.62rem;line-height:1.25}
+.m-head,.m-body{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));text-align:center}
+.m-head{background:var(--surface);font-weight:700}
+.m-head .vul{color:var(--vul)}
+.m-body{max-height:84px;overflow-y:auto;padding:1px 0}
+.m-cell{min-height:1.2em;font-weight:700}
+.m-cell.pass{font-weight:500;color:var(--muted)}
+.m-cell.mine{color:var(--accent)}
+.tally{display:grid;grid-template-columns:auto auto;grid-template-areas:"pile count" "label label";align-items:center;justify-items:start;gap:0 5px;color:#e9f1ee}
+.tally .pile{grid-area:pile;position:relative;width:22px;height:28px}
+.tally .pback{position:absolute;left:calc(var(--i) * 2px);top:calc(var(--i) * -1px);width:16px;height:24px;border-radius:3px;border:1px solid #d9e6e3;background:repeating-linear-gradient(45deg,#0f6f78 0 3px,#0b5b63 3px 6px)}
+.tally .tcount{grid-area:count;font-weight:800;font-size:1.4rem;line-height:1}
+.tally .tlabel{grid-area:label;font-size:.65rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#cfe0db}
+.f-def .tally{justify-items:end}
+.trick-line{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;flex:1}
+.tseat{font-weight:700;color:var(--muted);font-size:.8rem}
+.tseat.won{color:var(--accent)}
+.tcard{font-weight:700}
+.tcard.won{text-decoration:underline}
+button.amini-btn{appearance:none;background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;text-align:inherit}
+button.amini-btn:focus-visible{outline:2px solid var(--turn);outline-offset:2px;border-radius:6px}
+.auction-big .abox{width:100%;color:var(--ink)}
+button.bids-btn{appearance:none;cursor:pointer;font:inherit;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.14);color:#fff;justify-self:end}
+button.bids-btn.on,button.bids-btn:hover{background:rgba(255,255,255,.3)}
+button.bids-btn:focus-visible{outline:2px solid var(--turn);outline-offset:2px}

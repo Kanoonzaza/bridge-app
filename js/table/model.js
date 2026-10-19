@@ -9,7 +9,7 @@ export const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE = /^[ABCDEFGHJKLMNPQRSTUVWXYZ2-9]{6}$/;
 export const KINDS = ['open', 'human', 'robot', 'pass'];
 export const OPPONENTS = ['robot', 'pass', 'players'];
-const HISTORY = 30;
+const HISTORY = 100;
 
 // Standard duplicate rotation: board 1 dealer North, none vulnerable.
 export const boardDealer = (n) => SEATS[(n - 1) % 4];

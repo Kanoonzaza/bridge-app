@@ -521,3 +521,11 @@ test('alone with a robot partner and robot opponents, the human takes over partn
   const withPlayers = { ...setSeatKind(fresh('players'), 'N', 'robot'), board: { ...fresh('robot').board, dealer: 'N', calls: '1S P P P' } };
   assert.equal(autoDeclare(withPlayers).board.swap, undefined);
 });
+
+test('history keeps the last 100 boards', () => {
+  let t = fresh('robot');
+  for (let i = 0; i < 130; i++) t = nextBoard({ ...t, board: { ...t.board, calls: 'P P P P' } }, rand);
+  assert.equal(Object.keys(t.history).length, 100);
+  assert.equal(t.board.n, 131);
+  assert.ok(t.history[130] && !t.history[30]);
+});

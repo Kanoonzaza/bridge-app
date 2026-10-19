@@ -142,3 +142,14 @@ export function quality(e, { fit = false } = {}) {
   if (fit) { score += 1; reasons.push('a fit for partner'); }
   return { score, good: score > 0, reasons };
 }
+
+// Suits left to right: spades, hearts, clubs, diamonds (alternating colours); in a trump contract the trump suit comes first.
+const SUIT_ORDER = ['S', 'H', 'C', 'D'];
+export function suitOrder(trump) {
+  if (!trump || !SUIT_ORDER.includes(trump)) return SUIT_ORDER;
+  const red = (x) => x === 'H' || x === 'D';
+  const other = SUIT_ORDER.filter((x) => red(x) !== red(trump));
+  const same = SUIT_ORDER.find((x) => x !== trump && red(x) === red(trump));
+  return [trump, other[0], same, other[1]];
+}
+
