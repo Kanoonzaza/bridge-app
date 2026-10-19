@@ -81,6 +81,24 @@ test('Gerber: replies and the asker\'s sign-off', () => {
   assert.equal(ask(['1N', '4C', '4H'], 'KQ5 KJ84 KQJ74 A').call, '4N');
 });
 
+test('Gerber: also over a notrump rebid, with the king ask', () => {
+  // 1♦–1♠–2NT–4♣: partner's 4♣ is Gerber, not a raise of diamonds (and the 4♠/4NT answers are not RKCB).
+  assert.match(explain(auctionFor(['1D', '1S', '2N', '4C'])).find((r) => r.call === '4C').meaning, /Gerber/);
+  assert.equal(ask(['1D', '1S', '2N', '4C'], 'AK4 KQ73 A62 Q52').call, '4S');
+  assert.equal(ask(['1C', '1H', '1N', '4C'], 'K42 A73 Q62 KQ52').call, '4H');
+  assert.equal(ask(['1D', '1S', '2N', '4C', '4H'], 'AK4 KQ73 A62 Q52').call, '6N');
+  assert.equal(ask(['1C', '1H', '1N', '4C', '4S', '4N'], 'AK4 KQ73 A62 Q52').call, 'P');
+  // Not Gerber when a suit is agreed: 1♥–2♥ then 2NT, and 4♣ is a cue-bid.
+  assert.equal(agreedSuit(['1H', '2H', '2N', '4C']), 'H');
+  // All four aces and a hand that could make 7NT: 5♣ asks for kings; the answer counts kings, the asker chooses.
+  assert.equal(ask(['1N', '4C', '4S'], 'AQJ AKQ KQ4 J32').call, '5C');
+  assert.equal(ask(['2N', '4C', '4S'], 'KQ5 A84 KQJ74 A3').call, '5C');
+  assert.equal(ask(['1N', '4C', '4S', '5C'], 'KQ5 A84 KQJ74 A3').call, '5S');
+  assert.equal(ask(['1N', '4C', '4S', '5C'], 'Q52 A84 QJ74 A32').call, '5D');
+  assert.equal(ask(['1N', '4C', '4S', '5C', '5S'], 'AQJ AKQ KQ4 J32').call, '7N');
+  assert.equal(ask(['1N', '4C', '4S', '5C', '5H'], 'AQJ AKQ KQ4 J32').call, '6N');
+});
+
 test('Plan 4 sweep: every situation answers every hand with a decodable call', () => {
   const rng = mulberry32(47);
   for (const sit of [...NT, ...TWOS]) {
