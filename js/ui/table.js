@@ -759,6 +759,28 @@ export function tableView(root, store) {
     if ((play ? lastOwnCard(t, ui.sync.uid) : lastOwnCall(t, ui.sync.uid)) < 0) return null;
     return el('button', { type: 'button', class: 'pill', 'data-key': play ? 'undo-card' : 'undo', onclick: () => act((cur) => cur && requestUndo(cur, ui.sync.uid), 'Nothing to take back.') }, play ? '↶ Take back my last card' : '↶ Take back my last call');
   }
+  // A claim brings out a chicken doll on a spring: it boings, wobbles its head and rolls its googly eyes.
+  const CHICKEN = `<svg viewBox="0 0 60 92" width="54" height="83" aria-hidden="true">
+    <ellipse cx="30" cy="88" rx="15" ry="3.5" fill="#3a2a1a" opacity=".55"/>
+    <rect x="21" y="84" width="18" height="5" rx="2" fill="#8d5a2b"/>
+    <polyline class="ck-spring" points="30,85 21,81 39,77 21,73 39,69 21,65 39,61 21,57 30,53" fill="none" stroke="#cfd8dc" stroke-width="3" stroke-linejoin="round"/>
+    <g class="ck-bob"><g class="ck-wob">
+      <ellipse cx="30" cy="38" rx="17" ry="16" fill="#ffd54a" stroke="#c99a12" stroke-width="1.5"/>
+      <ellipse class="ck-wing" cx="15" cy="42" rx="5" ry="8" fill="#ffc107" stroke="#c99a12"/>
+      <ellipse class="ck-wing ck-wing-r" cx="45" cy="42" rx="5" ry="8" fill="#ffc107" stroke="#c99a12"/>
+      <circle cx="23" cy="20" r="4.5" fill="#e53935"/><circle cx="30" cy="17" r="5.5" fill="#e53935"/><circle cx="37" cy="20" r="4.5" fill="#e53935"/>
+      <circle cx="23" cy="31" r="6.5" fill="#fff" stroke="#222" stroke-width="1"/><circle cx="37" cy="31" r="7.5" fill="#fff" stroke="#222" stroke-width="1"/>
+      <circle class="ck-pupil" cx="24" cy="32" r="2.6" fill="#111"/><circle class="ck-pupil ck-pupil-r" cx="36" cy="30" r="3.2" fill="#111"/>
+      <polygon points="27,37 37,40.5 27,44" fill="#ff8f00" stroke="#b35f00" stroke-width=".8"/>
+      <ellipse cx="29" cy="47" rx="2.6" ry="3.6" fill="#e53935"/>
+    </g></g>
+  </svg>`;
+  function chickenDoll() {
+    const span = document.createElement('span');
+    span.className = 'chick';
+    span.innerHTML = CHICKEN;
+    return span;
+  }
   // An open take-back or claim, shown on the table itself with a hopping frog. The asker waits (and can withdraw);
   // the players who must answer see Allow / Deny (Accept / Reject for a claim).
   // A claim is shown under the table, so the cards being judged stay in view; a take-back sits on the table.
@@ -789,7 +811,8 @@ export function tableView(root, store) {
       if (c.uid !== me) text += ' Declarer\'s cards are face up.';
     }
     return el('div', { class: u ? 'req' : 'req below', 'data-key': u ? 'undo-request' : 'claim-request', role: 'alertdialog', 'aria-label': u ? 'Take-back request' : 'Claim' },
-      el('div', { class: 'frog-track', 'aria-hidden': 'true' }, el('span', { class: 'frog' }, '🐸')),
+      u ? el('div', { class: 'frog-track', 'aria-hidden': 'true' }, el('span', { class: 'frog' }, '🐸'))
+        : el('div', { class: 'chick-track', 'aria-hidden': 'true' }, chickenDoll()),
       el('div', { class: 'req-title' }, u ? 'Take-back request' : 'Claim'),
       el('p', {}, text),
       buttons ? el('div', { class: 'row-buttons' }, ...buttons.map(([key, label, on, fn]) => el('button', { type: 'button', class: `pill${on ? ' on' : ''}`, 'data-key': key, onclick: fn }, label))) : null);

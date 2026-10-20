@@ -143,13 +143,13 @@ button.dcard{cursor:pointer;border-radius:4px;min-width:20px;min-height:26px;pad
 .backs.side .back{width:19px;height:29px;margin-left:-13px}
 .bnum{position:relative;display:grid;place-items:center;width:68px;height:68px;border-radius:9px;background:#f4f6f5;color:#111;font-size:1.6rem;font-weight:700;border:5px solid #b9c4c0}
 .bnum.vt{border-top-color:var(--vul)}.bnum.vb{border-bottom-color:var(--vul)}.bnum.vl{border-left-color:var(--vul)}.bnum.vr{border-right-color:var(--vul)}
-.abox{background:var(--abox);border-radius:8px;overflow:hidden;min-height:130px}
+.abox{background:var(--abox);border-radius:8px;overflow:hidden;min-height:130px;container-type:inline-size}
 .ahead,.abody{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));text-align:center}
-.ahead{background:var(--surface);font-weight:700;font-size:.95rem;padding:3px 0}
+.ahead{background:var(--surface);font-weight:700;font-size:.95rem;font-size:clamp(10px,9cqi,.95rem);padding:3px 0}
 .ahead .vul{color:var(--vul)}
 .ahead .me{text-decoration:underline;text-underline-offset:3px}
 .abody{padding:4px 2px;row-gap:2px}
-.abody .cell{font-weight:700;min-height:1.5em;font-size:.95rem}
+.abody .cell{font-weight:700;min-height:1.5em;font-size:.8rem;font-size:clamp(9px,8cqi,.95rem);white-space:nowrap;overflow:hidden;letter-spacing:-.01em}
 .abody .cell.mine{color:var(--accent)}
 .abody .cell.next{color:var(--muted)}
 .hand-wrap{display:grid;gap:4px}
@@ -224,6 +224,24 @@ button.card{font:inherit;font-weight:700;cursor:pointer;padding:3px 0 0;appearan
 @keyframes frog-across{from{left:0}to{left:calc(100% - 28px)}}
 @keyframes frog-hop{0%,100%{transform:translateY(0)}45%{transform:translateY(-16px) rotate(-8deg)}}
 @media (prefers-reduced-motion:reduce){.frog{animation:none;left:calc(50% - 13px)}}
+/* The claim's chicken doll on a spring */
+.chick-track{position:relative;width:100%;height:86px;overflow:hidden}
+.chick{position:absolute;left:0;bottom:0;width:54px;height:83px;animation:chick-across 4s ease-in-out infinite alternate}
+.chick svg{display:block;overflow:visible}
+.chick .ck-spring{transform-box:fill-box;transform-origin:50% 100%;animation:ck-boing 1.1s ease-in-out infinite}
+.chick .ck-bob{animation:ck-bob 1.1s ease-in-out infinite}
+.chick .ck-wob{transform-box:view-box;transform-origin:30px 54px;animation:ck-wob .55s ease-in-out infinite alternate}
+.chick .ck-pupil{animation:ck-eye .23s ease-in-out infinite alternate}
+.chick .ck-pupil-r{animation-duration:.31s;animation-direction:alternate-reverse}
+.chick .ck-wing{transform-box:fill-box;transform-origin:50% 10%;animation:ck-flap .2s ease-in-out infinite alternate}
+.chick .ck-wing-r{animation-direction:alternate-reverse}
+@keyframes chick-across{from{left:0}to{left:calc(100% - 54px)}}
+@keyframes ck-boing{0%,100%{transform:scaleY(1)}20%{transform:scaleY(.5)}45%{transform:scaleY(1.3)}65%{transform:scaleY(.82)}82%{transform:scaleY(1.08)}}
+@keyframes ck-bob{0%,100%{transform:translateY(0)}20%{transform:translateY(16px)}45%{transform:translateY(-9.6px)}65%{transform:translateY(5.8px)}82%{transform:translateY(-2.6px)}}
+@keyframes ck-wob{from{transform:rotate(-16deg)}to{transform:rotate(16deg)}}
+@keyframes ck-eye{from{transform:translate(-1.6px,-1px)}to{transform:translate(1.6px,1.2px)}}
+@keyframes ck-flap{from{transform:rotate(-25deg)}to{transform:rotate(30deg)}}
+@media (prefers-reduced-motion:reduce){.chick,.chick *{animation:none!important}.chick{left:calc(50% - 27px)}}
 
 /* ---------- Peeking at hands (as dummy): the cards show while a finger is on them ---------- */
 button.peek-btn{appearance:none;background:none;border:0;padding:0;cursor:pointer;border-radius:6px;position:relative;font:inherit;color:inherit;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
@@ -300,25 +318,36 @@ button.bids-btn{padding:3px 8px;font-size:.66rem}
 /* Surprises: a full-screen gag when someone taps a player's name at the table. */
 .plate[role="button"]{cursor:pointer}
 .plate[role="button"]:focus-visible{outline:2px solid var(--turn);outline-offset:2px}
-.fx-layer{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,rgba(20,10,60,.82),rgba(5,5,25,.94));color:#fff;overflow:hidden;animation:fx-in .25s ease-out;touch-action:manipulation}
+.fx-layer{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,rgba(30,10,70,.9),rgba(5,5,25,.97));color:#fff;overflow:hidden;animation:fx-in .2s ease-out,fx-shake .11s linear .15s 22;touch-action:manipulation}
 .fx-layer.out{opacity:0;transition:opacity .25s}
+.fx-strobe{position:absolute;inset:0;animation:fx-strobe .36s steps(1) infinite;mix-blend-mode:screen;pointer-events:none}
 .fx-canvas{position:absolute;inset:0;width:100%;height:100%}
 .fx-stage{position:absolute;inset:0;pointer-events:none}
-.fx-item{position:absolute;font-size:clamp(2.2rem,12vw,4.2rem);line-height:1;will-change:transform}
-.fx-stage-ring .fx-item{left:50%;top:46%;margin:-.5em 0 0 -.5em;animation:fx-orbit 3.2s linear both}
-.fx-title{position:relative;z-index:1;font-size:clamp(2rem,11vw,3.6rem);font-weight:900;text-shadow:0 3px 0 #b3212e,0 0 24px rgba(255,220,80,.8);animation:fx-pop .5s ease-out both,fx-wobble 1s ease-in-out .5s infinite}
-.fx-from{position:absolute;z-index:1;bottom:22%;font-size:1rem;opacity:.85}
-.fx-skip{position:absolute;z-index:1;bottom:max(16px,env(safe-area-inset-bottom));font-size:.75rem;opacity:.55}
-.fx-stage-rain .fx-item{top:-12%;left:var(--x);animation:fx-fall calc(1.6s + var(--i) * .12s) linear calc(var(--i) * .15s) 2 both}
-.fx-stage-march .fx-item{left:-20%;top:calc(30% + var(--i) * 7%);animation:fx-march 2.2s ease-in-out calc(var(--i) * .18s) 1 both}
-.fx-layer.calm .fx-item{animation:none;position:static;display:inline-block}
+.fx-item{position:absolute;font-size:clamp(2rem,11vw,4rem);line-height:1;will-change:transform}
+.fx-ring{left:50%;top:46%;margin:-.5em 0 0 -.5em;animation:fx-orbit 3.4s linear both,fx-jiggle .3s ease-in-out infinite alternate}
+.fx-rain{top:-15%;left:var(--x);font-size:clamp(1.6rem,9vw,3.2rem);animation:fx-fall var(--dur) linear var(--d) infinite both}
+.fx-march{left:-25%;top:var(--row);animation:fx-march 2.4s ease-in-out var(--d) 1 both}
+.fx-pop{left:var(--x);top:var(--y);animation:fx-burst var(--dur) ease-out var(--d) infinite both}
+.fx-zoom{left:50%;top:46%;margin:-.5em 0 0 -.5em;font-size:5rem;animation:fx-zoom 1.5s ease-in .5s 2 both}
+.fx-bounce{left:var(--x);top:var(--y);animation:fx-ricochet .9s ease-in-out var(--d) infinite alternate both}
+.fx-title{position:relative;z-index:2;font-size:clamp(2.2rem,12vw,4rem);font-weight:900;text-shadow:0 3px 0 #b3212e,0 0 24px rgba(255,220,80,.9);animation:fx-pop .45s ease-out both,fx-wobble .5s ease-in-out .45s infinite}
+.fx-from{position:absolute;z-index:2;bottom:22%;font-size:1.05rem;font-weight:700;text-shadow:0 2px 6px #000}
+.fx-skip{position:absolute;z-index:2;bottom:max(16px,env(safe-area-inset-bottom));font-size:.75rem;opacity:.6}
+.fx-layer.calm{animation:fx-in .2s ease-out}
+.fx-layer.calm .fx-item{animation:none;position:static;display:inline-block;margin:0}
 .fx-layer.calm .fx-stage{position:static;display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
 .fx-layer.calm .fx-title{animation:none}
 .fx-toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);z-index:90;max-width:90vw;padding:8px 14px;border-radius:999px;background:rgba(12,40,26,.96);color:#fff;font-size:.9rem;box-shadow:0 4px 14px rgba(0,0,0,.4)}
 @keyframes fx-in{from{opacity:0}to{opacity:1}}
-@keyframes fx-orbit{from{transform:rotate(var(--a)) translateX(min(36vw,150px)) rotate(calc(var(--a) * -1)) scale(.4)}20%{transform:rotate(calc(var(--a) + 70deg)) translateX(min(36vw,150px)) rotate(calc((var(--a) + 70deg) * -1)) scale(1)}to{transform:rotate(calc(var(--a) + 720deg)) translateX(min(36vw,150px)) rotate(calc((var(--a) + 720deg) * -1)) scale(1)}}
+@keyframes fx-shake{0%{transform:translate(0,0)}25%{transform:translate(-7px,4px) rotate(-1deg)}50%{transform:translate(6px,-5px) rotate(1deg)}75%{transform:translate(-4px,-3px)}100%{transform:translate(0,0)}}
+@keyframes fx-strobe{0%{background:rgba(255,0,120,.18)}25%{background:rgba(0,200,255,.16)}50%{background:rgba(255,230,0,.16)}75%{background:rgba(120,255,80,.14)}}
+@keyframes fx-orbit{from{transform:rotate(var(--a)) translateX(var(--rad)) rotate(calc(var(--a) * -1)) scale(.3)}15%{transform:rotate(calc(var(--a) + var(--dir) * 60deg)) translateX(var(--rad)) rotate(calc((var(--a) + var(--dir) * 60deg) * -1)) scale(1.1)}to{transform:rotate(calc(var(--a) + var(--dir) * 900deg)) translateX(var(--rad)) rotate(calc((var(--a) + var(--dir) * 900deg) * -1)) scale(1)}}
+@keyframes fx-jiggle{from{rotate:-14deg}to{rotate:14deg}}
 @keyframes fx-pop{from{transform:scale(.2) rotate(-12deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
-@keyframes fx-wobble{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg) scale(1.06)}}
-@keyframes fx-fall{from{transform:translateY(0) rotate(0)}to{transform:translateY(125vh) rotate(360deg)}}
-@keyframes fx-march{from{transform:translateX(0)}to{transform:translateX(140vw)}}
+@keyframes fx-wobble{0%,100%{transform:rotate(-5deg) scale(1)}50%{transform:rotate(5deg) scale(1.12)}}
+@keyframes fx-fall{from{transform:translateY(0) rotate(0)}to{transform:translateY(130vh) rotate(var(--r))}}
+@keyframes fx-march{0%{transform:translateX(0) translateY(0)}25%{transform:translateX(35vw) translateY(-18px) rotate(-10deg)}50%{transform:translateX(70vw) translateY(0) rotate(8deg)}75%{transform:translateX(105vw) translateY(-18px) rotate(-10deg)}100%{transform:translateX(145vw) translateY(0)}}
+@keyframes fx-burst{0%{transform:scale(0) rotate(0);opacity:0}30%{transform:scale(var(--s)) rotate(calc(var(--r) / 4));opacity:1}100%{transform:scale(calc(var(--s) * 1.6)) rotate(var(--r));opacity:0}}
+@keyframes fx-zoom{0%{transform:scale(.2) rotate(-20deg);opacity:0}30%{opacity:.95}100%{transform:scale(7) rotate(25deg);opacity:0}}
+@keyframes fx-ricochet{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(var(--bx),calc(var(--by) * -1)) rotate(calc(var(--r) / 2))}100%{transform:translate(calc(var(--bx) * -1),var(--by)) rotate(var(--r))}}
 .tbox.last .tspot.won .card{opacity:1;box-shadow:0 0 0 2px var(--turn)}

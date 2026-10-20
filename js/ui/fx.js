@@ -2,15 +2,48 @@
 // at the table. Made of emoji, CSS and a small canvas of fireworks; the phone buzzes where it can.
 import { el } from './dom.js';
 
-export const FX_MS = 3200;
-// Each kind: a title, the emoji it is made of, and how they move (ring: circle around the middle; rain: falling; march: across).
+export const FX_MS = 3400;
+const many = (n, pick) => Array.from({ length: n }, (_, i) => (typeof pick === 'function' ? pick(i) : pick[i % pick.length]));
+const CONFETTI = ['🎉', '✨', '🎊', '💥', '⭐', '🎈'];
+// Each kind: a title and layers of emoji; a layer's move is how they go about it (ring: circle the middle, clockwise or
+// not; rain: fall and spin; march: parade across; pop: burst in and out all over; zoom: one giant one rushing at you;
+// bounce: ricochet around). Every kind also gets confetti, fireworks, a shake and a strobe: the more mess the better.
 export const FX_KINDS = [
-  { title: 'Ho ho ho!', items: ['🎅', '🦌', '🎅', '🦌', '🦌', '🎅', '🦌', '🦌'], move: 'ring', fireworks: true },
-  { title: 'Frog conga!', items: ['🐸', '🐸', '🐸', '🐸', '🐸', '🐸', '🐸'], move: 'march', fireworks: true },
-  { title: 'Pizza party!', items: ['🍕', '🍕', '🍕', '🍕', '🍕', '🍕', '🍕', '🍕', '🍕', '🍕'], move: 'rain', fireworks: false },
-  { title: 'Quack quack!', items: ['🦆', '🦆', '🦆', '🦆', '🦆', '🦆'], move: 'march', fireworks: false },
-  { title: 'Disco penguins!', items: ['🐧', '🪩', '🐧', '🪩', '🐧', '🪩', '🐧'], move: 'ring', fireworks: true },
-  { title: 'Cat attack!', items: ['😻', '🐈', '😸', '🐈‍⬛', '😹', '🐱', '😽', '🐈'], move: 'rain', fireworks: false },
+  { title: 'Ho ho ho!', layers: [
+    { move: 'ring', rad: 'min(38vw,170px)', dir: 1, items: ['🎅', '🦌', '🦌', '🎅', '🦌', '🦌', '🎅', '🦌'] },
+    { move: 'ring', rad: 'min(21vw,95px)', dir: -1, items: ['🦌', '🎁', '🦌', '🎁', '🦌', '🎁'] },
+    { move: 'march', items: ['🛷', '🦌', '🦌', '🦌', '🎅'] },
+    { move: 'rain', items: many(22, ['❄️', '🎁', '❄️', '🔔']) },
+    { move: 'zoom', items: ['🎅'] },
+  ] },
+  { title: 'Frog conga!', layers: [
+    { move: 'march', items: many(12, ['🐸']) },
+    { move: 'bounce', items: many(8, ['🐸', '🪰']) },
+    { move: 'pop', items: many(10, ['🐸', '🎶', '🪷']) },
+    { move: 'zoom', items: ['🐸'] },
+  ] },
+  { title: 'Pizza party!', layers: [
+    { move: 'rain', items: many(30, ['🍕', '🍕', '🧀', '🍄', '🫒']) },
+    { move: 'ring', rad: 'min(30vw,140px)', dir: 1, items: many(8, ['🍕']) },
+    { move: 'zoom', items: ['🍕'] },
+  ] },
+  { title: 'Quack quack!', layers: [
+    { move: 'march', items: many(14, ['🦆', '🦆', '🐥']) },
+    { move: 'bounce', items: many(10, ['🦆', '🐤', '🥖']) },
+    { move: 'rain', items: many(14, ['🪶']) },
+    { move: 'zoom', items: ['🦆'] },
+  ] },
+  { title: 'Disco penguins!', layers: [
+    { move: 'ring', rad: 'min(38vw,170px)', dir: 1, items: many(8, ['🐧', '🪩']) },
+    { move: 'ring', rad: 'min(20vw,90px)', dir: -1, items: many(6, ['🐧']) },
+    { move: 'pop', items: many(16, ['🪩', '✨', '🎶', '🕺']) },
+    { move: 'zoom', items: ['🪩'] },
+  ] },
+  { title: 'Cat attack!', layers: [
+    { move: 'rain', items: many(26, ['😻', '🐈', '😸', '🐈‍⬛', '😹', '🐱', '😽', '🙀']) },
+    { move: 'bounce', items: many(8, ['🐈', '🧶', '🐟']) },
+    { move: 'zoom', items: ['🙀'] },
+  ] },
 ];
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -32,7 +65,7 @@ function fireworks(canvas) {
     const x = (0.12 + Math.random() * 0.76) * w;
     const y = (0.12 + Math.random() * 0.5) * h;
     const c = colours[Math.floor(Math.random() * colours.length)];
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < 90; i++) {
       const a = Math.random() * Math.PI * 2;
       const v = (1.5 + Math.random() * 5) * dpr;
       sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, c });
@@ -42,7 +75,7 @@ function fireworks(canvas) {
   let last = 0;
   let nextBurst = 0;
   const tick = (now) => {
-    if (now >= nextBurst) { burst(); if (Math.random() < 0.6) burst(); nextBurst = now + 230; }
+    if (now >= nextBurst) { burst(); burst(); if (Math.random() < 0.7) burst(); nextBurst = now + 170; }
     ctx.globalCompositeOperation = 'destination-out';
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.fillRect(0, 0, w, h);
@@ -69,15 +102,27 @@ export function playFx(kind, fromName, { haptic = true } = {}) {
   active?.close();
   const k = FX_KINDS[((Number(kind) % FX_KINDS.length) + FX_KINDS.length) % FX_KINDS.length];
   const calm = reduced();
-  const n = k.items.length;
-  const items = k.items.map((emoji, i) => {
-    const a = (360 / n) * i;
-    return el('span', { class: `fx-item fx-${k.move}`, style: `--a:${a}deg;--i:${i};--n:${n};--x:${Math.round((i / n) * 100)}%` }, emoji);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const layers = [...k.layers, { move: 'pop', items: many(14, CONFETTI) }];
+  const stages = layers.map((layer) => {
+    const n = layer.items.length;
+    const items = layer.items.map((emoji, i) => {
+      const vars = {
+        '--a': `${(360 / n) * i}deg`, '--rad': layer.rad ?? 'min(36vw,150px)', '--dir': layer.dir ?? 1,
+        '--x': `${rnd(-4, 96).toFixed(1)}%`, '--y': `${rnd(4, 88).toFixed(1)}%`,
+        '--d': `${(layer.move === 'march' ? i * 0.16 : rnd(0, 1.4)).toFixed(2)}s`, '--dur': `${rnd(1.1, 2.2).toFixed(2)}s`,
+        '--s': rnd(0.7, 1.8).toFixed(2), '--r': `${Math.round(rnd(-720, 720))}deg`,
+        '--bx': `${Math.round(rnd(-45, 45))}vw`, '--by': `${Math.round(rnd(-40, 40))}vh`,
+        '--row': `${(8 + ((i * 37) % 80)).toFixed(0)}%`,
+      };
+      return el('span', { class: `fx-item fx-${layer.move}`, style: Object.entries(vars).map(([key, v]) => `${key}:${v}`).join(';') }, emoji);
+    });
+    return el('div', { class: `fx-stage fx-stage-${layer.move}` }, ...items);
   });
-  const stage = el('div', { class: `fx-stage fx-stage-${k.move}` }, ...items);
-  const canvas = k.fireworks && !calm ? el('canvas', { class: 'fx-canvas', 'aria-hidden': 'true' }) : null;
+  const canvas = calm ? null : el('canvas', { class: 'fx-canvas', 'aria-hidden': 'true' });
   const layer = el('div', { class: `fx-layer${calm ? ' calm' : ''}`, role: 'status', 'aria-live': 'polite', 'data-key': 'fx' },
-    canvas, stage,
+    calm ? null : el('div', { class: 'fx-strobe', 'aria-hidden': 'true' }),
+    canvas, ...(calm ? stages.slice(0, 1) : stages),
     el('div', { class: 'fx-title' }, k.title),
     fromName ? el('div', { class: 'fx-from' }, `from ${fromName}`) : null,
     el('div', { class: 'fx-skip' }, 'Tap to close'));
