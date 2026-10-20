@@ -74,7 +74,7 @@ export function normalize(raw) {
   const history = {};
   for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true, ...(Number.isInteger(h.claim) ? { claim: h.claim } : {}), ...(validSwap(h.swap) ? { swap: h.swap } : {}) };
   // Fields this version does not know (added by a newer version) pass through, so rewriting the table never drops them.
-  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq']);
+  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq', 'host', 'kicked']);
   const extra = Object.fromEntries(Object.entries(raw).filter(([k, v]) => !known.has(k) && v !== undefined && v !== null));
   return {
     ...extra,
@@ -84,6 +84,8 @@ export function normalize(raw) {
     seats,
     board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true, ...(Number.isInteger(b.claim) ? { claim: b.claim } : {}), ...(validSwap(b.swap) ? { swap: b.swap } : {}) },
     history,
+    ...(raw.host ? { host: String(raw.host) } : {}),
+    ...(normalKicked(raw.kicked) ? { kicked: normalKicked(raw.kicked) } : {}),
     chat: normalChat(raw.chat),
     ...(normalUndo(raw.undoReq) ? { undoReq: normalUndo(raw.undoReq) } : {}),
     ...(normalClaim(raw.claimReq) ? { claimReq: normalClaim(raw.claimReq) } : {}),
@@ -174,6 +176,13 @@ export function say(t, uid, text, now = 0) {
   return { ...t, chat: [...chat, { id, uid, name: t.seats[seat].name || 'Player', seat, text: clean, at: now }].slice(-CHAT_KEEP) };
 }
 
+// Players the host removed: uid -> name. They can watch but not sit until the host lets them back.
+function normalKicked(k) {
+  if (!k || typeof k !== 'object') return null;
+  const out = Object.fromEntries(Object.entries(k).filter(([uid]) => uid).map(([uid, name]) => [uid, String(name ?? '').slice(0, 24)]));
+  return Object.keys(out).length ? out : null;
+}
+
 // A pending take-back request (see requestUndo). need and ok are space-separated uids, so no database turns them into objects.
 function normalUndo(u) {
   if (!u || typeof u !== 'object' || !u.uid || !['call', 'card'].includes(u.kind) || !Number.isInteger(u.i)) return null;
@@ -183,7 +192,7 @@ function normalUndo(u) {
 export function newTable({ code, uid, name, seat = 'S', opponents = 'robot', rand, now = 0 }) {
   const seats = Object.fromEntries(SEATS.map((s) => [s, { kind: 'open' }]));
   seats[seat] = { kind: 'human', uid, name };
-  const t = { code, created: now, opponents: 'players', seats, board: board(1, rand), history: {} };
+  const t = { code, created: now, host: uid, opponents: 'players', seats, board: board(1, rand), history: {} };
   return setOpponents(t, opponents) ?? t;
 }
 
@@ -319,13 +328,44 @@ export function setOpponents(t, mode) {
 }
 
 export function sit(t, seat, uid, name) {
-  if (!SEATS.includes(seat) || !uid) return undefined;
+  if (!SEATS.includes(seat) || !uid || t.kicked?.[uid]) return undefined;
   const cur = t.seats[seat];
   if (cur.kind === 'human' && cur.uid !== uid) return undefined;
   const seats = { ...t.seats };
   for (const s of SEATS) if (seats[s].kind === 'human' && seats[s].uid === uid) seats[s] = { kind: 'open' };
   seats[seat] = { kind: 'human', uid, name: String(name).slice(0, 24) };
   return { ...t, seats };
+}
+
+// The head of the table: whoever made it. If they are not seated (or the table is older than this), the first
+// player in the order South, North, East, West.
+export function hostOf(t) {
+  const humans = SEATS.map((s) => t.seats[s]).filter((x) => x.kind === 'human');
+  if (t.host && humans.some((x) => x.uid === t.host)) return t.host;
+  return ['S', 'N', 'E', 'W'].map((s) => t.seats[s]).find((x) => x.kind === 'human')?.uid ?? null;
+}
+
+// The host removes a player: the seat opens, and that player cannot sit again until the host allows it.
+export function kick(t, by, seat) {
+  const who = t.seats[seat];
+  if (!by || by !== hostOf(t) || !SEATS.includes(seat) || who.kind !== 'human' || who.uid === by) return undefined;
+  return { ...t, seats: { ...t.seats, [seat]: { kind: 'open' } }, kicked: { ...(t.kicked ?? {}), [who.uid]: who.name || 'Player' } };
+}
+
+export function allowBack(t, by, uid) {
+  if (!by || by !== hostOf(t) || !t.kicked?.[uid]) return undefined;
+  const { [uid]: _gone, ...rest } = t.kicked;
+  const { kicked: _old, ...others } = t;
+  return Object.keys(rest).length ? { ...others, kicked: rest } : others;
+}
+
+// The host moves a seated player to an empty seat, or swaps two players.
+export function moveSeat(t, by, from, to) {
+  if (!by || by !== hostOf(t) || !SEATS.includes(from) || !SEATS.includes(to) || from === to) return undefined;
+  const a = t.seats[from];
+  const b = t.seats[to];
+  if (a.kind !== 'human' || !['open', 'human'].includes(b.kind)) return undefined;
+  return { ...t, seats: { ...t.seats, [to]: a, [from]: b } };
 }
 
 export function leave(t, uid) {

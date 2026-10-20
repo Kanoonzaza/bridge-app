@@ -6,7 +6,7 @@ import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
 import {
   CODE, parseCode, seatsAtBidding, say, restoreChat, chatKey, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
-  setOpponents, sit, leave, setSeatKind, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
+  setOpponents, sit, leave, setSeatKind, hostOf, kick, allowBack, moveSeat, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
 import { legalCards, controller } from '../table/play.js';
@@ -311,21 +311,41 @@ export function tableView(root, store) {
   }
 
   function seatsView(t, me) {
-    return el('div', { class: 'seats' }, ...['N', 'W', 'E', 'S'].map((s) => {
-      const st = t.seats[s];
-      const who = st.kind === 'human' ? st.name || 'Player' : st.kind === 'robot' ? 'Robot' : st.kind === 'pass' ? 'Always passes' : 'Empty';
-      const actions = [];
-      if (st.kind === 'open') {
-        actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `sit-${s}`, onclick: () => act((cur) => cur && sit(cur, s, ui.sync.uid, saved.name.trim() || 'Player')) }, me ? 'Move here' : 'Sit here'));
-        actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `robot-${s}`, onclick: () => act((cur) => cur && setSeatKind(cur, s, 'robot')) }, 'Robot'));
-      } else if (st.kind === 'robot' && me && sideOf(s) === sideOf(me)) {
-        actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `free-${s}`, onclick: () => act((cur) => cur && setSeatKind(cur, s, 'open')) }, 'Free seat'));
-      }
-      return el('div', { class: `seat seat-${s}${s === me ? ' me' : ''}${nowAt(t) === s ? ' turn' : ''}` },
-        el('div', { class: 'label' }, `${COMPASS[s]}${me ? ` · ${relative(me, s)}` : ''}`),
-        el('div', { class: 'seat-name' }, who),
-        actions.length ? el('div', { class: 'row-buttons' }, ...actions) : null);
-    }));
+    const isHost = hostOf(t) === ui.sync.uid;
+    const moving = isHost && ui.moving && t.seats[ui.moving]?.kind === 'human' ? ui.moving : null;
+    if (ui.moving && !moving) ui.moving = null;
+    const removed = t.kicked?.[ui.sync.uid];
+    return el('div', {},
+      removed ? el('p', { class: 'notice', role: 'status' }, 'The host removed you from this table. You can watch, but not sit, unless the host lets you back.') : null,
+      el('div', { class: 'seats' }, ...['N', 'W', 'E', 'S'].map((s) => {
+        const st = t.seats[s];
+        const who = st.kind === 'human' ? st.name || 'Player' : st.kind === 'robot' ? 'Robot' : st.kind === 'pass' ? 'Always passes' : 'Empty';
+        const actions = [];
+        if (st.kind === 'open') {
+          if (!removed) actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `sit-${s}`, onclick: () => act((cur) => cur && sit(cur, s, ui.sync.uid, saved.name.trim() || 'Player')) }, me ? 'Move here' : 'Sit here'));
+          actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `robot-${s}`, onclick: () => act((cur) => cur && setSeatKind(cur, s, 'robot')) }, 'Robot'));
+        } else if (st.kind === 'robot' && me && sideOf(s) === sideOf(me)) {
+          actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `free-${s}`, onclick: () => act((cur) => cur && setSeatKind(cur, s, 'open')) }, 'Free seat'));
+        }
+        if (isHost) {
+          if (moving && s !== moving && ['open', 'human'].includes(st.kind)) {
+            actions.push(el('button', { type: 'button', class: 'pill on', 'data-key': `put-${s}`, onclick: () => { const from = moving; ui.moving = null; act((cur) => cur && moveSeat(cur, ui.sync.uid, from, s), 'That move is not possible now.'); render(); } }, `Put ${t.seats[moving].name || 'player'} here`));
+          } else if (moving === s) {
+            actions.push(el('button', { type: 'button', class: 'pill', 'data-key': 'move-cancel', onclick: () => { ui.moving = null; render(); } }, 'Cancel move'));
+          } else if (st.kind === 'human' && st.uid !== ui.sync.uid && !moving) {
+            actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `move-${s}`, onclick: () => { ui.moving = s; render(); } }, 'Move'));
+            actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `kick-${s}`, onclick: () => { if (confirm(`Remove ${st.name || 'this player'} from the table?`)) act((cur) => cur && kick(cur, ui.sync.uid, s), 'Only the host can remove a player.'); } }, 'Remove'));
+          }
+        }
+        const tag = st.kind === 'human' && st.uid === hostOf(t) ? ' · host' : '';
+        return el('div', { class: `seat seat-${s}${s === me ? ' me' : ''}${nowAt(t) === s ? ' turn' : ''}` },
+          el('div', { class: 'label' }, `${COMPASS[s]}${me ? ` · ${relative(me, s)}` : ''}${tag}`),
+          el('div', { class: 'seat-name' }, who),
+          actions.length ? el('div', { class: 'row-buttons' }, ...actions) : null);
+      })),
+      isHost && t.kicked ? el('div', { class: 'stack' }, ...Object.entries(t.kicked).map(([uid, name]) =>
+        el('div', { class: 'row-buttons' }, el('span', { class: 'muted' }, `${name} was removed`),
+          el('button', { type: 'button', class: 'pill', 'data-key': `allow-${uid}`, onclick: () => act((cur) => cur && allowBack(cur, ui.sync.uid, uid)) }, 'Allow back')))) : null);
   }
 
   // ---------- The table, drawn like a card table: partner on top, opponents left and right, me at the bottom ----------

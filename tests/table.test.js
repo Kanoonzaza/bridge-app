@@ -5,7 +5,7 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
-  autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  hostOf, kick, allowBack, moveSeat, autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../js/table/model.js';
 import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
@@ -61,6 +61,41 @@ test('seats: partner joins, the other pair can join when opponents are players',
   const r = setOpponents(t, 'robot');
   assert.equal(r.seats.N.uid, 'pard', 'the opponents setting never touches North-South');
   assert.equal(r.seats.E.kind, 'robot');
+});
+
+test('host: the creator removes or moves players; nobody else can', () => {
+  let t = setOpponents(sit(fresh(), 'N', 'pard', 'Ploy'), 'players');
+  t = sit(sit(t, 'E', 'opp1', 'A'), 'W', 'opp2', 'B');
+  assert.equal(hostOf(t), 'me');
+  assert.equal(kick(t, 'pard', 'E'), undefined, 'a player is not the host');
+  assert.equal(kick(t, 'me', 'S'), undefined, 'the host cannot remove themselves');
+  assert.equal(kick(t, 'me', 'N').seats.N.kind, 'open');
+  const k = kick(t, 'me', 'E');
+  assert.equal(k.seats.E.kind, 'open');
+  assert.equal(sit(k, 'E', 'opp1', 'A'), undefined, 'a removed player cannot sit again');
+  assert.equal(sit(k, 'E', 'opp3', 'C').seats.E.uid, 'opp3', 'someone else can');
+  const back = allowBack(k, 'me', 'opp1');
+  assert.equal(back.kicked, undefined);
+  assert.equal(sit(back, 'E', 'opp1', 'A').seats.E.uid, 'opp1');
+  assert.equal(allowBack(k, 'pard', 'opp1'), undefined);
+  // The removal survives a round trip through the database.
+  assert.deepEqual(normalize(JSON.parse(JSON.stringify(k))).kicked, { opp1: 'A' });
+  // Moving: to an empty seat, or swapping two players.
+  const m = moveSeat(k, 'me', 'W', 'E');
+  assert.equal(m.seats.E.uid, 'opp2');
+  assert.equal(m.seats.W.kind, 'open');
+  const sw = moveSeat(t, 'me', 'E', 'W');
+  assert.equal(sw.seats.E.uid, 'opp2');
+  assert.equal(sw.seats.W.uid, 'opp1');
+  assert.equal(moveSeat(t, 'pard', 'E', 'W'), undefined);
+  assert.equal(moveSeat(setOpponents(t, 'robot'), 'me', 'S', 'E'), undefined, 'not onto a robot seat');
+  assert.equal(moveSeat(fresh(), 'me', 'N', 'E'), undefined, 'nobody sits at N');
+  // Without a recorded host (an older table) the first player in the order S, N, E, W is the host.
+  const { host: _h, ...old } = t;
+  assert.equal(hostOf(old), 'me');
+  assert.equal(hostOf(leave(old, 'me')), 'pard');
+  // The host's own seat does not matter: they stay host after standing up and sitting elsewhere.
+  assert.equal(hostOf(sit(leave(t, 'pard'), 'N', 'me', 'Kan')), 'me');
 });
 
 test('only the player whose turn it is can call, and only legal calls', () => {
