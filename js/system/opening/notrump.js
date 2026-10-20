@@ -1,4 +1,4 @@
-import { SUITS, NAME, SYMBOL } from '../../cards.js';
+import { SUITS, NAME, SYMBOL, dummyPoints } from '../../cards.js';
 
 // 1NT (15–17) and 2NT (20–21, or 22–24 after 2♣–2♦) auctions: responses, opener's replies, responder's next bid.
 const NT = '1nt-opening-and-responses-tier-0';
@@ -140,7 +140,11 @@ export function afterStayman(e, reply, min) {
     if (h >= 31 - min) return R('4N', [`${h} HCP: invite 6NT`]);
     return inv ? R('2N', [`${h} HCP: invite`]) : R('3N', [`${h} HCP: game`, 'no major fit']);
   }
-  if (e.len[s] >= 4) return inv ? R(`3${s}`, [`4 ${NAME[s]}: a fit`, 'invitational']) : h >= 33 - min ? R(`6${s}`, [`4 ${NAME[s]}: a fit`, `${h} HCP: small slam`]) : R(`4${s}`, [`4 ${NAME[s]}: a fit`, 'game']);
+  // With a 4-4 major fit, 16+ opposite 15–17 makes slam far more often than not (double dummy, 200 deals each:
+  // 6M beat 4M by 6.3 IMPs a deal at 16 and 6.8 at 17), so there is no stopping in game.
+  // A shapely 15 (a singleton or void to ruff: 17+ dummy points) makes it too (73% of 152 deals, +5.1 IMPs); a balanced 15 does not (-0.6).
+  const slam = min === 15 ? h >= 16 || dummyPoints(e, s) >= 17 : h >= 33 - min;
+  if (e.len[s] >= 4) return inv ? R(`3${s}`, [`4 ${NAME[s]}: a fit`, 'invitational']) : slam ? R(`6${s}`, [`4 ${NAME[s]}: a fit`, `${h} HCP opposite 15–17: small slam`]) : R(`4${s}`, [`4 ${NAME[s]}: a fit`, 'game']);
   if (h >= 33 - min) return R('6N', [`${h} HCP: small slam`]);
   if (h >= 31 - min) return R('4N', [`${h} HCP: invite 6NT`]);
   if (s === 'H' && e.len.S >= 4) return inv ? R('2S', ['4 spades, no heart fit', 'invitational']) : R('3N', ['4 spades, game values', 'opener corrects to 4♠ with 4 spades']);

@@ -84,6 +84,14 @@ test('1M–4NT: partner\'s jump to 4NT is Blackwood for the major, and opener an
   assert.equal(ask(['1H', '4N', '5H'], 'AK5 AJ72 A KJ1082'.replace('10', 'T')).call, '6H');
 });
 
+test('Stayman fit: 16+ (or a shapely 14–15) opposite 1NT bids the small slam, a balanced 15 stops in game', () => {
+  assert.equal(ask(['1N', '2C', '2H'], 'A984 AKJT Q43 J4').call, '4H', 'board 3: a balanced 15 with the fit is game only (6♥ made, but 6♥ loses on average)');
+  assert.equal(ask(['1N', '2C', '2H'], 'A984 AKJT 4 Q432').call, '6H', '14 HCP with a singleton to ruff: 17 dummy points');
+  assert.equal(ask(['1N', '2C', '2H'], 'A984 AKJT K43 Q4').call, '6H', '17 HCP and a fit');
+  assert.equal(ask(['1N', '2C', '2S'], 'A984 AK5 KQ43 J4').call, '6S', '16 HCP, spade fit');
+  assert.equal(ask(['1N', '2C', '2H'], 'A984 AJT5 KQ3 J4').call, '4H', '15 HCP: game only');
+});
+
 test('Gerber: replies and the asker\'s sign-off', () => {
   assert.equal(ask(['1N', '4C'], 'AK4 KQ73 A62 Q52').call, '4S');
   assert.equal(ask(['1N', '4C', '4S'], 'KQ5 A84 KQJ74 A3').call, '6N');
