@@ -321,3 +321,4 @@ button.bids-btn{padding:3px 8px;font-size:.66rem}
 @keyframes fx-wobble{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg) scale(1.06)}}
 @keyframes fx-fall{from{transform:translateY(0) rotate(0)}to{transform:translateY(125vh) rotate(360deg)}}
 @keyframes fx-march{from{transform:translateX(0)}to{transform:translateX(140vw)}}
+.tbox.last .tspot.won .card{opacity:1;box-shadow:0 0 0 2px var(--turn)}
