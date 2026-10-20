@@ -1,6 +1,7 @@
 // How a table is shared between phones. Every transport offers the same three things:
 //   uid                      this device's player id
-//   watch(code, onTable)     calls onTable(table | null) now and on every change; returns an unsubscribe
+//   watch(code, onTable, onError)  calls onTable(table | null) now and on every change; returns an unsubscribe.
+//                            onError(err) is called when the server refuses the read (firebase only)
 //   change(code, fn)         atomically replaces the table with fn(table | null); fn returns undefined to cancel.
 //                            Resolves to the committed table, or null when fn cancelled.
 import { normalize } from './model.js';
@@ -19,8 +20,8 @@ export async function firebaseSync(config) {
   const at = (code) => db.ref(database, `tables/${code}`);
   return {
     uid: cred.user.uid,
-    watch(code, onTable) {
-      return db.onValue(at(code), (snap) => onTable(normalize(snap.val())), () => onTable(null));
+    watch(code, onTable, onError) {
+      return db.onValue(at(code), (snap) => onTable(normalize(snap.val())), (err) => (onError ? onError(err) : onTable(null)));
     },
     async change(code, fn) {
       let cancelled = false;

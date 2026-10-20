@@ -70,16 +70,35 @@ export function tableView(root, store) {
 
   async function connect() {
     if (ui.sync) return ui.sync;
-    ui.sync = mode === 'local' ? localSync() : await firebaseSync(FIREBASE);
+    // The database libraries load from the internet: stop waiting when they do not come.
+    let timer;
+    const late = new Promise((_, no) => { timer = setTimeout(() => no(new Error('no answer from the server')), 20000); });
+    try {
+      ui.sync = mode === 'local' ? localSync() : await Promise.race([firebaseSync(FIREBASE), late]);
+    } finally {
+      clearTimeout(timer);
+    }
     return ui.sync;
+  }
+
+  // Joining ends when the table first answers, is not found, or does not answer in time.
+  function settleJoin() {
+    clearTimeout(ui.joinTimer);
+    ui.joining = '';
+    ui.busy = false;
   }
 
   function watch(code) {
     ui.unwatch?.();
     ui.unwatch = ui.sync.watch(code, (t) => {
+      const joining = ui.joining === code;
+      if (joining) settleJoin();
       ui.table = t;
       if (t) mirrorChat(t);
-      if (!t) ui.error = `Table ${code} was not found.`;
+      if (!t) {
+        ui.error = `Table ${code} was not found. Check the code with whoever made the table.`;
+        if (joining) { saved.code = ''; save(); ui.unwatch?.(); ui.unwatch = null; }
+      }
       ui.hint = null;
       // Start the solvers while the board is being read, if a robot will need them.
       if (t && !ui.warmed && SEATS.some((x) => t.seats[x].kind === 'robot')) {
@@ -88,6 +107,10 @@ export function tableView(root, store) {
       }
       driveRobots();
       render();
+    }, (err) => {
+      // The server refused the read (database rules) or the connection broke.
+      if (ui.joining === code) { settleJoin(); saved.code = ''; save(); }
+      fail(`The table server did not allow this (${err?.code ?? err?.message ?? err}).`);
     });
   }
 
@@ -198,16 +221,28 @@ export function tableView(root, store) {
   }
 
   async function open(code) {
-    if (!saved.name.trim()) return fail('Enter your name first.');
+    ui.error = '';
+    if (!saved.name.trim()) return fail('Enter your name first, then press Join.', 'tbl-name');
     code = parseCode(code);
-    if (!CODE.test(code)) return fail('A table code has 6 letters and digits (no 0, 1, I or O). You can also paste the invite link.');
+    if (!CODE.test(code)) return fail('A table code has 6 letters and digits (no 0, 1, I or O). You can also paste the invite link.', 'tbl-code');
     ui.busy = true;
+    ui.joining = code;
+    saved.code = code;
+    save();
     render();
+    clearTimeout(ui.joinTimer);
+    ui.joinTimer = setTimeout(() => {
+      if (ui.joining !== code) return;
+      settleJoin();
+      ui.unwatch?.();
+      ui.unwatch = null;
+      saved.code = '';
+      save();
+      fail(`No answer for table ${code}. Check the code and the internet connection, then press Join again.`);
+    }, 20000);
     try {
       await connect();
-      saved.code = code;
-      save();
-      ui.busy = false;
+      if (ui.joining !== code) return;
       watch(code);
       // Take the first free seat of North/South, then East/West, unless already seated.
       await ui.sync.change(code, (t) => {
@@ -216,14 +251,18 @@ export function tableView(root, store) {
         return free ? sit(t, free, ui.sync.uid, saved.name.trim()) : undefined;
       });
     } catch (err) {
+      if (ui.joining === code) settleJoin();
+      saved.code = '';
+      save();
       fail(`Could not connect. Check the internet connection and try again. (${err.message ?? err})`);
     }
   }
 
-  function fail(msg) {
+  function fail(msg, focusKey) {
     ui.busy = false;
     ui.error = msg;
     render();
+    if (focusKey) root.querySelector(`[data-key="${focusKey}"]`)?.focus();
   }
 
   function exit() {
@@ -232,6 +271,7 @@ export function tableView(root, store) {
     ui.unwatch?.();
     ui.unwatch = null;
     ui.table = null;
+    ui.error = '';
     saved.code = '';
     save();
     history.replaceState(null, '', location.pathname + (mode === 'local' ? '?sync=local' : ''));
@@ -251,6 +291,7 @@ export function tableView(root, store) {
       return el('div', { class: 'panel muted' }, 'Live tables are being set up. They will work as soon as the app is connected to its database.');
     }
     return el('div', { class: 'stack' },
+      ui.error ? el('p', { class: 'notice', role: 'alert' }, ui.error) : null,
       el('div', {},
         el('label', { class: 'label', for: 'tbl-name' }, 'Your name'),
         el('input', { id: 'tbl-name', 'data-key': 'tbl-name', class: 'field', value: saved.name, maxlength: 24, autocomplete: 'nickname', oninput: (e) => { saved.name = e.target.value; save(); } })),
@@ -266,8 +307,7 @@ export function tableView(root, store) {
         el('div', { class: 'join' },
           el('input', { 'data-key': 'tbl-code', class: 'field code', value: ui.joinCode, maxlength: 200, placeholder: 'CODE or invite link', autocapitalize: 'characters', 'aria-label': 'Table code', oninput: (e) => { ui.joinCode = e.target.value.toUpperCase(); } }),
           el('button', { type: 'button', class: 'pill on', 'data-key': 'join', disabled: ui.busy, onclick: () => open(ui.joinCode) }, 'Join'))),
-      savedBoards(),
-      ui.error ? el('p', { class: 'muted', role: 'status' }, ui.error) : null);
+      savedBoards());
   }
 
   function seatsView(t, me) {
@@ -832,7 +872,7 @@ export function tableView(root, store) {
           if (head) window.scrollTo({ top: window.scrollY + head.getBoundingClientRect().top - bar - 4 });
         }
       }
-      else if (saved.code && ui.busy) root.replaceChildren(el('p', { class: 'muted' }, 'Connecting…'));
+      else if (saved.code && ui.busy) root.replaceChildren(el('p', { class: 'muted', role: 'status' }, `Connecting to table ${saved.code}…`));
       else root.replaceChildren(lobby());
     });
   }
