@@ -330,21 +330,17 @@ button.bids-btn{padding:3px 8px;font-size:.66rem}
 .fx-pop{left:var(--x);top:var(--y);animation:fx-burst var(--dur) ease-out var(--d) infinite both}
 .fx-zoom{left:50%;top:46%;margin:-.5em 0 0 -.5em;font-size:5rem;animation:fx-zoom 1.5s ease-in .5s 2 both}
 .fx-bounce{left:var(--x);top:var(--y);animation:fx-ricochet .9s ease-in-out var(--d) infinite alternate both}
-.fx-title{position:relative;z-index:2;font-size:clamp(2.2rem,12vw,4rem);font-weight:900;text-shadow:0 3px 0 #b3212e,0 0 24px rgba(255,220,80,.9);animation:fx-pop .45s ease-out both,fx-wobble .5s ease-in-out .45s infinite}
 .fx-from{position:absolute;z-index:2;bottom:22%;font-size:1.05rem;font-weight:700;text-shadow:0 2px 6px #000}
 .fx-skip{position:absolute;z-index:2;bottom:max(16px,env(safe-area-inset-bottom));font-size:.75rem;opacity:.6}
 .fx-layer.calm{animation:fx-in .2s ease-out}
 .fx-layer.calm .fx-item{animation:none;position:static;display:inline-block;margin:0}
 .fx-layer.calm .fx-stage{position:static;display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
-.fx-layer.calm .fx-title{animation:none}
 .fx-toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);z-index:90;max-width:90vw;padding:8px 14px;border-radius:999px;background:rgba(12,40,26,.96);color:#fff;font-size:.9rem;box-shadow:0 4px 14px rgba(0,0,0,.4)}
 @keyframes fx-in{from{opacity:0}to{opacity:1}}
 @keyframes fx-shake{0%{transform:translate(0,0)}25%{transform:translate(-7px,4px) rotate(-1deg)}50%{transform:translate(6px,-5px) rotate(1deg)}75%{transform:translate(-4px,-3px)}100%{transform:translate(0,0)}}
 @keyframes fx-strobe{0%{background:rgba(255,0,120,.18)}25%{background:rgba(0,200,255,.16)}50%{background:rgba(255,230,0,.16)}75%{background:rgba(120,255,80,.14)}}
 @keyframes fx-orbit{from{transform:rotate(var(--a)) translateX(var(--rad)) rotate(calc(var(--a) * -1)) scale(.3)}15%{transform:rotate(calc(var(--a) + var(--dir) * 60deg)) translateX(var(--rad)) rotate(calc((var(--a) + var(--dir) * 60deg) * -1)) scale(1.1)}to{transform:rotate(calc(var(--a) + var(--dir) * 900deg)) translateX(var(--rad)) rotate(calc((var(--a) + var(--dir) * 900deg) * -1)) scale(1)}}
 @keyframes fx-jiggle{from{rotate:-14deg}to{rotate:14deg}}
-@keyframes fx-pop{from{transform:scale(.2) rotate(-12deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
-@keyframes fx-wobble{0%,100%{transform:rotate(-5deg) scale(1)}50%{transform:rotate(5deg) scale(1.12)}}
 @keyframes fx-fall{from{transform:translateY(0) rotate(0)}to{transform:translateY(130vh) rotate(var(--r))}}
 @keyframes fx-march{0%{transform:translateX(0) translateY(0)}25%{transform:translateX(35vw) translateY(-18px) rotate(-10deg)}50%{transform:translateX(70vw) translateY(0) rotate(8deg)}75%{transform:translateX(105vw) translateY(-18px) rotate(-10deg)}100%{transform:translateX(145vw) translateY(0)}}
 @keyframes fx-burst{0%{transform:scale(0) rotate(0);opacity:0}30%{transform:scale(var(--s)) rotate(calc(var(--r) / 4));opacity:1}100%{transform:scale(calc(var(--s) * 1.6)) rotate(var(--r));opacity:0}}

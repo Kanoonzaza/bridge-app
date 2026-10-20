@@ -120,10 +120,10 @@ export function playFx(kind, fromName, { haptic = true } = {}) {
     return el('div', { class: `fx-stage fx-stage-${layer.move}` }, ...items);
   });
   const canvas = calm ? null : el('canvas', { class: 'fx-canvas', 'aria-hidden': 'true' });
-  const layer = el('div', { class: `fx-layer${calm ? ' calm' : ''}`, role: 'status', 'aria-live': 'polite', 'data-key': 'fx' },
+  // No caption: the mess speaks for itself (the name is only read out by screen readers).
+  const layer = el('div', { class: `fx-layer${calm ? ' calm' : ''}`, role: 'status', 'aria-live': 'polite', 'aria-label': k.title, 'data-key': 'fx' },
     calm ? null : el('div', { class: 'fx-strobe', 'aria-hidden': 'true' }),
     canvas, ...(calm ? stages.slice(0, 1) : stages),
-    el('div', { class: 'fx-title' }, k.title),
     fromName ? el('div', { class: 'fx-from' }, `from ${fromName}`) : null,
     el('div', { class: 'fx-skip' }, 'Tap to close'));
   document.body.append(layer);
