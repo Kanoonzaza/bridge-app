@@ -502,8 +502,10 @@ export function tableView(root, store) {
     // After the opening lead the dummy's cards are shown at the dummy's seat (unless that seat is mine).
     const dummy = st && st.started && st.dummy !== me ? st.dummy : null;
     const iAmDummy = !!st && !!me && st.dummy === me;
+    // While a claim is open the declarer's remaining cards are turned face up for everyone, to judge the claim.
+    const claimed = !!st && !!pendingClaim(t) && st.declarer !== me;
     const shows = (where) => (where === ['top', 'left', 'right'].find((w) => pos[w] === dummy) ? 'dummy'
-      : iAmDummy && pos[where] === st.declarer ? 'declarer'
+      : (iAmDummy || claimed) && pos[where] === st.declarer ? 'declarer'
       : null);
     const hand = (where, back) => {
       const kind = shows(where);
@@ -530,7 +532,7 @@ export function tableView(root, store) {
       st && ui.bigAuction ? el('div', { class: 'req auction-big', 'data-key': 'auction-big' }, el('div', { class: 'req-title' }, 'The bidding'), auctionBox(t, me), el('button', { type: 'button', class: 'pill on', 'data-key': 'auction-close', onclick: () => { ui.bigAuction = false; render(); } }, 'Close')) : null,
       st ? el('div', { class: 'f-dec' }, tally('Declarer', st.declarerTricks, 'dec')) : null,
       st ? el('div', { class: 'f-def' }, tally('Defence', st.defenderTricks, 'def')) : null,
-      requestNote(t));
+      requestNote(t, 'undo'));
   }
 
   // A hand as cards: spades, hearts, clubs, diamonds (alternating colours), overlapping to fit the screen.
@@ -701,11 +703,12 @@ export function tableView(root, store) {
   }
   // An open take-back or claim, shown on the table itself with a hopping frog. The asker waits (and can withdraw);
   // the players who must answer see Allow / Deny (Accept / Reject for a claim).
-  function requestNote(t) {
+  // A claim is shown under the table, so the cards being judged stay in view; a take-back sits on the table.
+  function requestNote(t, only) {
     if (!ui.sync || (!t.undoReq && !t.claimReq)) return null;
     const me = ui.sync.uid;
-    const u = pendingUndo(t);
-    const c = u ? null : pendingClaim(t);
+    const u = only === 'claim' ? null : pendingUndo(t);
+    const c = u || only === 'undo' ? null : pendingClaim(t);
     const r = u ?? c;
     if (!r) return null;
     const waiting = r.need.filter((x) => !r.ok.includes(x)).map((x) => humanName(t, x)).join(', ');
@@ -725,8 +728,9 @@ export function tableView(root, store) {
       if (c.uid === me) { text = `You claim ${what}. Waiting for ${waiting}…`; buttons = [['claim-cancel', 'Withdraw the claim', false, () => act((cur) => cur && cancelClaim(cur, me))]]; }
       else if (c.need.includes(me) && !c.ok.includes(me)) { text = `${asker} claims ${what}.`; buttons = [['claim-accept', 'Accept', true, () => answer(true)], ['claim-reject', 'Reject, play on', false, () => answer(false)]]; }
       else text = `${asker} claims ${what}. Waiting for ${waiting}…`;
+      if (c.uid !== me) text += ' Declarer\'s cards are face up.';
     }
-    return el('div', { class: 'req', 'data-key': u ? 'undo-request' : 'claim-request', role: 'alertdialog', 'aria-label': u ? 'Take-back request' : 'Claim' },
+    return el('div', { class: u ? 'req' : 'req below', 'data-key': u ? 'undo-request' : 'claim-request', role: 'alertdialog', 'aria-label': u ? 'Take-back request' : 'Claim' },
       el('div', { class: 'frog-track', 'aria-hidden': 'true' }, el('span', { class: 'frog' }, '🐸')),
       el('div', { class: 'req-title' }, u ? 'Take-back request' : 'Claim'),
       el('p', {}, text),
@@ -898,6 +902,7 @@ export function tableView(root, store) {
       b.swap ? el('p', { class: 'muted', 'data-key': 'swap-note' }, `Your partner (a robot) was the declarer, so you moved to ${COMPASS[b.swap[2]]} and play the contract; the robot sits ${COMPASS[b.swap[0]]} as dummy.`) : null,
       prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = prev.n; render(); } }, `← Earlier boards (${Math.min(b.n - 1, Object.keys(t.history).length)})`)) : null,
       felt(t, me),
+      requestNote(t, 'claim'),
       st ? playArea(t, me, st) : chatPanel(t, me),
       st ? chatPanel(t, me) : me ? myHand(handOf(b, me)) : null,
       ph === 'over' ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
