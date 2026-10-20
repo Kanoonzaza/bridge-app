@@ -77,7 +77,7 @@ export function normalize(raw) {
   const history = {};
   for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true, ...(Number.isInteger(h.claim) ? { claim: h.claim } : {}), ...(validSwap(h.swap) ? { swap: h.swap } : {}) };
   // Fields this version does not know (added by a newer version) pass through, so rewriting the table never drops them.
-  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq', 'host', 'kicked', 'proto']);
+  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq', 'host', 'kicked', 'proto', 'fx']);
   const extra = Object.fromEntries(Object.entries(raw).filter(([k, v]) => !known.has(k) && v !== undefined && v !== null));
   return {
     ...extra,
@@ -88,6 +88,7 @@ export function normalize(raw) {
     board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true, ...(Number.isInteger(b.claim) ? { claim: b.claim } : {}), ...(validSwap(b.swap) ? { swap: b.swap } : {}), ...(typeof b.keep === 'string' ? { keep: b.keep } : {}) },
     history,
     ...(Number.isInteger(raw.proto) ? { proto: raw.proto } : {}),
+    ...(normalFx(raw.fx) ? { fx: normalFx(raw.fx) } : {}),
     ...(raw.host ? { host: String(raw.host) } : {}),
     ...(normalKicked(raw.kicked) ? { kicked: normalKicked(raw.kicked) } : {}),
     chat: normalChat(raw.chat),
@@ -178,6 +179,12 @@ export function say(t, uid, text, now = 0) {
   const chat = t.chat ?? [];
   const id = (chat.at(-1)?.id ?? 0) + 1;
   return { ...t, chat: [...chat, { id, uid, name: t.seats[seat].name || 'Player', seat, text: clean, at: now }].slice(-CHAT_KEEP) };
+}
+
+// A surprise one player sent to another (tapping their name): n counts them, so a phone shows each once.
+function normalFx(f) {
+  if (!f || typeof f !== 'object' || !f.to || !Number.isInteger(f.n)) return null;
+  return { n: f.n, from: String(f.from ?? ''), name: String(f.name ?? '').slice(0, 24), to: String(f.to), kind: Number.isInteger(f.kind) ? f.kind : 0 };
 }
 
 // Players the host removed: uid -> name. They can watch but not sit until the host lets them back.
@@ -370,6 +377,14 @@ export function moveSeat(t, by, from, to) {
   const b = t.seats[to];
   if (a.kind !== 'human' || !['open', 'human'].includes(b.kind)) return undefined;
   return { ...t, seats: { ...t.seats, [to]: a, [from]: b } };
+}
+
+// A seated player sends a surprise to another human at the table (the name they tapped). kind picks the gag.
+export function prank(t, by, toSeat, kind) {
+  const me = mySeat(t, by);
+  const who = SEATS.includes(toSeat) ? t.seats[toSeat] : null;
+  if (!me || !who || who.kind !== 'human' || who.uid === by || !Number.isInteger(kind) || kind < 0) return undefined;
+  return { ...t, fx: { n: (t.fx?.n ?? 0) + 1, from: by, name: t.seats[me].name || 'Player', to: who.uid, kind } };
 }
 
 export function leave(t, uid) {

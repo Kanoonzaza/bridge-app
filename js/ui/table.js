@@ -6,7 +6,7 @@ import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
 import {
   CODE, parseCode, seatsAtBidding, say, restoreChat, chatKey, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
-  setOpponents, sit, leave, setSeatKind, PROTO, hostOf, kick, allowBack, moveSeat, takeOver, giveBack, keepRobot, choicePending, autoDeclare, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
+  setOpponents, sit, leave, setSeatKind, PROTO, prank, hostOf, kick, allowBack, moveSeat, takeOver, giveBack, keepRobot, choicePending, autoDeclare, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
 import { legalCards, controller } from '../table/play.js';
@@ -15,6 +15,7 @@ import { simulatedAdvice } from '../sim-advice.js';
 import { resultText } from '../report.js';
 import { reviewRows, systemAuction, contract } from '../table/review.js';
 import { el, segmented, keepFocus } from './dom.js';
+import { playFx, toast, FX_KINDS } from './fx.js';
 import { confRow } from './conf.js';
 import { biddingBox } from './bidding-box.js';
 import { copyButton } from './copy.js';
@@ -94,6 +95,7 @@ export function tableView(root, store) {
   function watch(code) {
     ui.unwatch?.();
     ui.sawProto = false;
+    ui.fxSeen = undefined;
     ui.unwatch = ui.sync.watch(code, (t) => {
       const joining = ui.joining === code;
       // The stamp this version leaves on every write is gone: a phone with an older version rewrote the table.
@@ -107,6 +109,14 @@ export function tableView(root, store) {
         if (joining) { saved.code = ''; save(); ui.unwatch?.(); ui.unwatch = null; }
       }
       ui.hint = null;
+      // A surprise for me: show each one once (what was already there when the table opened is not replayed).
+      if (t?.fx) {
+        if (ui.fxSeen === undefined) ui.fxSeen = t.fx.n;
+        else if (t.fx.n > ui.fxSeen) {
+          ui.fxSeen = t.fx.n;
+          if (t.fx.to === ui.sync.uid) playFx(t.fx.kind, t.fx.name);
+        }
+      } else if (t && ui.fxSeen === undefined) ui.fxSeen = 0;
       // Alone with robots and my partner (a robot) declares: take the contract over, unless I turned that off.
       if (t && saved.autoTake && choicePending(t) && autoDeclare(t) !== t) act((cur) => cur && autoDeclare(cur));
       // Start the solvers while the board is being read, if a robot will need them.
@@ -394,11 +404,29 @@ export function tableView(root, store) {
     return { bottom: m, left: SEATS[(i + 1) % 4], top: SEATS[(i + 2) % 4], right: SEATS[(i + 3) % 4] };
   };
 
+  // Tapping a player's name sends them a surprise (a random gag over their screen); tapping my own shows it to me.
+  function surprise(t, s, me) {
+    const st = t.seats[s];
+    if (st.kind !== 'human') return;
+    const kind = Math.floor(Math.random() * FX_KINDS.length);
+    if (s === me) { playFx(kind, '', { haptic: true }); return; }
+    if (!me) return;
+    if (Date.now() - (ui.lastFx ?? 0) < 6000) { toast('Easy: one surprise every few seconds.'); return; }
+    ui.lastFx = Date.now();
+    act((cur) => cur && prank(cur, ui.sync.uid, s, kind), 'That surprise did not go through.');
+    toast(`Surprise sent to ${st.name || 'Player'} 🎉`);
+  }
+
   function plate(t, s, me) {
     const st = t.seats[s];
     const name = st.kind === 'human' ? st.name || 'Player' : st.kind === 'robot' ? 'Robot' : st.kind === 'pass' ? 'Passes' : 'Empty';
     const b = t.board;
-    return el('div', { class: `plate${nowAt(t) === s ? ' turn' : ''}${s === me ? ' me' : ''}`, title: `${COMPASS[s]}: ${name}` },
+    const tappable = st.kind === 'human';
+    return el('div', {
+      class: `plate${nowAt(t) === s ? ' turn' : ''}${s === me ? ' me' : ''}`,
+      title: `${COMPASS[s]}: ${name}${tappable ? ' (tap for a surprise)' : ''}`,
+      ...(tappable ? { role: 'button', tabindex: '0', 'aria-label': `${name}: ${s === me ? 'preview a surprise' : 'send a surprise'}`, 'data-key': `plate-${s}`, onclick: () => surprise(t, s, me), onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); surprise(t, s, me); } } } : {}),
+    },
       el('span', { class: `dir${isVul(b, s) ? ' vul' : ''}` }, s),
       el('span', { class: 'pname' }, name),
       b.dealer === s ? el('span', { class: 'dealer', 'aria-label': 'Dealer' }, 'D') : null);

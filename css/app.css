@@ -296,3 +296,28 @@ button.bids-btn{padding:3px 8px;font-size:.66rem}
 .play-hand .card:last-child{margin-right:0}
 .play-hand .card .rank{font-size:1rem}
 .play-hand .card .pip{font-size:.95rem}
+
+/* Surprises: a full-screen gag when someone taps a player's name at the table. */
+.plate[role="button"]{cursor:pointer}
+.plate[role="button"]:focus-visible{outline:2px solid var(--turn);outline-offset:2px}
+.fx-layer{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,rgba(20,10,60,.82),rgba(5,5,25,.94));color:#fff;overflow:hidden;animation:fx-in .25s ease-out;touch-action:manipulation}
+.fx-layer.out{opacity:0;transition:opacity .25s}
+.fx-canvas{position:absolute;inset:0;width:100%;height:100%}
+.fx-stage{position:absolute;inset:0;pointer-events:none}
+.fx-item{position:absolute;font-size:clamp(2.2rem,12vw,4.2rem);line-height:1;will-change:transform}
+.fx-stage-ring .fx-item{left:50%;top:46%;margin:-.5em 0 0 -.5em;animation:fx-orbit 3.2s linear both}
+.fx-title{position:relative;z-index:1;font-size:clamp(2rem,11vw,3.6rem);font-weight:900;text-shadow:0 3px 0 #b3212e,0 0 24px rgba(255,220,80,.8);animation:fx-pop .5s ease-out both,fx-wobble 1s ease-in-out .5s infinite}
+.fx-from{position:absolute;z-index:1;bottom:22%;font-size:1rem;opacity:.85}
+.fx-skip{position:absolute;z-index:1;bottom:max(16px,env(safe-area-inset-bottom));font-size:.75rem;opacity:.55}
+.fx-stage-rain .fx-item{top:-12%;left:var(--x);animation:fx-fall calc(1.6s + var(--i) * .12s) linear calc(var(--i) * .15s) 2 both}
+.fx-stage-march .fx-item{left:-20%;top:calc(30% + var(--i) * 7%);animation:fx-march 2.2s ease-in-out calc(var(--i) * .18s) 1 both}
+.fx-layer.calm .fx-item{animation:none;position:static;display:inline-block}
+.fx-layer.calm .fx-stage{position:static;display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
+.fx-layer.calm .fx-title{animation:none}
+.fx-toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);z-index:90;max-width:90vw;padding:8px 14px;border-radius:999px;background:rgba(12,40,26,.96);color:#fff;font-size:.9rem;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+@keyframes fx-in{from{opacity:0}to{opacity:1}}
+@keyframes fx-orbit{from{transform:rotate(var(--a)) translateX(min(36vw,150px)) rotate(calc(var(--a) * -1)) scale(.4)}20%{transform:rotate(calc(var(--a) + 70deg)) translateX(min(36vw,150px)) rotate(calc((var(--a) + 70deg) * -1)) scale(1)}to{transform:rotate(calc(var(--a) + 720deg)) translateX(min(36vw,150px)) rotate(calc((var(--a) + 720deg) * -1)) scale(1)}}
+@keyframes fx-pop{from{transform:scale(.2) rotate(-12deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+@keyframes fx-wobble{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg) scale(1.06)}}
+@keyframes fx-fall{from{transform:translateY(0) rotate(0)}to{transform:translateY(125vh) rotate(360deg)}}
+@keyframes fx-march{from{transform:translateX(0)}to{transform:translateX(140vw)}}

@@ -5,7 +5,7 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
-  PROTO, takeOver, giveBack, keepRobot, choicePending, hostOf, kick, allowBack, moveSeat, autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  PROTO, prank, takeOver, giveBack, keepRobot, choicePending, hostOf, kick, allowBack, moveSeat, autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../js/table/model.js';
 import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
@@ -597,6 +597,19 @@ test('the version stamp survives the database and is dropped by a version that d
   const t = { ...fresh('robot'), proto: PROTO };
   assert.equal(normalize(JSON.parse(JSON.stringify(t))).proto, PROTO);
   assert.equal(normalize(JSON.parse(JSON.stringify(fresh('robot')))).proto, undefined);
+});
+
+test('surprises: a seated player sends one to another human; each is numbered', () => {
+  const t = sit(setOpponents(fresh('players'), 'players'), 'N', 'pard', 'Ploy');
+  const a = prank(t, 'me', 'N', 2);
+  assert.deepEqual({ ...a.fx }, { n: 1, from: 'me', name: 'Kan', to: 'pard', kind: 2 });
+  assert.equal(prank(a, 'pard', 'S', 0).fx.n, 2);
+  assert.equal(prank(t, 'me', 'S', 0), undefined, 'not to myself');
+  assert.equal(prank(t, 'me', 'E', 0), undefined, 'not to an empty seat');
+  assert.equal(prank(setSeatKind(leave(t, 'pard'), 'N', 'robot'), 'me', 'N', 0), undefined, 'not to a robot');
+  assert.equal(prank(t, 'stranger', 'N', 0), undefined, 'only a seated player');
+  assert.deepEqual(normalize(JSON.parse(JSON.stringify(a))).fx, a.fx, 'survives the database');
+  assert.equal(normalize({ ...JSON.parse(JSON.stringify(t)), fx: { junk: 1 } }).fx, undefined);
 });
 
 test('history keeps the last 100 boards', () => {

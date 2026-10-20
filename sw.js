@@ -1,4 +1,4 @@
-const CACHE = 'bc-fe4f05e4';
+const CACHE = 'bc-f6d9f1b4';
 const FILES = [
   './',
   'index.html',
@@ -60,6 +60,7 @@ const FILES = [
   'js/table/sync.js',
   'js/ui/theme.js',
   'js/ui/copy.js',
+  'js/ui/fx.js',
   'js/ui/notes.js',
   'js/proposed.js',
   'js/confidence.js',
