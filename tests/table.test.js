@@ -5,7 +5,7 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
-  takeOver, giveBack, keepRobot, choicePending, hostOf, kick, allowBack, moveSeat, autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  PROTO, takeOver, giveBack, keepRobot, choicePending, hostOf, kick, allowBack, moveSeat, autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../js/table/model.js';
 import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
@@ -591,6 +591,12 @@ test('the choice: take over a robot partner\'s contract at any table, or hand it
   assert.equal(takeOver({ ...withPlayers, board: { ...withPlayers.board, play: 'HA' } }, 'me'), undefined);
   const mine = { ...base, board: { ...base.board, dealer: 'S', calls: '1S P P P' } };
   assert.equal(takeOver(mine, 'me'), undefined);
+});
+
+test('the version stamp survives the database and is dropped by a version that does not know it', () => {
+  const t = { ...fresh('robot'), proto: PROTO };
+  assert.equal(normalize(JSON.parse(JSON.stringify(t))).proto, PROTO);
+  assert.equal(normalize(JSON.parse(JSON.stringify(fresh('robot')))).proto, undefined);
 });
 
 test('history keeps the last 100 boards', () => {

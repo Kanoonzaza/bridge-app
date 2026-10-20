@@ -6,7 +6,7 @@ import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
 import {
   CODE, parseCode, seatsAtBidding, say, restoreChat, chatKey, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
-  setOpponents, sit, leave, setSeatKind, hostOf, kick, allowBack, moveSeat, takeOver, giveBack, keepRobot, choicePending, autoDeclare, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
+  setOpponents, sit, leave, setSeatKind, PROTO, hostOf, kick, allowBack, moveSeat, takeOver, giveBack, keepRobot, choicePending, autoDeclare, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
 import { legalCards, controller } from '../table/play.js';
@@ -79,6 +79,8 @@ export function tableView(root, store) {
     } finally {
       clearTimeout(timer);
     }
+    const raw = ui.sync;
+    ui.sync = { ...raw, change: (code, fn) => raw.change(code, (cur) => { const next = fn(cur); return next === undefined || next === null ? next : { ...next, proto: PROTO }; }) };
     return ui.sync;
   }
 
@@ -91,8 +93,12 @@ export function tableView(root, store) {
 
   function watch(code) {
     ui.unwatch?.();
+    ui.sawProto = false;
     ui.unwatch = ui.sync.watch(code, (t) => {
       const joining = ui.joining === code;
+      // The stamp this version leaves on every write is gone: a phone with an older version rewrote the table.
+      if (t?.proto) ui.sawProto = true;
+      ui.stale = t ? (ui.sawProto && !t.proto ? 'old' : t.proto > PROTO ? 'new' : '') : '';
       if (joining) settleJoin();
       ui.table = t;
       if (t) mirrorChat(t);
@@ -136,7 +142,14 @@ export function tableView(root, store) {
 
   async function act(fn, failure) {
     if (!ui.table) return;
-    const res = await ui.sync.change(ui.table.code, fn);
+    let res;
+    try {
+      res = await ui.sync.change(ui.table.code, fn);
+    } catch (err) {
+      ui.error = `The table server did not accept that (${err?.code ?? err?.message ?? err}). If this keeps happening, update the app on every phone at the table.`;
+      render();
+      return;
+    }
     if (!res && failure) {
       ui.error = failure;
       render();
@@ -867,6 +880,9 @@ export function tableView(root, store) {
     const waiting = now && t.seats[now].kind === 'open' ? `Waiting for a player in the ${COMPASS[now]} seat.` : now && t.seats[now].kind === 'human' ? `Waiting for ${relative(me, now) === 'Partner' ? 'partner' : t.seats[now].name || COMPASS[now]}…` : now ? 'The robot is thinking…' : '';
     const someoneMissing = SEATS.some((s) => t.seats[s].kind === 'open');
     return el('div', { class: 'stack' },
+      ui.stale ? el('p', { class: 'notice', role: 'alert', 'data-key': 'stale' }, ui.stale === 'old'
+        ? 'Someone at this table is using an older version of the app, so claims, take-backs and chat can get lost. Ask them to open the app, tap Update (or reload it twice).'
+        : 'This table was last changed by a newer version of the app. Reload this page, or tap Update, to get it.') : null,
       st ? el('div', { class: 'table-head compact' },
         el('div', { class: 'compact-line' }, el('b', {}, t.code), ` · Board ${b.n} · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`),
         el('div', { class: 'row-buttons' },

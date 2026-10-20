@@ -10,6 +10,9 @@ export const CODE = /^[ABCDEFGHJKLMNPQRSTUVWXYZ2-9]{6}$/;
 export const KINDS = ['open', 'human', 'robot', 'pass'];
 export const OPPONENTS = ['robot', 'pass', 'players'];
 const HISTORY = 100;
+// Stamped on the table by every write of this version of the app. An older version drops it when it rewrites the table,
+// which is how a newer phone notices that someone at the table needs to update.
+export const PROTO = 4;
 
 // Standard duplicate rotation: board 1 dealer North, none vulnerable.
 export const boardDealer = (n) => SEATS[(n - 1) % 4];
@@ -74,7 +77,7 @@ export function normalize(raw) {
   const history = {};
   for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true, ...(Number.isInteger(h.claim) ? { claim: h.claim } : {}), ...(validSwap(h.swap) ? { swap: h.swap } : {}) };
   // Fields this version does not know (added by a newer version) pass through, so rewriting the table never drops them.
-  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq', 'host', 'kicked']);
+  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq', 'host', 'kicked', 'proto']);
   const extra = Object.fromEntries(Object.entries(raw).filter(([k, v]) => !known.has(k) && v !== undefined && v !== null));
   return {
     ...extra,
@@ -84,6 +87,7 @@ export function normalize(raw) {
     seats,
     board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true, ...(Number.isInteger(b.claim) ? { claim: b.claim } : {}), ...(validSwap(b.swap) ? { swap: b.swap } : {}), ...(typeof b.keep === 'string' ? { keep: b.keep } : {}) },
     history,
+    ...(Number.isInteger(raw.proto) ? { proto: raw.proto } : {}),
     ...(raw.host ? { host: String(raw.host) } : {}),
     ...(normalKicked(raw.kicked) ? { kicked: normalKicked(raw.kicked) } : {}),
     chat: normalChat(raw.chat),
