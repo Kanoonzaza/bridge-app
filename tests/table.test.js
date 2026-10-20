@@ -5,7 +5,7 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
-  hostOf, kick, allowBack, moveSeat, autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  takeOver, giveBack, keepRobot, choicePending, hostOf, kick, allowBack, moveSeat, autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../js/table/model.js';
 import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
@@ -555,6 +555,42 @@ test('alone with a robot partner and robot opponents, the human takes over partn
   assert.equal(autoDeclare(setSeatKind(mine, 'N', 'robot')).board.swap, undefined);
   const withPlayers = { ...setSeatKind(fresh('players'), 'N', 'robot'), board: { ...fresh('robot').board, dealer: 'N', calls: '1S P P P' } };
   assert.equal(autoDeclare(withPlayers).board.swap, undefined);
+});
+
+test('the choice: take over a robot partner\'s contract at any table, or hand it back', () => {
+  const base = { ...setSeatKind(fresh('players'), 'N', 'robot') };
+  const withPlayers = { ...base, board: { ...base.board, dealer: 'N', calls: '1S P P P' } };
+  assert.equal(withPlayers.board.swap, undefined, 'people at the table: nothing happens by itself');
+  const took = takeOver(withPlayers, 'me');
+  assert.equal(took.board.swap, 'S>N');
+  assert.equal(mySeat(took, 'me'), 'N');
+  assert.equal(took.seats.S.kind, 'robot');
+  assert.equal(takeOver(took, 'me'), undefined, 'only once');
+  assert.equal(takeOver(withPlayers, 'someone'), undefined, 'only a seated player');
+  const gave = giveBack(took, 'me');
+  assert.equal(gave.board.swap, undefined);
+  assert.equal(mySeat(gave, 'me'), 'S');
+  assert.equal(gave.seats.N.kind, 'robot');
+  assert.equal(giveBack(took, 'other'), undefined);
+  // The automatic move can also be handed back.
+  const alone = autoDeclare({ ...setSeatKind(fresh('robot'), 'N', 'robot'), board: { ...fresh('robot').board, dealer: 'N', calls: '1S P P P' } });
+  assert.equal(giveBack(alone, 'me').seats.S.uid, 'me');
+  // The robots wait while the partner chooses; leaving it with the robot (or taking over) ends the wait.
+  assert.equal(choicePending(withPlayers), true);
+  assert.equal(choicePending(took), false);
+  const kept = keepRobot(withPlayers, 'me');
+  assert.equal(kept.board.keep, '1S P P P');
+  assert.equal(choicePending(kept), false);
+  assert.equal(keepRobot(withPlayers, 'someone'), undefined);
+  assert.equal(choicePending(gave), false, 'handing it back is a choice too');
+  assert.equal(normalize(JSON.parse(JSON.stringify(kept))).board.keep, '1S P P P');
+  assert.equal(choicePending({ ...kept, board: { ...kept.board, calls: '1S P P P' } }), false);
+  // Not once a card is played, and not when I am the declarer.
+  const played = { ...took, board: { ...took.board, play: 'HA' } };
+  assert.equal(giveBack(played, 'me'), undefined);
+  assert.equal(takeOver({ ...withPlayers, board: { ...withPlayers.board, play: 'HA' } }, 'me'), undefined);
+  const mine = { ...base, board: { ...base.board, dealer: 'S', calls: '1S P P P' } };
+  assert.equal(takeOver(mine, 'me'), undefined);
 });
 
 test('history keeps the last 100 boards', () => {

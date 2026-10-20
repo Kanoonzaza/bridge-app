@@ -6,7 +6,7 @@ import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
 import {
   CODE, parseCode, seatsAtBidding, say, restoreChat, chatKey, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
-  setOpponents, sit, leave, setSeatKind, hostOf, kick, allowBack, moveSeat, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
+  setOpponents, sit, leave, setSeatKind, hostOf, kick, allowBack, moveSeat, takeOver, giveBack, keepRobot, choicePending, autoDeclare, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
 import { legalCards, controller } from '../table/play.js';
@@ -31,6 +31,7 @@ function cleanSaved(raw) {
     code: CODE.test(r.code ?? '') ? r.code : '',
     name: typeof r.name === 'string' ? r.name.slice(0, 24) : '',
     hints: r.hints !== false,
+    autoTake: r.autoTake !== false,
     handStyle: r.handStyle === 'list' ? 'list' : 'cards',
     chatOpen: r.chatOpen === true,
     chatDraft: typeof r.chatDraft === 'string' ? r.chatDraft.slice(0, 200) : '',
@@ -100,6 +101,8 @@ export function tableView(root, store) {
         if (joining) { saved.code = ''; save(); ui.unwatch?.(); ui.unwatch = null; }
       }
       ui.hint = null;
+      // Alone with robots and my partner (a robot) declares: take the contract over, unless I turned that off.
+      if (t && saved.autoTake && choicePending(t) && autoDeclare(t) !== t) act((cur) => cur && autoDeclare(cur));
       // Start the solvers while the board is being read, if a robot will need them.
       if (t && !ui.warmed && SEATS.some((x) => t.seats[x].kind === 'robot')) {
         ui.warmed = true;
@@ -176,7 +179,7 @@ export function tableView(root, store) {
 
   function driveRobots() {
     const t = ui.table;
-    if (!t || isOver(t)) return;
+    if (!t || isOver(t) || choicePending(t)) return;
     const s = actor(t);
     if (!['robot', 'pass'].includes(t.seats[s].kind)) return;
     const key = `${t.code}:${t.board.n}:${t.board.calls}:${t.board.play}`;
@@ -308,6 +311,28 @@ export function tableView(root, store) {
           el('input', { 'data-key': 'tbl-code', class: 'field code', value: ui.joinCode, maxlength: 200, placeholder: 'CODE or invite link', autocapitalize: 'characters', 'aria-label': 'Table code', oninput: (e) => { ui.joinCode = e.target.value.toUpperCase(); } }),
           el('button', { type: 'button', class: 'pill on', 'data-key': 'join', disabled: ui.busy, onclick: () => open(ui.joinCode) }, 'Join'))),
       savedBoards());
+  }
+
+  const autoBox = () => el('label', { class: 'muted' }, el('input', { type: 'checkbox', 'data-key': 'auto-take', checked: saved.autoTake, onchange: (e) => { saved.autoTake = e.target.checked; save(); } }), ' Always take over when I am alone with robots');
+
+  // Before the first card: take over a robot partner's contract, or hand it back to the robot.
+  function declarerChoice(t) {
+    if (phase(t) !== 'play' || t.board.play) return null;
+    const uid = ui.sync.uid;
+    if (takeOver(t, uid)) {
+      return el('div', { class: 'panel row-buttons', 'data-key': 'declarer-choice' },
+        el('span', {}, 'Your partner (a robot) is the declarer.'),
+        el('button', { type: 'button', class: 'pill on', 'data-key': 'take-declarer', onclick: () => act((cur) => cur && takeOver(cur, uid), 'The first card has already been played.') }, 'Play it myself'),
+        el('button', { type: 'button', class: 'pill', 'data-key': 'keep-robot', onclick: () => act((cur) => cur && keepRobot(cur, uid)) }, 'Let the robot play it'),
+        el('label', { class: 'muted' }, el('input', { type: 'checkbox', 'data-key': 'auto-take', checked: saved.autoTake, onchange: (e) => { saved.autoTake = e.target.checked; save(); } }), ' Always take over when I am alone with robots'));
+    }
+    if (giveBack(t, uid)) {
+      return el('div', { class: 'panel row-buttons', 'data-key': 'declarer-choice' },
+        el('span', {}, 'You are playing the contract your robot partner bid.'),
+        el('button', { type: 'button', class: 'pill', 'data-key': 'give-declarer', onclick: () => act((cur) => cur && giveBack(cur, uid), 'The first card has already been played.') }, 'Let the robot play it'),
+        autoBox());
+    }
+    return null;
   }
 
   function seatsView(t, me) {
@@ -853,6 +878,7 @@ export function tableView(root, store) {
           el('button', { type: 'button', class: 'pill', 'data-key': 'share', onclick: () => share(t.code) }, 'Invite'),
           el('button', { type: 'button', class: 'pill', 'data-key': 'leave', onclick: exit }, 'Leave'))),
       el('div', { class: 'board-line' }, el('b', {}, `Board ${b.n}`), ` · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`)],
+      declarerChoice(t),
       b.swap ? el('p', { class: 'muted', 'data-key': 'swap-note' }, `Your partner (a robot) was the declarer, so you moved to ${COMPASS[b.swap[2]]} and play the contract; the robot sits ${COMPASS[b.swap[0]]} as dummy.`) : null,
       prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = prev.n; render(); } }, `← Earlier boards (${Math.min(b.n - 1, Object.keys(t.history).length)})`)) : null,
       felt(t, me),

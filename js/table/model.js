@@ -82,7 +82,7 @@ export function normalize(raw) {
     created: Number(raw.created ?? 0),
     opponents: OPPONENTS.includes(raw.opponents) ? raw.opponents : 'robot',
     seats,
-    board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true, ...(Number.isInteger(b.claim) ? { claim: b.claim } : {}), ...(validSwap(b.swap) ? { swap: b.swap } : {}) },
+    board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true, ...(Number.isInteger(b.claim) ? { claim: b.claim } : {}), ...(validSwap(b.swap) ? { swap: b.swap } : {}), ...(typeof b.keep === 'string' ? { keep: b.keep } : {}) },
     history,
     ...(raw.host ? { host: String(raw.host) } : {}),
     ...(normalKicked(raw.kicked) ? { kicked: normalKicked(raw.kicked) } : {}),
@@ -382,7 +382,8 @@ export function setSeatKind(t, seat, kind) {
 
 // ---------- Playing a robot partner's contract ----------
 // Alone at the table with a robot partner and robot (or always-pass) opponents, when partner would be the declarer the
-// human takes over: we move to the declarer's seat (the robot takes ours and becomes dummy), so we play the contract.
+// human can take over automatically (a setting on the phone): we move to the declarer's seat (the robot takes ours and
+// becomes dummy), so we play the contract.
 // board.swap remembers "from>to" so the review still shows who bid what.
 export function autoDeclare(t) {
   if (phase(t) !== 'play' || t.board.swap || t.board.play) return t;
@@ -394,6 +395,38 @@ export function autoDeclare(t) {
   if (d === me || d !== partnerOf(me) || t.seats[d].kind !== 'robot') return t;
   if (!SEATS.filter((s) => sideOf(s) !== sideOf(me)).every((s) => ['robot', 'pass'].includes(t.seats[s].kind))) return t;
   return { ...t, seats: { ...t.seats, [d]: t.seats[me], [me]: { kind: 'robot' } }, board: { ...t.board, swap: `${me}>${d}` } };
+}
+
+// The choice, before the first card: when my partner is a robot and the declarer, I can take the contract over (the
+// robot moves to my seat as dummy) at any table, or hand it back to the robot after the automatic move above.
+export function takeOver(t, uid) {
+  const me = mySeat(t, uid);
+  if (!me || phase(t) !== 'play' || t.board.swap || t.board.play) return undefined;
+  const d = contract(auctionOf(t.board))?.declarer;
+  if (!d || d !== partnerOf(me) || t.seats[d].kind !== 'robot') return undefined;
+  return { ...t, seats: { ...t.seats, [d]: t.seats[me], [me]: { kind: 'robot' } }, board: { ...t.board, swap: `${me}>${d}` } };
+}
+
+// While the choice is open the robots wait, so the opening lead cannot be played before the partner has chosen.
+// board.keep holds the auction the partner chose to leave with the robot.
+export function choicePending(t) {
+  if (phase(t) !== 'play' || t.board.swap || t.board.play || t.board.keep === t.board.calls) return false;
+  const d = contract(auctionOf(t.board))?.declarer;
+  return Boolean(d) && t.seats[d].kind === 'robot' && t.seats[partnerOf(d)].kind === 'human';
+}
+
+export function keepRobot(t, uid) {
+  if (!choicePending(t)) return undefined;
+  const d = contract(auctionOf(t.board)).declarer;
+  return t.seats[partnerOf(d)].uid === uid ? { ...t, board: { ...t.board, keep: t.board.calls } } : undefined;
+}
+
+export function giveBack(t, uid) {
+  if (!t.board.swap || phase(t) !== 'play' || t.board.play) return undefined;
+  const to = t.board.swap.split('>')[1];
+  if (t.seats[to].kind !== 'human' || t.seats[to].uid !== uid) return undefined;
+  const back = unswap(t);
+  return { ...back, board: { ...back.board, keep: back.board.calls } };
 }
 
 // Undo the move above (taking calls back, or bidding the board again).
@@ -413,7 +446,7 @@ export function call(t, seat, c, uid) {
   if (who.kind === 'human' ? who.uid !== uid : who.kind === 'open') return undefined;
   const a = auctionOf(t.board);
   if (!legalCalls(a).includes(c)) return undefined;
-  return autoDeclare({ ...t, board: { ...t.board, calls: [...a.calls, c].join(' ') } });
+  return { ...t, board: { ...t.board, calls: [...a.calls, c].join(' ') } };
 }
 
 // The call a robot (or an always-pass seat) makes now; `advise` is the engine's Advisor.
