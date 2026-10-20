@@ -10,7 +10,7 @@ export function agreedSuit(key) {
   const ours = key.filter((t) => !t.startsWith('('));
   if (ours.some((c, i) => c === '4C' && gerberRoot(ours.slice(0, i)))) return null;
   if (/^[12]N$/.test(ours[0] ?? '') && (ours[1] === '4D' || ours[1] === '4H')) return ours[1] === '4D' ? 'H' : 'S';
-  if (/^1[HS]$/.test(ours[0] ?? '') && (ours[1] === '2N' || SPLINTERS[ours[0][1]].includes(ours[1]))) return ours[0][1];
+  if (/^1[HS]$/.test(ours[0] ?? '') && (ours[1] === '2N' || ours[1] === '4N' || SPLINTERS[ours[0][1]].includes(ours[1]))) return ours[0][1];
   const bids = ours.map((c, i) => ({ c, who: i % 2 }))
     .filter((b, i) => /^[1-7][CDHS]$/.test(b.c) && !(i === 0 && b.c === '2C') && !(i === 1 && ours[0] === '2C' && b.c === '2D'));
   for (let i = bids.length - 1; i >= 0; i--) {
@@ -63,7 +63,8 @@ export function rkcbContinue(e, T, reply) {
 }
 const RANK5 = { C: 0, D: 1, H: 2, S: 3 };
 
-const isAgreed = (T) => (prefixLen) => (key) => agreedSuit(key.slice(0, key.length - prefixLen)) === T;
+// The suit is agreed counting the 4NT itself (1♥–4NT is Blackwood for hearts), so the answers cut the key after it.
+const isAgreed = (T) => (prefixLen) => (key) => agreedSuit(key.slice(0, key.length - prefixLen + 1)) === T;
 
 const entries = [
   {
@@ -92,7 +93,7 @@ const entries = [
   }))),
   {
     tail: true, after: ['4N', '5x'], call: '5N', notes: SLAM,
-    when: (key) => agreedSuit(key.slice(0, -2)) !== null,
+    when: (key) => agreedSuit(key.slice(0, -1)) !== null,
     meaning: 'King ask: promises all key cards and the trump queen. Replies 6♣ = 0, 6♦ = 1, 6♥ = 2, 6♠ = 3 kings.',
     shows: {},
   },

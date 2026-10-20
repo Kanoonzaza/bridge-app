@@ -75,6 +75,15 @@ test('RKCB replies and the asker\'s decision', () => {
   assert.equal(ask(['1H', '2N', '3C', '4N', '5D'], 'Q5 KJ974 KQ6 A84').call, '5H');
 });
 
+test('1M–4NT: partner\'s jump to 4NT is Blackwood for the major, and opener answers it', () => {
+  // Board 9: the robot opened 1♥ with the ♣A and ♥K and passed 4NT; it holds 2 key cards, no queen.
+  assert.equal(agreedSuit(['1H', '4N']), 'H');
+  assert.equal(ask(['1H', '4N'], 'Q762 KT654 KT A3').call, '5H');
+  assert.equal(ask(['1S', '4N'], 'AQ762 K5 KT A863').call, '5S', '♠A and ♣A with the ♠Q: two key cards and the queen');
+  // The asker continues after the answer: 4NT, then 5♥ (2 key cards, no queen) opposite 3 key cards: slam.
+  assert.equal(ask(['1H', '4N', '5H'], 'AK5 AJ72 A KJ1082'.replace('10', 'T')).call, '6H');
+});
+
 test('Gerber: replies and the asker\'s sign-off', () => {
   assert.equal(ask(['1N', '4C'], 'AK4 KQ73 A62 Q52').call, '4S');
   assert.equal(ask(['1N', '4C', '4S'], 'KQ5 A84 KQJ74 A3').call, '6N');
