@@ -37,6 +37,13 @@ const CASES = [
   ['E', ['1H'], 'AK74 3 KJ62 Q953', 'X', 'takeout double'],
   ['E', ['1H'], 'AQ4 K93 KJ62 Q95', '1N', '1NT overcall: 15–18 with a stopper'],
   ['E', ['1D'], 'KJ974 AQ863 5 84', '2D', 'Michaels: both majors'],
+  // (1♣)–2♣ is natural: their 1♣ may be short
+  ['E', ['1C'], '84 A73 K62 KQJ953', '2C', 'six good clubs: natural 2♣ overcall'],
+  ['E', ['1C'], 'KJ974 AQ863 5 84', '1S', 'both majors over 1♣: overcall the spades (no Michaels)'],
+  ['W', ['1C', '2C', 'P'], 'Q84 K73 A962 852', '3C', 'raise partner\'s natural clubs'],
+  ['W', ['1C', '2C', 'P'], 'AQ984 K73 962 52', '2S', 'own 5-card suit: natural'],
+  ['N', ['1C', '2C'], 'K4 QT74 A983 852', 'X', 'their natural 2♣: negative double with 4 hearts'],
+  ['N', ['1C', '2C'], 'KJ4 Q74 A98 Q852', '2N', 'their natural 2♣: 2NT with a club stopper'],
   ['E', ['1S'], '4 KQ974 5 AJ863', '2S', 'Michaels: hearts and a minor'],
   ['E', ['1H'], 'KQJ863 4 J72 853', '2S', 'weak jump overcall'],
   ['E', ['1N'], 'KQT74 AJ863 5 84', '2H', 'DONT: both majors'],

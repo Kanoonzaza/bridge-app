@@ -13,7 +13,8 @@ for (const x of SUITS4) {
     const k = balancing ? [`(1${x})`, 'P'] : [`(1${x})`];
     def(k, 'X', balancing ? `Takeout (balancing): short in ${nm(x)}, can be lighter (about 9+).` : `Takeout: short in ${nm(x)}, support for the unbid suits, 12+; or any 17+.`, { hcp: [balancing ? 9 : 12, 37] });
     def(k, '1N', balancing ? `Balancing 1NT: 11–14 balanced with a ${nm(x)} stopper.` : `15–18 balanced with a ${nm(x)} stopper. Systems on.`, { hcp: balancing ? [11, 14] : [15, 18], balanced: true });
-    for (const s of SUITS4.filter((t) => t !== x)) {
+    // Over 1♣ (which may be short), 2♣ is a natural overcall, not Michaels.
+    for (const s of SUITS4.filter((t) => t !== x || x === 'C')) {
       const lv = cheapest(`1${x}`, s);
       const lo = lv === 1 ? (balancing ? 7 : 8) : (balancing ? 9 : 10);
       const light = lv === 1 && !balancing ? ' (7 with a good 6-card suit)' : '';
@@ -24,7 +25,7 @@ for (const x of SUITS4) {
       }
     }
     if (!balancing) {
-      def(k, `2${x}`, isMajor(x)
+      if (x !== 'C') def(k, `2${x}`, isMajor(x)
         ? `Michaels: 5+ ${nm(x === 'H' ? 'S' : 'H')} and a 5+ minor. Weak (6–11) or very strong (16+).`
         : 'Michaels: 5-5 in the majors. Weak (6–11) or very strong (16+).', { len: isMajor(x) ? { [x === 'H' ? 'S' : 'H']: [5, 13] } : { H: [5, 13], S: [5, 13] } });
       const low = SUITS4.filter((t) => t !== x).slice(0, 2);
@@ -64,16 +65,17 @@ for (const x of SUITS4) {
 
 // ---------- Meanings: advancing partner's overcall, takeout double, Michaels or Unusual 2NT ----------
 for (const x of SUITS4) {
-  for (const y of SUITS4.filter((t) => t !== x)) {
+  for (const y of SUITS4.filter((t) => t !== x || x === 'C')) {
     const ov = `${cheapest(`1${x}`, y)}${y}`;
     const k = [`(1${x})`, ov];
     const lv = Number(ov[0]);
-    def(k, `${lv + 1}${y}`, `Raise: 6–9 points counting shortness, 3+ ${nm(y)}.`, { hcp: [6, 9], len: { [y]: [3, 13] }, pts: y });
+    const same = y === x; // (1♣)–2♣ natural: there is no cue-bid raise
+    def(k, `${lv + 1}${y}`, same ? 'Raise: 3+ clubs, competitive (6–12).' : `Raise: 6–9 points counting shortness, 3+ ${nm(y)}.`, { hcp: same ? [6, 12] : [6, 9], len: { [y]: [3, 13] }, pts: y });
     def(k, `${lv + 2}${y}`, `Preemptive jump raise: weak, 4+ ${nm(y)}.`, { len: { [y]: [4, 13] } });
     const cue = `${cheapest(ov, x)}${x}`;
-    def(k, cue, `Cue-bid: 10+ points counting shortness, with ${nm(y)} support (limit raise or better).`, { hcp: [10, 37], len: { [y]: [3, 13] }, force: 'round', pts: y });
+    if (!same) def(k, cue, `Cue-bid: 10+ points counting shortness, with ${nm(y)} support (limit raise or better).`, { hcp: [10, 37], len: { [y]: [3, 13] }, force: 'round', pts: y });
     if (lv === 1) def(k, '1N', `8–11 with a ${nm(x)} stopper.`, { hcp: [8, 11] });
-    if (above('2N', ov)) def(k, '2N', `11–12 with a ${nm(x)} stopper.`, { hcp: [11, 12] });
+    if (above('2N', ov)) def(k, '2N', same ? '11–12, natural, invitational.' : `11–12 with a ${nm(x)} stopper.`, { hcp: [11, 12] });
     for (const z of SUITS4.filter((t) => t !== x && t !== y)) def(k, `${cheapest(ov, z)}${z}`, `Natural: 5+ ${nm(z)}, not forcing.`, { len: { [z]: [5, 13] } });
   }
   const k = [`(1${x})`, 'X'];
@@ -90,7 +92,7 @@ for (const x of SUITS4) {
   // Michaels and Unusual 2NT. If they double, advancer still chooses: the same calls keep their meanings.
   for (const dbl of [[], ['(X)']]) {
     const m = [`(1${x})`, `2${x}`, ...dbl];
-    if (isMajor(x)) {
+    if (x === 'C') { /* (1♣)–2♣ is natural: advanced like any overcall */ } else if (isMajor(x)) {
       const o = x === 'H' ? 'S' : 'H';
       def(m, '2N', 'Asks which minor partner holds.');
       def(m, `${cheapest(`2${x}`, o)}${o}`, `Prefers ${nm(o)}: to play.`);
@@ -114,7 +116,7 @@ export function overcall(e, x, balancing, vul = 'none') {
   const stop = stopper(e, x);
   if (e.balanced && stop && (balancing ? h >= 11 && h <= 14 : h >= 15 && h <= 18)) return R('1N', [`${h} HCP balanced with a ${nm(x)} stopper`]);
   if (!balancing && ((h >= 6 && h <= 11) || h >= 16)) {
-    if (!isMajor(x) && L.H >= 5 && L.S >= 5) return R(`2${x}`, ['5-5 in the majors: Michaels']);
+    if (x === 'D' && L.H >= 5 && L.S >= 5) return R(`2${x}`, ['5-5 in the majors: Michaels']);
     if (isMajor(x)) {
       const om = x === 'H' ? 'S' : 'H';
       if (L[om] >= 5 && (L.C >= 5 || L.D >= 5)) return R(`2${x}`, [`5 ${nm(om)} and a 5-card minor: Michaels`]);
@@ -127,14 +129,15 @@ export function overcall(e, x, balancing, vul = 'none') {
     // A jump that lands at the 2-level is like a weak two (6 cards); one that lands at the 3-level is like a weak three (7 cards).
     // Suit quality: two of the top three honours; at favourable vulnerability two of the top five (J109 counts).
     const solid = (s) => (vul === 'they' ? [...'AKQJT'].filter((r) => e.hand[s].includes(r)).length : top3(e, s)) >= 2;
-    const wj = others.find((s) => L[s] === (cheapest(`1${x}`, s) + 1 >= 3 ? 7 : 6) && solid(s) && h >= minWj && h <= 10);
+    const wj = (x === 'C' ? SUITS4 : others).find((s) => L[s] === (cheapest(`1${x}`, s) + 1 >= 3 ? 7 : 6) && solid(s) && h >= minWj && h <= 10);
     if (wj) {
       const lvl = cheapest(`1${x}`, wj) + 1;
       return R(`${lvl}${wj}`, [`${L[wj]} good ${nm(wj)}, ${h} HCP: weak jump overcall`, lvl >= 3 ? 'at the 3-level it needs 7 cards, like a weak three' : 'a weak two-style jump: 6 cards']);
     }
   }
   if (h >= 17) return R('X', [`${h} HCP: double first, then bid again`]);
-  for (const s of [...others].filter((t) => L[t] >= 5).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a])) {
+  // Over 1♣ our own clubs count too: 2♣ is natural.
+  for (const s of (x === 'C' ? SUITS4 : others).filter((t) => L[t] >= 5).sort((a, b) => L[b] - L[a] || RANK[b] - RANK[a])) {
     const lv = cheapest(`1${x}`, s);
     // A 6-card suit with two of the top five honours makes up for a point at the 1-level.
     const six = !balancing && L[s] >= 6 && [...'AKQJT'].filter((r) => e.hand[s].includes(r)).length >= 2;
@@ -210,7 +213,8 @@ export function advanceOvercall(e, x, ov, vul = 'none') {
   const L = e.len;
   if (L[y] >= 3) {
     const dp = dummyPoints(e, y);
-    if (dp >= 10) return R(`${cheapest(ov, x)}${x}`, [`${L[y]} ${nm(y)}, ${dp} points: cue-bid raise`]);
+    if (dp >= 10 && y !== x) return R(`${cheapest(ov, x)}${x}`, [`${L[y]} ${nm(y)}, ${dp} points: cue-bid raise`]);
+    if (y === x) return h >= 13 && e.balanced ? R('3N', [`${L[y]} ${nm(y)}, ${h} HCP: game`]) : dp >= 6 ? R(`${lv + 1}${y}`, [`${L[y]} ${nm(y)}: raise`]) : R('P', [`${h} HCP: pass`]);
     if (h <= 7 && (L[y] >= 5 || (L[y] >= 4 && shortness(e, y)))) return R(`${lv + 2}${y}`, [`${L[y]} ${nm(y)}, weak: preemptive jump raise`]);
     if (lv + 1 <= 2 ? dp >= 5 : raiseAtThree(e, y, vul)) return R(`${lv + 1}${y}`, [`${L[y]} ${nm(y)}: raise`, lv + 1 <= 2 ? 'competitive: raise even when light' : 'enough for a raise to the 3-level']);
   }
@@ -294,7 +298,7 @@ for (const x of SUITS4) {
     }
   }
   // Advancing
-  for (const y of SUITS4.filter((t) => t !== x)) {
+  for (const y of SUITS4.filter((t) => t !== x || x === 'C')) {
     const ov = `${cheapest(`1${x}`, y)}${y}`;
     const k = [`(1${x})`, ov];
     def(k, 'P', 'Pass: no fit and nothing to add.');
@@ -304,7 +308,7 @@ for (const x of SUITS4) {
   advise([`(1${x})`, 'X'], (e) => advanceTakeout(e, x), [{ dealer: 'W', calls: [`1${x}`, 'X', 'P'] }]);
   // Over their double too: passing would leave partner doubled in a contract without a fit.
   for (const [dbl, r] of [[[], 'P'], [['(X)'], 'X']]) {
-    advise([`(1${x})`, `2${x}`, ...dbl], (e) => advanceMichaels(e, x), [{ dealer: 'W', calls: [`1${x}`, `2${x}`, r] }]);
+    if (x !== 'C') advise([`(1${x})`, `2${x}`, ...dbl], (e) => advanceMichaels(e, x), [{ dealer: 'W', calls: [`1${x}`, `2${x}`, r] }]);
     advise([`(1${x})`, '2N', ...dbl], (e) => advanceUnusual(e, x), [{ dealer: 'W', calls: [`1${x}`, '2N', r] }]);
   }
 }

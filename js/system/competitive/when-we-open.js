@@ -27,19 +27,21 @@ function negativeDouble(o, ov) {
   return [`Negative double: ${shape}. ${min}+ HCP.`, len ? { hcp: [min, 37], len } : { hcp: [min, 37] }];
 }
 
+// Over our 1♣ their 2♣ is natural (our 1♣ may be short), so it is handled like any overcall, without raise or cue-bid.
+const overcallSuits = (o) => SUITS4.filter((t) => t !== o || o === 'C');
 for (const o of SUITS4) {
-  for (const y of SUITS4.filter((t) => t !== o)) {
+  for (const y of overcallSuits(o)) {
     for (let lv = cheapest(`1${o}`, y); lv <= 3; lv++) {
       const ov = `${lv}${y}`;
       const k = [`1${o}`, `(${ov})`];
       const [neg, shows] = negativeDouble(o, ov);
       def(k, 'X', neg, shows);
       const r = cheapest(ov, o);
-      if (r <= 4) {
+      if (r <= 4 && y !== o) {
         def(k, `${r}${o}`, `Simple raise: 6–9${isMajor(o) ? ' points counting shortness' : ' (inverted minors are off)'}.`, { hcp: [6, 9], len: { [o]: [isMajor(o) ? 3 : 4, 13] }, ...(isMajor(o) && { pts: o }) });
         if (r + 1 <= 4) def(k, `${r + 1}${o}`, `Preemptive jump raise: 4+ ${nm(o)}, weak.`, { len: { [o]: [4, 13] } });
       }
-      def(k, `${lv + 1}${y}`, `Cue-bid: limit raise or better in ${nm(o)} (10+${isMajor(o) ? ' points counting shortness' : ''}).`, { hcp: [10, 37], len: { [o]: [isMajor(o) ? 3 : o === 'D' ? 4 : 5, 13] }, force: 'round', ...(isMajor(o) && { pts: o }) });
+      if (y !== o) def(k, `${lv + 1}${y}`, `Cue-bid: limit raise or better in ${nm(o)} (10+${isMajor(o) ? ' points counting shortness' : ''}).`, { hcp: [10, 37], len: { [o]: [isMajor(o) ? 3 : o === 'D' ? 4 : 5, 13] }, force: 'round', ...(isMajor(o) && { pts: o }) });
       if (lv === 1) def(k, '1N', `Natural: about 8–10 with a ${nm(y)} stopper.`, { hcp: [8, 10] });
       for (const s of SUITS4.filter((t) => t !== o && t !== y)) {
         const sl = cheapest(ov, s);
@@ -51,7 +53,7 @@ for (const o of SUITS4) {
     }
   }
   // Opener's reply to the negative double.
-  for (const y of SUITS4.filter((t) => t !== o)) {
+  for (const y of overcallSuits(o)) {
     for (let lv = cheapest(`1${o}`, y); lv <= 3; lv++) {
       const ov = `${lv}${y}`;
       const k = [`1${o}`, `(${ov})`, 'X'];
@@ -61,7 +63,8 @@ for (const o of SUITS4) {
         def(k, `${ul}${u}`, `4 ${nm(u)}, minimum (12–14).`, { hcp: [12, 14], len: { [u]: [4, 13] }, light: true });
         if (ul + 1 <= 4) def(k, `${ul + 1}${u}`, `4 ${nm(u)}, 15–17: invitational jump.`, { hcp: [15, 17], len: { [u]: [4, 13] } });
       }
-      def(k, `${lv + 1}${y}`, 'Cue-bid: a big hand (18+), forcing.', { hcp: [18, 37], force: 'round' });
+      if (y !== o) def(k, `${lv + 1}${y}`, 'Cue-bid: a big hand (18+), forcing.', { hcp: [18, 37], force: 'round' });
+      else if (above('2N', ov)) def(k, lv === 2 ? '2N' : '3N', lv === 2 ? `18–19 balanced with a ${nm(y)} stopper.` : 'To play.', lv === 2 ? { hcp: [18, 19] } : {});
       if (lv === 1) def(k, '1N', `12–14 balanced with a ${nm(y)} stopper.`, { hcp: [12, 14], balanced: true });
       const ol = cheapest(ov, o);
       if (ol <= 3) def(k, `${ol}${o}`, `6+ ${nm(o)} (5 with nothing better to bid), minimum, no 4-card unbid major.`, { hcp: [12, 15], len: { [o]: [5, 13] }, light: true });
@@ -112,7 +115,7 @@ export function afterTheirOvercall(e, o, ov) {
   const unbid = MAJORS.filter((s) => s !== o && s !== y);
   const min = lv === 1 ? 6 : lv === 2 ? 8 : 10;
   const majorFirst = !isMajor(o) && h >= min && unbid.some((s) => L[s] >= 4);
-  if (L[o] >= fitNeed && !majorFirst) {
+  if (L[o] >= fitNeed && !majorFirst && y !== o) {
     const dp = isMajor(o) ? dummyPoints(e, o) : h;
     const why = [`${L[o]} ${nm(o)}`, `${dp} ${isMajor(o) ? 'dummy points' : 'HCP'}`];
     if (dp >= 13 && isMajor(o) && lv >= 3 && r <= 4) return R(`4${o}`, [...why, 'game values: bid game directly']);
@@ -186,9 +189,11 @@ export function afterNegativeDouble(e, o, ov) {
     const ul = cheapest(ov, u);
     if (h <= 14) return R(`${ul}${u}`, [`${L[u]} ${nm(u)}: the major partner showed`, `${h} HCP: minimum`]);
     if (h <= 17 && ul + 1 <= 4) return R(`${ul + 1}${u}`, [`${L[u]} ${nm(u)}`, `${h} HCP: jump to invite`]);
-    return R(`${lv + 1}${y}`, [`${h} HCP: a big hand`]);
+    if (y !== o) return R(`${lv + 1}${y}`, [`${h} HCP: a big hand`]);
+    return R(`${ul + 1}${u}`, [`${L[u]} ${nm(u)}`, `${h} HCP: jump`]);
   }
-  if (h >= 18) return R(`${lv + 1}${y}`, [`${h} HCP: a big hand`]);
+  if (h >= 18 && y !== o) return R(`${lv + 1}${y}`, [`${h} HCP: a big hand`]);
+  if (h >= 18 && y === o && lv === 2 && e.balanced && stopper(e, y)) return R('2N', [`${h} HCP balanced with a ${nm(y)} stopper`]);
   if (lv === 1 && e.balanced && stopper(e, y)) return R('1N', [`${h} HCP balanced with a ${nm(y)} stopper`]);
   const ol = cheapest(ov, o);
   if (L[o] >= 6 && h >= 16 && ol + 1 <= 3) return R(`${ol + 1}${o}`, [`${L[o]} ${nm(o)}`, `${h} HCP: jump to invite`]);
@@ -201,7 +206,7 @@ export function afterNegativeDouble(e, o, ov) {
 
 // Attach the three decisions above to their situations.
 for (const o of SUITS4) {
-  for (const y of SUITS4.filter((t) => t !== o)) {
+  for (const y of overcallSuits(o)) {
     for (let lv = cheapest(`1${o}`, y); lv <= 3; lv++) {
       const ov = `${lv}${y}`;
       const k = [`1${o}`, `(${ov})`];
@@ -270,7 +275,7 @@ function theirCue(o, their) {
   return `${cheapest(their, s)}${s}`;
 }
 for (const o of SUITS4) {
-  for (const their of [`2${o}`, '2N', '1N']) {
+  for (const their of [...(o === 'C' ? [] : [`2${o}`]), '2N', '1N']) {
     const k = [`1${o}`, `(${their})`];
     const cue = theirCue(o, their);
     if (cue) def(k, cue, `Cue-bid of their suit: limit raise or better in ${nm(o)} (10+${isMajor(o) ? ' points counting shortness' : ''}). (Proposed.)`, { hcp: [10, 37], len: { [o]: [3, 13] }, force: 'round', ...(isMajor(o) && { pts: o }) }, 'their-two-suiters');
@@ -332,7 +337,7 @@ export function openerAfterDoublersSuit(e, o, known, d) {
 }
 
 for (const o of SUITS4) {
-  for (const their of ['2N', ...(isMajor(o) ? [] : [`2${o}`])]) {
+  for (const their of ['2N', ...(isMajor(o) || o === 'C' ? [] : [`2${o}`])]) {
     const known = knownTwo(o, their);
     const free = SUITS4.filter((t) => t !== o && !known.includes(t));
     for (const r of known) {
