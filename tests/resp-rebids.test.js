@@ -67,3 +67,11 @@ test('board 56: 19+ balanced with no fit bids 6NT after 1D-1H-1S, 13-18 bids 3NT
   assert.equal(full(['P', '1D', 'P', '1H', 'P', '1S', 'P'], 'A5 A9842 A93 AK3'), '6N', '19 HCP');
   assert.equal(full(['P', '1D', 'P', '1H', 'P', '1S', 'P'], 'A5 KJ842 A93 KQ3'), '3N', '17 HCP: game');
 });
+
+test('XYZ: responder places the contract after opener answers the game-forcing 2♦', () => {
+  // Board 19: 18 HCP opposite 1♦–1♠ and a 2NT answer: 3NT, not 5♦.
+  assert.equal(ask(['1D', '1H', '1S', '2D', '2N'], 'QJ AKQT2 AQ75 T5').call, '3N');
+  assert.equal(ask(['1D', '1H', '1S', '2D', '2N'], 'QJ AKQT2 AQ75 K5').call, '6N', '19 HCP: slam');
+  assert.equal(ask(['1D', '1H', '1S', '2D', '2H'], 'Q2 AKJ72 Q75 K54').call, '4H', '5 hearts opposite 3-card support');
+  assert.equal(ask(['1D', '1H', '1S', '2D', '3D'], 'Q2 AKJ72 Q75 K54').call, '3N');
+});

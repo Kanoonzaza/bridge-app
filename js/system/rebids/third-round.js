@@ -258,6 +258,30 @@ for (const [o, r, z] of XYZ_AUCTIONS) {
     return R(`3${o}`, [`${e.len[o]} ${nm(o)}`]);
   }, XYZ);
 }
+// Responder after opener answers the game-forcing 2♦: place the game. Measured double dummy (1♦–1♥–1♠–2♦–2NT):
+// 3NT beat a jump to 5♦ by 3–4 IMPs a deal at every strength, so notrump is the default; a major fit plays in the
+// major. Slam directly from 19 HCP: 6NT gained 6.0 IMPs a deal at 19 (48 deals) but lost 1.4 at 18 (80 deals).
+const XYZ_SLAM = 19;
+for (const [o, r, z] of XYZ_AUCTIONS) {
+  const pre = [`1${o}`, `1${r}`, `1${z}`, '2D'];
+  const replies = [];
+  if (isMajor(r)) replies.push(`2${r}`);
+  for (const s of ['H', 'S']) if (s !== r && s !== o && s !== z && !replies.includes(`2${s}`)) replies.push(`2${s}`);
+  replies.push('2N', `3${o}`);
+  for (const reply of replies) {
+    const y = reply[1];
+    const fitSuit = (e) => (isMajor(y) && ((y === r && e.len[r] >= 5) || (y !== r && e.len[y] >= 4)) ? y : null);
+    const calls = [['3N', 'To play.'], ['6N', `Slam: ${XYZ_SLAM}+ opposite an opening.`]];
+    if (isMajor(y)) calls.push([`4${y}`, `Game in ${nm(y)}.`], [`6${y}`, `Slam in ${nm(y)}.`]);
+    sit([...pre, reply], calls, (e) => {
+      const f = fitSuit(e);
+      if (e.hcp >= XYZ_SLAM) return f ? R(`6${f}`, [`${e.hcp} HCP opposite an opening`, `${nm(f)} fit: slam`]) : R('6N', [`${e.hcp} HCP opposite an opening: slam`]);
+      if (f) return R(`4${f}`, [`${e.len[f]} ${nm(f)} opposite ${y === r ? '3' : '4'}: a major fit`, 'game']);
+      return R('3N', [y === 'N' ? 'opener has the unbid suit stopped: 3NT' : 'no major fit: 3NT']);
+    }, XYZ);
+  }
+}
+
 for (const [o, r, z] of [['D', 'H', 'C'], ['D', 'S', 'C'], ['H', 'S', 'C'], ['H', 'S', 'D']]) {
   const w = SUITS.find((s) => ![o, r, z].includes(s));
   const fsf = `${RANK[w] > RANK[z] ? 2 : 3}${w}`;
