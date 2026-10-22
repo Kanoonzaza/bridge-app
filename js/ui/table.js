@@ -443,10 +443,10 @@ export function tableView(root, store) {
     const target = live ? (viewing ? 0 : live.history[b.n - 1] ? b.n - 1 : 0) : 0;
     const cls = `bnum${edge('top') ? ' vt' : ''}${edge('bottom') ? ' vb' : ''}${edge('left') ? ' vl' : ''}${edge('right') ? ' vr' : ''}`;
     const label = `Board ${b.n}, dealer ${COMPASS[b.dealer]}, ${VUL_TEXT[b.vul]}`;
-    // During the play, with a trick already played, the board number shows the last trick (tap again for the one before).
+    // During the play, with a trick already played, the board number flashes the last trick.
     const st = live && !viewing && phase(live) === 'play' ? playOf(live.board) : null;
     if (st && st.tricks.length) {
-      return el('button', { type: 'button', class: `${cls} tap`, 'data-key': 'board-number', 'aria-label': `${label}. Tap to see the last trick`, title: 'Tap to see the last trick', onclick: () => stepBack(live) },
+      return el('button', { type: 'button', class: `${cls} tap`, 'data-key': 'board-number', 'aria-label': `${label}. Tap to see the last trick`, title: 'Tap to see the last trick for a moment', onclick: () => showLastTrick(live) },
         el('span', {}, String(b.n)));
     }
     if (!live || (!viewing && !target)) return el('div', { class: cls, 'aria-label': label }, el('span', {}, String(b.n)));
@@ -480,8 +480,8 @@ export function tableView(root, store) {
   const nowAt = (t) => (phase(t) === 'play' ? playOf(t.board).next : turn(t));
 
   // The trick on the table, each card in front of its player; between tricks, the last trick.
-  // The table's centre: the trick being played, or the last one between tricks. The board number steps back through the
-  // tricks already played (ui.back = how many tricks back from the end, 0 = the normal view).
+  // The table's centre: the trick being played, or the last one between tricks. Tapping the board number shows the last
+  // finished trick for a moment (ui.back = 1; 0 = the normal view).
   function trickBox(t, me, st) {
     const pos = around(me);
     const n = st.tricks.length;
@@ -496,7 +496,7 @@ export function tableView(root, store) {
       return el('div', { class: `tspot t-${where}${showing && c && showing.winner === pos[where] ? ' won' : ''}` }, c ? playedCard(c) : null);
     };
     const k = st.contract;
-    const foot = old ? `${relative(me, old.winner)} won it. Tap the board number again for the one before.`
+    const foot = old ? `${relative(me, old.winner)} won it.`
       : st.current.length || !last ? `Tricks: declarer ${st.declarerTricks}, defence ${st.defenderTricks}` : `${relative(me, last.winner)} won trick ${n} · declarer ${st.declarerTricks}, defence ${st.defenderTricks}`;
     return el('div', { class: `tbox${st.current.length && !old ? '' : ' last'}`, 'aria-label': old ? `Trick ${n - back + 1} of ${n}` : 'Cards played to this trick' },
       el('div', { class: 'thead' }, old ? `${back === 1 ? 'Last trick' : 'Earlier trick'} (${n - back + 1} of ${n})` : `${callLabel(k.bid)}${k.doubled ? ` ${k.doubled === 'XX' ? 'XX' : 'X'}` : ''} by ${relative(me, k.declarer)}`),
@@ -510,13 +510,14 @@ export function tableView(root, store) {
     if (ui.backKey !== key || ui.back > st.tricks.length) { ui.back = 0; return 0; }
     return ui.back;
   }
-  function stepBack(t) {
+  // A tap on the board number flashes the last finished trick for a moment, then the table shows the current trick again.
+  function showLastTrick(t) {
     const st = phase(t) === 'play' ? playOf(t.board) : null;
-    if (!st) return;
-    const key = `${t.code}:${t.board.n}:${t.board.play}`;
-    const base = ui.backKey === key && ui.back ? ui.back : st.current.length ? 0 : 1; // what is on show now
-    ui.backKey = key;
-    ui.back = base + 1 > st.tricks.length ? 0 : base + 1;
+    if (!st || !st.tricks.length) return;
+    ui.backKey = `${t.code}:${t.board.n}:${t.board.play}`;
+    ui.back = 1;
+    clearTimeout(ui.backTimer);
+    ui.backTimer = setTimeout(() => { ui.back = 0; render(); }, 1200);
     render();
   }
   const playedCard = (c) => el('span', { class: `card small${c[0] === 'H' || c[0] === 'D' ? ' redc' : ''}` }, el('span', { class: 'rank' }, rankLabel(c[1])), el('span', { class: 'pip' }, SYMBOL[c[0]]));
