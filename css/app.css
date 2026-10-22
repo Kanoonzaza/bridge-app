@@ -214,6 +214,12 @@ button.card{font:inherit;font-weight:700;cursor:pointer;padding:3px 0 0;appearan
 
 /* ---------- A take-back or claim on the table, with a hopping frog ---------- */
 .felt{position:relative}
+/* New chat messages: float over the top of the table, never in the way of a tap */
+.chat-bubbles{position:absolute;left:50%;top:6px;transform:translateX(-50%);z-index:4;width:min(88%,330px);display:grid;gap:4px;pointer-events:none}
+.chat-bubble{justify-self:center;max-width:100%;padding:5px 11px;border-radius:14px 14px 14px 4px;background:rgba(255,255,255,.94);color:#14201a;font-size:.82rem;line-height:1.25;box-shadow:0 3px 10px rgba(0,0,0,.35);overflow-wrap:anywhere;animation:bubble-life 5s ease-out both}
+.chat-bubble b{color:#1d6a49}
+@keyframes bubble-life{0%{opacity:0;transform:translateY(-8px) scale(.96)}6%{opacity:1;transform:none}82%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.chat-bubble{animation:none}}
 .req{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:min(92%,300px);display:grid;justify-items:center;gap:6px;padding:8px 12px 10px;text-align:center;border-radius:10px;background:rgba(12,40,26,.96);color:#fff;box-shadow:0 0 0 2px var(--turn),0 6px 18px rgba(0,0,0,.45)}
 .req.below{position:static;transform:none;width:auto;margin:6px 0 0}
 .req p{margin:0;font-size:.9rem;line-height:1.3}

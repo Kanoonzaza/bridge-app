@@ -103,7 +103,7 @@ export function tableView(root, store) {
       ui.stale = t ? (ui.sawProto && !t.proto ? 'old' : t.proto > PROTO ? 'new' : '') : '';
       if (joining) settleJoin();
       ui.table = t;
-      if (t) mirrorChat(t);
+      if (t) { mirrorChat(t); chatBubbles(t); }
       if (!t) {
         ui.error = `Table ${code} was not found. Check the code with whoever made the table.`;
         if (joining) { saved.code = ''; save(); ui.unwatch?.(); ui.unwatch = null; }
@@ -131,6 +131,34 @@ export function tableView(root, store) {
       if (ui.joining === code) { settleJoin(); saved.code = ''; save(); }
       fail(`The table server did not allow this (${err?.code ?? err?.message ?? err}).`);
     });
+  }
+
+  // New chat messages float over the top of the table for a few seconds (the board stays in view and usable).
+  // What was already said when the table opened is not shown again.
+  const BUBBLE_MS = 5000;
+  function chatBubbles(t) {
+    const keys = (t.chat ?? []).map(chatKey);
+    if (ui.bubbleCode !== t.code) { ui.bubbleCode = t.code; ui.bubbleSeen = new Set(keys); ui.bubbles = []; return; }
+    const fresh = (t.chat ?? []).filter((m) => !ui.bubbleSeen.has(chatKey(m)));
+    if (!fresh.length) return;
+    for (const m of fresh) ui.bubbleSeen.add(chatKey(m));
+    const now = Date.now();
+    ui.bubbles = [...(ui.bubbles ?? []).filter((b) => now - b.at < BUBBLE_MS), ...fresh.map((m) => ({ key: chatKey(m), name: m.name || 'Player', seat: m.seat, text: m.text, at: now }))].slice(-3);
+    clearTimeout(ui.bubbleTimer);
+    const next = () => {
+      const left = (ui.bubbles ?? []).filter((b) => Date.now() - b.at < BUBBLE_MS);
+      if (left.length !== ui.bubbles.length) { ui.bubbles = left; render(); }
+      if (left.length) ui.bubbleTimer = setTimeout(next, Math.max(50, BUBBLE_MS - (Date.now() - left[0].at)));
+    };
+    ui.bubbleTimer = setTimeout(next, BUBBLE_MS);
+  }
+  function bubblesOnTable(me) {
+    const now = Date.now();
+    const list = (ui.bubbles ?? []).filter((b) => now - b.at < BUBBLE_MS);
+    if (!list.length) return null;
+    // A negative delay keeps each bubble's fade where it was when the table is drawn again.
+    return el('div', { class: 'chat-bubbles', 'aria-live': 'polite' }, ...list.map((b) => el('div', { class: 'chat-bubble', style: `animation-delay:-${now - b.at}ms` },
+      el('b', {}, `${b.seat && me ? relative(me, b.seat) === 'You' ? 'You' : b.name : b.name}: `), b.text.length > 90 ? `${b.text.slice(0, 88)}…` : b.text)));
   }
 
   // Keep a copy of the table's chat on this phone, and put back anything the table has lost.
@@ -591,7 +619,8 @@ export function tableView(root, store) {
       st && ui.bigAuction ? el('div', { class: 'req auction-big', 'data-key': 'auction-big' }, el('div', { class: 'req-title' }, 'The bidding'), auctionBox(t, me), el('button', { type: 'button', class: 'pill on', 'data-key': 'auction-close', onclick: () => { ui.bigAuction = false; render(); } }, 'Close')) : null,
       st ? el('div', { class: 'f-dec' }, tally('Declarer', st.declarerTricks, 'dec')) : null,
       st ? el('div', { class: 'f-def' }, tally('Defence', st.defenderTricks, 'def')) : null,
-      requestNote(t, 'undo'));
+      requestNote(t, 'undo'),
+      bubblesOnTable(me));
   }
 
   // A hand as cards: spades, hearts, clubs, diamonds (alternating colours), overlapping to fit the screen.
