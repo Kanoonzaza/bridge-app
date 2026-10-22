@@ -557,7 +557,7 @@ export function tableView(root, store) {
 
   function felt(t, me) {
     const pos = around(me);
-    const st = phase(t) === 'play' ? playOf(t.board) : null;
+    const st = phase(t) === 'play' || isHeld(t) ? playOf(t.board) : null;
     // After the opening lead the dummy's cards are shown at the dummy's seat (unless that seat is mine).
     const dummy = st && st.started && st.dummy !== me ? st.dummy : null;
     const iAmDummy = !!st && !!me && st.dummy === me;
@@ -954,13 +954,33 @@ export function tableView(root, store) {
       review(pt, me, true));
   }
 
+  // After the 13th card the last trick stays on the table for a few seconds before the result. Only when this phone saw
+  // the board being played (opening a finished board goes straight to the result).
+  const HOLD_MS = 3000;
+  const boardKey = (t) => `${t.code}:${t.board.n}`;
+  const isHeld = (t) => ui.holdKey === boardKey(t) && ui.heldDone !== boardKey(t);
+  function holding(t) {
+    const b = t.board;
+    const key = boardKey(t);
+    if (phase(t) !== 'over' || b.skip || Number.isInteger(b.claim) || !playOf(b)?.complete || ui.heldDone === key) return false;
+    if (ui.holdKey !== key) {
+      if (ui.lastPlayKey !== key) { ui.heldDone = key; return false; }
+      ui.holdKey = key;
+      clearTimeout(ui.holdTimer);
+      ui.holdTimer = setTimeout(() => { ui.heldDone = key; render(); }, HOLD_MS);
+    }
+    return true;
+  }
+
   function tableScreen(t) {
     const me = mySeat(t, ui.sync.uid);
     const b = t.board;
     const prev = t.history[b.n - 1];
     const viewed = ui.prev && Number(ui.prev) < b.n ? t.history[Number(ui.prev)] : null;
     if (viewed) return previousScreen(t, me, viewed);
-    const ph = phase(t);
+    const hold = holding(t);
+    if (phase(t) === 'play') ui.lastPlayKey = `${t.code}:${b.n}`;
+    const ph = hold ? 'play' : phase(t);
     const st = ph === 'play' ? playOf(b) : null;
     const now = actor(t);
     const waiting = now && t.seats[now].kind === 'open' ? `Waiting for a player in the ${COMPASS[now]} seat.` : now && t.seats[now].kind === 'human' ? `Waiting for ${relative(me, now) === 'Partner' ? 'partner' : t.seats[now].name || COMPASS[now]}…` : now ? 'The robot is thinking…' : '';
@@ -985,11 +1005,14 @@ export function tableView(root, store) {
       prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = prev.n; render(); } }, `← Earlier boards (${Math.min(b.n - 1, Object.keys(t.history).length)})`)) : null,
       felt(t, me),
       requestNote(t, 'claim'),
-      st ? playArea(t, me, st) : chatPanel(t, me),
+      hold ? el('div', { class: 'panel row-buttons', 'data-key': 'last-trick-hold' },
+        el('span', {}, 'The last trick. The result comes up in a moment.'),
+        el('button', { type: 'button', class: 'pill', 'data-key': 'show-result', onclick: () => { clearTimeout(ui.holdTimer); ui.heldDone = ui.holdKey; render(); } }, 'Show the result now'))
+        : st ? playArea(t, me, st) : chatPanel(t, me),
       st ? chatPanel(t, me) : me ? myHand(handOf(b, me)) : null,
-      ph === 'over' ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
-      st && me ? claimControls(t, me) : null,
-      undoButton(t) || (st && me) ? el('div', { class: 'row-buttons' }, undoButton(t),
+      ph === 'over' || hold ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
+      st && me && !hold ? claimControls(t, me) : null,
+      !hold && (undoButton(t) || (st && me)) ? el('div', { class: 'row-buttons' }, undoButton(t),
         st && me ? el('button', { type: 'button', class: 'pill', 'data-key': 'skip-play', onclick: () => act((cur) => cur && skipPlay(cur)) }, 'Skip the play') : null) : null,
       ph === 'over' ? review(t, me) : ph === 'bidding' && me && now === me ? myTurn(t, me) : null,
       ph === 'over' ? null : myCallsCheck(t, me),
