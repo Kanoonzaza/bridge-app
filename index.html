@@ -9,7 +9,7 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="css/app.css">
-<script>try{var t=JSON.parse(localStorage.getItem('bc:theme')||'{}').theme;if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>try{var o=JSON.parse(localStorage.getItem('bc:theme')||'{}'),d=document.documentElement;if(o.theme==='light'||o.theme==='dark')d.dataset.theme=o.theme;if(['luxury','minimal','nerd'].indexOf(o.style)>=0)d.dataset.style=o.style}catch(e){}</script>
 </head>
 <body>
 <header class="top">
