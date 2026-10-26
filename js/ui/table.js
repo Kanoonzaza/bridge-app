@@ -967,52 +967,55 @@ export function tableView(root, store) {
     const vals = scores ? Object.values(scores) : [];
     const best = vals.length ? (forDecl ? Math.max(...vals) : Math.min(...vals)) : null;
     const pos = around(me);
+    // A hand as on Bridge Base Online: a white box with the seat on a strip, one tight line a suit; under each card the
+    // player to move may play, a small number (green: best, red: gives tricks away). The card that was played is ringed.
     const hand = (seat) => {
       const toPlay = st.next === seat;
       const role = seat === st.declarer ? 'declarer' : seat === st.dummy ? 'dummy' : '';
-      const meta = [me ? relative(me, seat) : '', role, `${evaluate(handOf(b, seat)).hcp} HCP`].filter(Boolean).join(' · ');
-      return el('div', { class: `pv-hand${toPlay ? ' to-play' : ''}`, 'data-key': `pv-hand-${seat}` },
-        el('div', { class: 'pv-name' }, el('b', {}, COMPASS[seat]), el('span', { class: 'pv-meta' }, meta)),
+      return el('div', { class: `pv-hand${toPlay ? ' to-play' : ''}`, 'data-key': `pv-hand-${seat}`, 'aria-label': `${COMPASS[seat]}${role ? `, ${role}` : ''}` },
+        el('div', { class: 'pv-name' }, el('span', { class: 'pv-seat' }, seat), el('span', { class: 'pv-who' }, me ? relative(me, seat) : COMPASS[seat]), el('span', { class: 'pv-hcp' }, String(evaluate(handOf(b, seat)).hcp))),
         ...suitOrder(st.trump).map((s) => {
           const list = st.remaining[seat].filter((c) => c[0] === s);
           return el('div', { class: `pv-row${s === 'H' || s === 'D' ? ' red' : ''}` },
             el('span', { class: 'pv-pip' }, SYMBOL[s]),
-            el('div', { class: 'pv-cards' }, ...(list.length ? list.map((c) => {
+            ...list.map((c) => {
               const n = toPlay && scores && c in scores ? scores[c] : null;
-              const cls = `pv-c${n === null ? '' : ' scored'}${n === null ? '' : n === best ? ' best' : ' worse'}`;
+              const cls = `pv-c${n === null ? '' : n === best ? ' best' : ' worse'}`;
               const label = `${rankLabel(c[1])} ${SYMBOL[s]}${n === null ? '' : `: declarer ${n}`}`;
               const face = [el('span', { class: 'pv-r' }, rankLabel(c[1])), n === null ? null : el('span', { class: 'pv-n' }, String(n))];
-              // The card that was played is ringed; tapping it plays it.
               return toPlay && c === next
                 ? el('button', { type: 'button', class: `${cls} next`, 'data-key': 'pv-play', 'aria-label': `${label}, played: tap for the next card`, onclick: () => go(step + 1) }, ...face)
                 : el('span', { class: cls, 'aria-label': label }, ...face);
-            }) : [el('span', { class: 'pv-void' }, '—')])));
+            }));
         }));
     };
-    // The middle: the trick being played at this step (or the trick just won, shaded, until the next lead), and the arrows.
+    // The middle: the bidding before the opening lead, then the trick being played (or the trick just won, shaded).
     const won = st.current.length ? null : st.tricks.at(-1) ?? null;
     const trick = st.current.length ? st.current : won?.cards ?? [];
+    const middle = step === 0 ? auctionBox(t, me)
+      : el('div', { class: `pv-trick${won ? ' done' : ''}` },
+        ...['top', 'left', 'right', 'bottom'].map((w) => {
+          const p = trick.find((x) => x.seat === pos[w]);
+          return el('div', { class: `tspot t-${w}${won && won.winner === pos[w] ? ' won' : ''}` }, p ? playedCard(p.card) : null);
+        }));
+    const edge = (w) => (isVul(b, pos[w]) ? ` v${w[0]}` : '');
     const arrow = (k2, label, aria, to, off) => el('button', { type: 'button', class: 'pv-arrow', 'data-key': k2, 'aria-label': aria, disabled: off, onclick: () => go(to) }, label);
-    const middle = el('div', { class: `pv-trick${won ? ' done' : ''}` },
-      el('div', { class: 'pv-head' }, !st.next ? 'End' : `Trick ${st.tricks.length + 1}`),
-      ...['top', 'left', 'right', 'bottom'].map((w) => {
-        const p = trick.find((x) => x.seat === pos[w]);
-        return el('div', { class: `tspot t-${w}${won && won.winner === pos[w] ? ' won' : ''}` }, p ? playedCard(p.card) : null);
-      }),
-      trick.length ? null : el('div', { class: 'pv-lead' }, st.next ? `${COMPASS[st.next]} to lead` : ''),
-      el('div', { class: 'pv-count' }, `Declarer ${st.declarerTricks} · Defence ${st.defenderTricks}`),
-      el('div', { class: 'pv-nav' },
-        arrow('pv-prev', '‹', 'Previous card', step - 1, step === 0),
-        arrow('pv-next', '›', 'Next card', step + 1, step === last)));
-    return el('div', { class: 'panel pv', 'data-key': 'play-viewer', tabindex: '-1', 'aria-label': 'Play by play',
+    const ns = st.tricks.filter((x) => sideOf(x.winner) === 'NS').length;
+    return el('div', { class: 'pv', 'data-key': 'play-viewer', tabindex: '-1', 'aria-label': 'Play by play, double dummy',
       onkeydown: (e) => { if (e.key === 'ArrowRight') { e.preventDefault(); go(step + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); go(step - 1); } } },
-    el('div', { class: 'label' }, `Play by play · double dummy${d === undefined ? ' · solving…' : d ? '' : ' · not available on this device'}`),
-    el('div', { class: 'pv-grid' },
-      el('div', { class: 'pv-top' }, hand(pos.top)),
-      el('div', { class: 'pv-left' }, hand(pos.left)),
-      el('div', { class: 'pv-mid' }, middle),
-      el('div', { class: 'pv-right' }, hand(pos.right)),
-      el('div', { class: 'pv-bottom' }, hand(pos.bottom))));
+    el('div', { class: 'pv-corner pv-tl' }, el('div', { class: `bnum pv-bnum${edge('top')}${edge('bottom')}${edge('left')}${edge('right')}`, 'aria-label': `Board ${b.n}, ${VUL_TEXT[b.vul]}` }, el('span', {}, String(b.n)))),
+    el('div', { class: 'pv-top' }, hand(pos.top)),
+    el('div', { class: 'pv-corner pv-tr' }, d === undefined ? 'Solving…' : d ? 'Double dummy' : 'No solver'),
+    el('div', { class: 'pv-left' }, hand(pos.left)),
+    el('div', { class: 'pv-mid' }, middle),
+    el('div', { class: 'pv-right' }, hand(pos.right)),
+    el('div', { class: 'pv-corner pv-bl' },
+      arrow('pv-prev', '‹', 'Previous card', step - 1, step === 0),
+      arrow('pv-next', '›', 'Next card', step + 1, step === last)),
+    el('div', { class: 'pv-bottom' }, hand(pos.bottom)),
+    el('div', { class: 'pv-corner pv-br' },
+      el('div', { class: 'pv-k' }, `${callLabel(k.bid)}${k.doubled ? ` ${k.doubled}` : ''}`, el('small', {}, COMPASS[k.declarer])),
+      el('div', { class: 'pv-tricks' }, el('span', { 'aria-label': `North-South ${ns} tricks` }, el('small', {}, 'NS'), String(ns)), el('span', { 'aria-label': `East-West ${st.tricks.length - ns} tricks` }, el('small', {}, 'EW'), String(st.tricks.length - ns)))));
   }
 
   // past: the previous board, looked at again from this phone only (no Next board / Bid it again).

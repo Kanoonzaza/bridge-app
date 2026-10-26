@@ -502,39 +502,48 @@ button.bids-btn{padding:3px 8px;font-size:.66rem}
 @keyframes card-in-right{from{transform:translateX(46px) scale(.9);opacity:0}}
 @keyframes trick-out{to{transform:translate(var(--tx,0),var(--ty,0)) scale(.45);opacity:0}}
 @media (prefers-reduced-motion:reduce){.tmove{animation:none!important}}
-/* Play by play with double dummy (the review of a played board): four hands around the trick, a number under each card the
-   player to move may play. On a phone the trick sits between North and the two side hands, so each side hand gets half the width. */
-.pv{container-type:inline-size;padding:12px 10px}
+/* Play by play with double dummy, laid out like Bridge Base Online's hand viewer: a green table, three columns, white
+   hand boxes with tight suit lines, a small number under each card the player to move may play. */
+.pv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"tl top tr" "left mid right" "bl bottom br";gap:6px;padding:6px;border-radius:12px;background:var(--felt-bg);border:1px solid var(--felt-edge);color:var(--felt-ink)}
 .pv:focus{outline:none}
-.pv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"top top" "mid mid" "left right" "bottom bottom";gap:8px}
-@container (min-width:440px){.pv-grid{grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr);grid-template-areas:"top top top" "left mid right" "bottom bottom bottom";align-items:center}}
 .pv-top{grid-area:top}.pv-left{grid-area:left}.pv-mid{grid-area:mid}.pv-right{grid-area:right}.pv-bottom{grid-area:bottom}
-.pv-top,.pv-bottom{display:flex;justify-content:center}
-.pv-top .pv-hand,.pv-bottom .pv-hand{min-width:min(100%,220px)}
-.pv-hand{padding:7px 8px;border-radius:10px;border:1px solid var(--rule);min-width:0;height:100%}
-.pv-hand.to-play{border-color:var(--turn);box-shadow:0 0 0 1px var(--turn);background:color-mix(in srgb,var(--turn) 12%,var(--surface))}
-.pv-name{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 6px;font-size:.85rem;margin-bottom:6px}
-.pv-meta{font-size:.72rem;color:var(--muted)}
-.pv-row{display:grid;grid-template-columns:1.2em minmax(0,1fr);align-items:start;min-height:1.6em;margin:2px 0}
-.pv-pip{font-size:1rem;line-height:1.5}
-.pv-cards{display:flex;flex-wrap:wrap;gap:2px 4px;font-size:1rem;line-height:1.5}
-.pv-row.red .pv-pip,.pv-row.red .pv-r{color:var(--red)}
-.pv-void{color:var(--muted)}
-.pv-c{display:inline-flex;flex-direction:column;align-items:center;font-weight:600;font-variant-numeric:tabular-nums}
-.pv-c.scored{min-width:1.4em;padding:0 0 2px;border-radius:5px}
-.pv-n{font-size:.72rem;font-weight:700;line-height:1.3;min-width:1.4em;text-align:center;border-radius:4px}
-.pv-c.best .pv-n{background:var(--accent);color:var(--accent-ink)}
-.pv-c.worse .pv-n{background:var(--red);color:#fff}
-.pv-c.next{box-shadow:0 0 0 2px var(--ink)}
-.pv-trick{background:var(--abox);border-radius:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"h h h" ". top ." "left . right" ". bottom ." "f f f" "n n n";align-items:center;justify-items:center;padding:6px;max-width:200px;width:100%;margin:0 auto}
-.pv-trick .tspot{min-height:40px}
-.pv-trick .pv-lead{grid-area:3/1/4/4;font-size:.8rem;color:var(--muted)}
-.pv-trick .card.small{width:28px;height:38px;font-size:.8rem}
+.pv-tl{grid-area:tl}.pv-tr{grid-area:tr}.pv-bl{grid-area:bl}.pv-br{grid-area:br}
+.pv-hand{background:var(--face);color:var(--face-ink);border-radius:4px;overflow:hidden;min-width:0;height:100%;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.pv-hand.to-play{box-shadow:0 0 0 3px var(--turn)}
+.pv-name{display:flex;align-items:center;gap:4px;background:#e4e8e6;color:#111;font-size:.72rem;font-weight:700;padding:1px 4px 1px 0;margin-bottom:2px}
+.pv-hand.to-play .pv-name{background:var(--turn)}
+.pv-seat{background:#2c6fb7;color:#fff;padding:0 4px;min-width:1.3em;text-align:center}
+.pv-who{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-weight:600}
+.pv-hcp{font-variant-numeric:tabular-nums}
+.pv-row{display:flex;flex-wrap:wrap;align-items:flex-start;padding:0 2px;font-size:1rem;font-weight:600;line-height:1.25;letter-spacing:-.02em}
+.pv-row.red{color:var(--face-red)}
+.pv-pip{width:.9em;flex:none;text-align:center}
+.pv-c{display:inline-flex;flex-direction:column;align-items:center}
+.pv-c:has(.pv-n){min-width:.85em}
+.pv-n{font-size:.6rem;font-weight:700;line-height:1.25;min-width:1.3em;text-align:center;border-radius:3px;margin:1px 0 2px;letter-spacing:0;color:#fff}
+.pv-c.best .pv-n{background:#1f8a4c}
+.pv-c.worse .pv-n{background:#c8102e}
+.pv-c.next .pv-r{border-radius:3px;box-shadow:0 0 0 2px var(--face-ink)}
+button.pv-c{border:0;background:none;color:inherit;font:inherit;padding:0;cursor:pointer;letter-spacing:inherit}
+.pv-mid{display:flex;align-items:center;justify-content:center;min-width:0}
+.pv-mid .abox{width:100%;min-height:0;color:var(--ink)}
+.pv-mid .ahead{font-size:11px}
+.pv-mid .abody{padding:3px 1px}
+.pv-mid .abody .cell{font-size:10.5px;letter-spacing:-.03em}
+.pv-trick{display:grid;width:100%;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:". top ." "left . right" ". bottom .";align-items:center;justify-items:center}
+.pv-trick .tspot{min-height:36px}
+.pv-trick .card.small{width:26px;height:36px;font-size:.78rem}
 .pv-trick.done .card{opacity:.55}
 .pv-trick.done .tspot.won .card{opacity:1;box-shadow:0 0 0 2px var(--turn)}
-.pv-count{grid-area:f;font-size:.72rem;color:var(--muted);text-align:center;margin-top:2px}
-.pv-head{grid-area:h;font-size:.72rem;font-weight:700;color:var(--muted)}
-.pv-nav{grid-area:n;display:flex;justify-content:space-between;width:100%;margin-top:4px}
-.pv-arrow{width:44px;height:36px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font-size:1.3rem;font-weight:700;line-height:1;padding:0}
-.pv-arrow:disabled{opacity:.3;cursor:default}
-button.pv-c{border:0;background:none;color:inherit;font:inherit;font-weight:600;padding:0 0 2px;cursor:pointer}
+.pv-corner{display:flex;min-width:0}
+.pv-bnum{width:46px;height:46px;font-size:1.2rem;border-width:4px}
+.pv-tr{justify-content:flex-end;align-items:flex-start;font-size:.68rem;color:var(--felt-muted);text-align:right}
+.pv-bl{align-items:flex-end;gap:6px}
+.pv-arrow{width:40px;height:40px;border-radius:8px;border:0;background:#2c6fb7;color:#fff;font-size:1.4rem;font-weight:700;line-height:1;padding:0;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.pv-arrow:disabled{opacity:.35;cursor:default}
+.pv-br{flex-direction:column;align-items:flex-end;justify-content:flex-end;gap:4px}
+.pv-k{background:var(--face);color:var(--face-ink);border-radius:4px;padding:1px 6px;font-weight:700;font-size:.85rem;text-align:center;line-height:1.2}
+.pv-k small{display:block;font-weight:600;font-size:.65rem}
+.pv-tricks{display:flex;gap:3px}
+.pv-tricks span{display:flex;flex-direction:column;align-items:center;min-width:28px;padding:1px 4px;border-radius:4px;background:#2c6fb7;color:#fff;font-weight:700;font-size:.9rem;line-height:1.1}
+.pv-tricks small{font-size:.55rem;font-weight:600;opacity:.85}
