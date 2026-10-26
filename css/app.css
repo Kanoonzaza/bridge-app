@@ -504,7 +504,7 @@ button.bids-btn{padding:3px 8px;font-size:.66rem}
 @media (prefers-reduced-motion:reduce){.tmove{animation:none!important}}
 /* Play by play with double dummy, laid out like Bridge Base Online's hand viewer: a green table, three columns, white
    hand boxes with tight suit lines, a small number under each card the player to move may play. */
-.pv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"tl top tr" "left mid right" "bl bottom br";gap:6px;padding:6px;border-radius:12px;background:var(--felt-bg);border:1px solid var(--felt-edge);color:var(--felt-ink)}
+.pv{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"tl top tr" "left mid right" "bl bottom br";gap:6px;padding:6px;border-radius:12px;background:var(--felt-bg);border:1px solid var(--felt-edge);color:var(--felt-ink)}
 .pv:focus{outline:none}
 .pv-top{grid-area:top}.pv-left{grid-area:left}.pv-mid{grid-area:mid}.pv-right{grid-area:right}.pv-bottom{grid-area:bottom}
 .pv-tl{grid-area:tl}.pv-tr{grid-area:tr}.pv-bl{grid-area:bl}.pv-br{grid-area:br}
@@ -536,8 +536,11 @@ button.pv-c{border:0;background:none;color:inherit;font:inherit;padding:0;cursor
 .pv-trick.done .card{opacity:.55}
 .pv-trick.done .tspot.won .card{opacity:1;box-shadow:0 0 0 2px var(--turn)}
 .pv-corner{display:flex;min-width:0}
-.pv-bnum{width:46px;height:46px;font-size:1.2rem;border-width:4px}
-.pv-tr{justify-content:flex-end;align-items:flex-start;font-size:.68rem;color:var(--felt-muted);text-align:right}
+.pv .bnum{width:46px;height:46px;font-size:1.2rem;border-width:4px}
+.pv-tr{flex-direction:column;align-items:flex-end;gap:3px}
+.pv-dd{min-width:46px;height:34px;padding:0 10px;border-radius:8px;border:2px solid #2c6fb7;background:var(--face);color:#2c6fb7;font-weight:800;font-size:.85rem;letter-spacing:.04em;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.pv-dd.on{background:#2c6fb7;color:#fff}
+.pv-note{font-size:.65rem;color:var(--felt-muted)}
 .pv-bl{align-items:flex-end;gap:6px}
 .pv-arrow{width:40px;height:40px;border-radius:8px;border:0;background:#2c6fb7;color:#fff;font-size:1.4rem;font-weight:700;line-height:1;padding:0;box-shadow:0 2px 0 rgba(0,0,0,.25)}
 .pv-arrow:disabled{opacity:.35;cursor:default}

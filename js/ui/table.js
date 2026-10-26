@@ -943,14 +943,16 @@ export function tableView(root, store) {
     }
     job.then((steps) => { ui.pv.set(key, steps ?? false); render(); });
   }
-  function playViewer(t, me) {
+  // live: the board just played at this table (chat bubbles and a take-back request show on it, as on the table).
+  function playViewer(t, me, live = false) {
     const b = t.board;
     const end = playOf(b);
     if (!end) return null;
     const k = end.contract;
     const key = pvKey(t);
-    ensureCards(t, k);
-    const d = ui.pv.get(key);
+    // The double-dummy numbers show only after a tap on DD (as on Bridge Base Online); the deal is solved then.
+    if (ui.ddOn) ensureCards(t, k);
+    const d = ui.ddOn ? ui.pv.get(key) : null;
     const played = splitPlay(b.play);
     const last = played.length;
     const step = Math.min(ui.pvAt.get(key) ?? 0, last);
@@ -998,14 +1000,15 @@ export function tableView(root, store) {
           const p = trick.find((x) => x.seat === pos[w]);
           return el('div', { class: `tspot t-${w}${won && won.winner === pos[w] ? ' won' : ''}` }, p ? playedCard(p.card) : null);
         }));
-    const edge = (w) => (isVul(b, pos[w]) ? ` v${w[0]}` : '');
     const arrow = (k2, label, aria, to, off) => el('button', { type: 'button', class: 'pv-arrow', 'data-key': k2, 'aria-label': aria, disabled: off, onclick: () => go(to) }, label);
     const ns = st.tricks.filter((x) => sideOf(x.winner) === 'NS').length;
     return el('div', { class: 'pv', 'data-key': 'play-viewer', tabindex: '-1', 'aria-label': 'Play by play, double dummy',
       onkeydown: (e) => { if (e.key === 'ArrowRight') { e.preventDefault(); go(step + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); go(step - 1); } } },
-    el('div', { class: 'pv-corner pv-tl' }, el('div', { class: `bnum pv-bnum${edge('top')}${edge('bottom')}${edge('left')}${edge('right')}`, 'aria-label': `Board ${b.n}, ${VUL_TEXT[b.vul]}` }, el('span', {}, String(b.n)))),
+    el('div', { class: 'pv-corner pv-tl' }, boardBox(t, me)),
     el('div', { class: 'pv-top' }, hand(pos.top)),
-    el('div', { class: 'pv-corner pv-tr' }, d === undefined ? 'Solving…' : d ? 'Double dummy' : 'No solver'),
+    el('div', { class: 'pv-corner pv-tr' },
+      el('button', { type: 'button', class: `pv-dd${ui.ddOn ? ' on' : ''}`, 'data-key': 'pv-dd', 'aria-pressed': String(!!ui.ddOn), 'aria-label': 'Double dummy: show the tricks under each card', onclick: () => { ui.ddOn = !ui.ddOn; render(); } }, 'DD'),
+      ui.ddOn && d === undefined ? el('span', { class: 'pv-note' }, 'Solving…') : ui.ddOn && d === false ? el('span', { class: 'pv-note' }, 'Not available') : null),
     el('div', { class: 'pv-left' }, hand(pos.left)),
     el('div', { class: 'pv-mid' }, middle),
     el('div', { class: 'pv-right' }, hand(pos.right)),
@@ -1015,7 +1018,9 @@ export function tableView(root, store) {
     el('div', { class: 'pv-bottom' }, hand(pos.bottom)),
     el('div', { class: 'pv-corner pv-br' },
       el('div', { class: 'pv-k' }, `${callLabel(k.bid)}${k.doubled ? ` ${k.doubled}` : ''}`, el('small', {}, COMPASS[k.declarer])),
-      el('div', { class: 'pv-tricks' }, el('span', { 'aria-label': `North-South ${ns} tricks` }, el('small', {}, 'NS'), String(ns)), el('span', { 'aria-label': `East-West ${st.tricks.length - ns} tricks` }, el('small', {}, 'EW'), String(st.tricks.length - ns)))));
+      el('div', { class: 'pv-tricks' }, el('span', { 'aria-label': `North-South ${ns} tricks` }, el('small', {}, 'NS'), String(ns)), el('span', { 'aria-label': `East-West ${st.tricks.length - ns} tricks` }, el('small', {}, 'EW'), String(st.tricks.length - ns)))),
+    live ? requestNote(t, 'undo') : null,
+    live ? bubblesOnTable(me) : null);
   }
 
   // past: the previous board, looked at again from this phone only (no Next board / Bid it again).
@@ -1037,8 +1042,8 @@ export function tableView(root, store) {
         past ? null : el('div', { class: 'row-buttons' },
           el('button', { type: 'button', class: 'pill on', 'data-key': 'next-board', onclick: () => act((cur) => cur && nextBoard(cur, rand)) }, 'Next board'),
           el('button', { type: 'button', class: 'pill', 'data-key': 'rebid', onclick: () => act((cur) => cur && rebid(cur)) }, 'Bid it again'))),
-      playViewer(t, me) ?? el('div', { class: 'compass' }, ...['N', 'W', 'E', 'S'].map((s) => el('div', { class: `seat-${s}` }, handView(handOf(b, s), `${COMPASS[s]} (${relative(me, s)})`)))),
-      ddPanel(t, me, k),
+      playOf(b) ? null : el('div', { class: 'compass' }, ...['N', 'W', 'E', 'S'].map((s) => el('div', { class: `seat-${s}` }, handView(handOf(b, s), `${COMPASS[s]} (${relative(me, s)})`)))),
+      ui.ddOn || !playOf(b) ? ddPanel(t, me, k) : (ensureDD(t), null), // solved anyway, for Copy this board
       el('div', {},
         el('div', { class: 'label' }, 'Call by call'),
         rows.some((r) => r.skipped) ? el('p', { class: 'muted' }, 'Only each player\'s first difference from the Advisor is shown: the calls after it depend on it.') : null,
@@ -1108,7 +1113,7 @@ export function tableView(root, store) {
     return el('div', { class: 'stack' },
       el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill on', 'data-key': 'close-saved', onclick: () => { ui.viewSaved = ''; render(); } }, 'Back')),
       el('div', { class: 'board-line' }, el('b', {}, `Saved board ${x.board.n}`), ` · Dealer ${COMPASS[x.board.dealer]} · ${VUL_TEXT[x.board.vul]}`),
-      felt(pt, x.me),
+      playViewer(pt, x.me) ?? felt(pt, x.me),
       review(pt, x.me, true));
   }
 
@@ -1124,7 +1129,7 @@ export function tableView(root, store) {
         newer ? el('button', { type: 'button', class: 'pill', 'data-key': 'newer-board', onclick: go(newer) }, `Board ${newer} →`) : null,
         el('button', { type: 'button', class: 'pill on', 'data-key': 'current-board', onclick: go(0) }, 'Back to the current board')),
       el('div', { class: 'board-line' }, el('b', {}, `Board ${prev.n}`), ` (${t.board.n - prev.n} back) · Dealer ${relative(me, prev.dealer)} · ${VUL_TEXT[prev.vul]}`),
-      felt(pt, me),
+      playViewer(pt, me) ?? felt(pt, me),
       review(pt, me, true));
   }
 
@@ -1177,7 +1182,7 @@ export function tableView(root, store) {
       declarerChoice(t),
       b.swap ? el('p', { class: 'muted', 'data-key': 'swap-note' }, `Your partner (a robot) was the declarer, so you moved to ${COMPASS[b.swap[2]]} and play the contract; the robot sits ${COMPASS[b.swap[0]]} as dummy.`) : null,
       prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = prev.n; render(); } }, `← Earlier boards (${Math.min(b.n - 1, Object.keys(t.history).length)})`)) : null,
-      felt(t, me),
+      (ph === 'over' && playViewer(t, me, true)) || felt(t, me),
       requestNote(t, 'claim'),
       ph === 'over' || hold ? null : me && now === me ? null : el('p', { class: 'muted status-line', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
       hold ? el('div', { class: 'panel row-buttons', 'data-key': 'last-trick-hold' },
