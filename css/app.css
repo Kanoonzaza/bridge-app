@@ -80,9 +80,12 @@ body.has-update{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 .update button{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:8px 12px;font-weight:600}
 .opt{display:grid;grid-template-columns:48px minmax(0,1fr);gap:8px;padding:8px 2px}
 .opt .bid-l{font-weight:700}
+.opt-btn{width:100%;text-align:left;background:none;border:0;color:inherit;font:inherit;border-radius:8px;cursor:pointer}
+.opt-btn:hover{background:var(--accent-soft)}
+.opt-btn:active{background:var(--accent-soft)}
 .title-row{display:flex;justify-content:space-between;align-items:center;gap:8px;max-width:560px}
 .title-row h1{margin:0 0 8px}
-.theme-btn{margin-bottom:8px;padding:5px 10px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font-size:.82rem}
+.theme-btn{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;padding:5px 11px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font-size:.82rem}
 .field{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font:inherit}
 .join{display:flex;gap:8px;align-items:center}
 .field.code{flex:1;min-width:0;text-transform:uppercase;letter-spacing:.15em;font-weight:600}

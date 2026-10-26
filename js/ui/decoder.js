@@ -54,8 +54,10 @@ export function decoderView(root, store) {
     if (sideOf(turn) === 'EW') return el('p', { class: 'muted' }, `${WHO[turn]} to call: enter their call on the bidding box.`);
     const opts = nextOptions(a);
     const generic = opts.length ? [] : generalOptions(a);
+    // Each meaning is also a button: tapping it enters that call.
     const list = (os) => el('div', { class: 'lines' }, ...os.map((o) => el('div', { class: 'line' },
-      el('div', { class: 'opt' }, el('span', { class: 'bid-l' }, callLabel(o.call)), el('span', {}, o.meaning)))));
+      el('button', { type: 'button', class: 'opt opt-btn', 'data-key': `opt-${o.call}`, 'aria-label': `Bid ${callLabel(o.call)}: ${o.meaning}`, onclick: () => update({ calls: [...state.calls, o.call] }) },
+        el('span', { class: 'bid-l' }, callLabel(o.call)), el('span', {}, o.meaning)))));
     return el('div', {},
       el('div', { class: 'label' }, turn === 'S' ? 'What can I bid next?' : 'What can partner bid next?'),
       opts.length
@@ -73,15 +75,16 @@ export function decoderView(root, store) {
       segmented('Dealer', [['S', 'You'], ['W', 'Left opp'], ['N', 'Partner'], ['E', 'Right opp']], state.dealer, (v) => update({ dealer: v, calls: [] })),
       el('div', {},
         el('div', { class: 'label' }, 'Auction'),
-        rows.length ? el('div', { class: 'lines' }, ...rows.map(rowView)) : el('p', { class: 'muted' }, 'Enter the first call with the bidding box below.'),
+        rows.length ? el('div', { class: 'lines' }, ...rows.map(rowView)) : el('p', { class: 'muted' }, 'Enter the first call with the bidding box below, or tap one of the calls listed under it.'),
         state.calls.length
           ? el('div', { class: 'row-buttons' },
               el('button', { type: 'button', 'data-key': 'act-undo', class: 'pill', onclick: () => update({ calls: state.calls.slice(0, -1) }) }, 'Undo'),
               el('button', { type: 'button', 'data-key': 'act-clear', class: 'pill', onclick: () => update({ calls: [] }) }, 'Clear'))
           : null),
       chips.length ? el('div', {}, el('div', { class: 'label' }, 'Partner has shown'), el('div', { class: 'chips' }, ...chips.map((c) => el('span', { class: 'chip' }, c)))) : null,
-      nextSection(a),
-      isComplete(a) ? null : biddingBox(a, { onCall: (c) => update({ calls: [...state.calls, c] }), doubles: true }))));
+      // The box first, so entering an auction needs no scrolling; the meanings of the next calls follow it.
+      isComplete(a) ? null : biddingBox(a, { onCall: (c) => update({ calls: [...state.calls, c] }), doubles: true }),
+      nextSection(a))));
   }
 
   render();
