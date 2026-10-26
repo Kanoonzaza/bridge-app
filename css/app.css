@@ -502,34 +502,39 @@ button.bids-btn{padding:3px 8px;font-size:.66rem}
 @keyframes card-in-right{from{transform:translateX(46px) scale(.9);opacity:0}}
 @keyframes trick-out{to{transform:translate(var(--tx,0),var(--ty,0)) scale(.45);opacity:0}}
 @media (prefers-reduced-motion:reduce){.tmove{animation:none!important}}
-/* Play by play with double dummy (the review of a played board): four hands around the trick, a number under each card the player to move may play. */
-.pv-grid{display:grid;grid-template-columns:minmax(0,1fr) 84px minmax(0,1fr);grid-template-areas:"top top top" "left mid right" "bottom bottom bottom";gap:6px;align-items:center}
+/* Play by play with double dummy (the review of a played board): four hands around the trick, a number under each card the
+   player to move may play. On a phone the trick sits between North and the two side hands, so each side hand gets half the width. */
+.pv{container-type:inline-size;padding:12px 10px}
+.pv:focus{outline:none}
+.pv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"top top" "mid mid" "left right" "bottom bottom";gap:8px}
+@container (min-width:440px){.pv-grid{grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr);grid-template-areas:"top top top" "left mid right" "bottom bottom bottom";align-items:center}}
 .pv-top{grid-area:top}.pv-left{grid-area:left}.pv-mid{grid-area:mid}.pv-right{grid-area:right}.pv-bottom{grid-area:bottom}
 .pv-top,.pv-bottom{display:flex;justify-content:center}
-.pv-hand{padding:5px 6px;border-radius:8px;border:1px solid transparent;min-width:0}
-.pv-hand.to-play{border-color:var(--turn);background:color-mix(in srgb,var(--turn) 14%,transparent)}
-.pv-name{font-size:.75rem;font-weight:700;margin-bottom:2px;overflow-wrap:anywhere}
-.pv-name .muted{font-weight:400}
-.pv-row{display:flex;flex-wrap:wrap;align-items:flex-start;gap:0 2px;min-height:1.5em;line-height:1.3}
-.pv-pip{width:1.05em;flex:none;text-align:center}
+.pv-top .pv-hand,.pv-bottom .pv-hand{min-width:min(100%,220px)}
+.pv-hand{padding:7px 8px;border-radius:10px;border:1px solid var(--rule);min-width:0;height:100%}
+.pv-hand.to-play{border-color:var(--turn);box-shadow:0 0 0 1px var(--turn);background:color-mix(in srgb,var(--turn) 12%,var(--surface))}
+.pv-name{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 6px;font-size:.85rem;margin-bottom:6px}
+.pv-meta{font-size:.72rem;color:var(--muted)}
+.pv-row{display:grid;grid-template-columns:1.2em minmax(0,1fr);align-items:start;min-height:1.6em;margin:2px 0}
+.pv-pip{font-size:1rem;line-height:1.5}
+.pv-cards{display:flex;flex-wrap:wrap;gap:2px 4px;font-size:1rem;line-height:1.5}
 .pv-row.red .pv-pip,.pv-row.red .pv-r{color:var(--red)}
 .pv-void{color:var(--muted)}
-.pv-c{display:inline-flex;flex-direction:column;align-items:center;min-width:1.05em;border-radius:4px;font-weight:600;font-variant-numeric:tabular-nums}
-.pv-n{font-size:.68rem;font-weight:700;line-height:1.15;padding:0 2px;border-radius:3px;margin-bottom:2px}
+.pv-c{display:inline-flex;flex-direction:column;align-items:center;font-weight:600;font-variant-numeric:tabular-nums}
+.pv-c.scored{min-width:1.4em;padding:0 0 2px;border-radius:5px}
+.pv-n{font-size:.72rem;font-weight:700;line-height:1.3;min-width:1.4em;text-align:center;border-radius:4px}
 .pv-c.best .pv-n{background:var(--accent);color:var(--accent-ink)}
 .pv-c.worse .pv-n{background:var(--red);color:#fff}
-.pv-c.next{outline:2px solid var(--ink);outline-offset:1px}
-.pv-trick{background:var(--abox);border-radius:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:". top ." "left . right" ". bottom ." "f f f";align-items:center;justify-items:center;padding:4px 2px;min-height:130px}
+.pv-c.next{box-shadow:0 0 0 2px var(--ink)}
+.pv-trick{background:var(--abox);border-radius:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"h h h" ". top ." "left . right" ". bottom ." "f f f" "n n n";align-items:center;justify-items:center;padding:6px;max-width:200px;width:100%;margin:0 auto}
 .pv-trick .tspot{min-height:40px}
-.pv-trick .card.small{width:26px;height:38px;font-size:.78rem}
+.pv-trick .pv-lead{grid-area:3/1/4/4;font-size:.8rem;color:var(--muted)}
+.pv-trick .card.small{width:28px;height:38px;font-size:.8rem}
 .pv-trick.done .card{opacity:.55}
 .pv-trick.done .tspot.won .card{opacity:1;box-shadow:0 0 0 2px var(--turn)}
-.pv-count{grid-area:f;font-size:.66rem;color:var(--muted);text-align:center;line-height:1.2}
-.pv-where{margin-top:10px;font-size:.88rem}
-.pv-nav{display:flex;gap:6px;margin-top:6px}
-.pv-btn{flex:1;padding:8px 0;text-align:center;font-weight:700}
-.pv-btn:disabled{opacity:.35}
-.pv-says{margin:8px 0}
-.chip.pv-err{border:1px solid transparent;background:var(--warn-soft);color:var(--warn-ink);cursor:pointer;font:inherit;font-size:.82rem;font-weight:600}
-.chip.pv-err.on{border-color:var(--warn-ink)}
-.pv:focus{outline:none}
+.pv-count{grid-area:f;font-size:.72rem;color:var(--muted);text-align:center;margin-top:2px}
+.pv-head{grid-area:h;font-size:.72rem;font-weight:700;color:var(--muted)}
+.pv-nav{grid-area:n;display:flex;justify-content:space-between;width:100%;margin-top:4px}
+.pv-arrow{width:44px;height:36px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font-size:1.3rem;font-weight:700;line-height:1;padding:0}
+.pv-arrow:disabled{opacity:.3;cursor:default}
+button.pv-c{border:0;background:none;color:inherit;font:inherit;font-weight:600;padding:0 0 2px;cursor:pointer}

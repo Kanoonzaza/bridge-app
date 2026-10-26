@@ -10,7 +10,6 @@ import {
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
 import { legalCards, controller, splitPlay, playState } from '../table/play.js';
-import { stepVerdict } from '../table/ddplay.js';
 import { sharedPool, poolChoose } from '../table/pool.js';
 import { simulatedAdvice } from '../sim-advice.js';
 import { resultText } from '../report.js';
@@ -928,7 +927,7 @@ export function tableView(root, store) {
 
   // The play card by card, as on Bridge Base Online: all four hands, and under each card the player to move may play,
   // the tricks declarer ends with if that card is played (double dummy). It starts before the opening lead; the whole
-  // board is solved at once in a worker (well under a second) and the steps are kept with the cards that gave tricks away.
+  // board is solved at once in a worker (well under a second). The arrows sit in the middle of the table, under the trick.
   const pvKey = (t) => `${t.code}:${t.board.n}:${t.board.play ?? ''}`;
   function ensureCards(t, k) {
     const key = pvKey(t);
@@ -936,26 +935,14 @@ export function tableView(root, store) {
     ui.pv.set(key, undefined);
     for (const old of [...ui.pv.keys()].slice(0, -6)) ui.pv.delete(old);
     const b = t.board;
-    const hands = Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)]));
     let job;
     try {
-      job = sharedPool().one({ kind: 'cards', hands, contract: k, play: b.play ?? '' }, 60000);
+      job = sharedPool().one({ kind: 'cards', hands: Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)])), contract: k, play: b.play ?? '' }, 60000);
     } catch {
       job = Promise.resolve(null);
     }
-    job.then((steps) => {
-      if (!steps) { ui.pv.set(key, false); render(); return; }
-      const played = splitPlay(b.play);
-      const costly = played.flatMap((card, i) => {
-        const st = playState(hands, k, played.slice(0, i).join(' '));
-        const v = stepVerdict(st, steps[i], card);
-        return v?.lost > 0 ? [{ step: i, seat: st.next, card, lost: v.lost, trick: st.tricks.length + 1 }] : [];
-      });
-      ui.pv.set(key, { steps, costly });
-      render();
-    });
+    job.then((steps) => { ui.pv.set(key, steps ?? false); render(); });
   }
-  const cardText = (c) => `${SYMBOL[c[0]]}${rankLabel(c[1])}`;
   function playViewer(t, me) {
     const b = t.board;
     const end = playOf(b);
@@ -970,83 +957,62 @@ export function tableView(root, store) {
     const go = (n) => {
       ui.pvAt.set(key, Math.max(0, Math.min(last, n)));
       render();
-      // A button that has just been disabled (Start, End) drops the focus: keep it on the viewer so the arrow keys still work.
+      // An arrow that has just been disabled drops the focus: keep it on the viewer so the arrow keys still work.
       if (document.activeElement === document.body) document.querySelector('[data-key="play-viewer"]')?.focus({ preventScroll: true });
     };
     const st = playState(Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)])), k, played.slice(0, step).join(' '));
-    const scores = d?.steps?.[step] ?? null;
+    const scores = d?.[step] ?? null;
     const next = step < last ? played[step] : null; // the card that was really played here
-    const v = st.next ? stepVerdict(st, scores, next) : null;
     const forDecl = st.next && sideOf(st.next) === sideOf(st.declarer);
     const vals = scores ? Object.values(scores) : [];
     const best = vals.length ? (forDecl ? Math.max(...vals) : Math.min(...vals)) : null;
     const pos = around(me);
-    const name = (s) => `${COMPASS[s]}${me ? ` (${relative(me, s)})` : ''}`;
     const hand = (seat) => {
       const toPlay = st.next === seat;
       const role = seat === st.declarer ? 'declarer' : seat === st.dummy ? 'dummy' : '';
+      const meta = [me ? relative(me, seat) : '', role, `${evaluate(handOf(b, seat)).hcp} HCP`].filter(Boolean).join(' · ');
       return el('div', { class: `pv-hand${toPlay ? ' to-play' : ''}`, 'data-key': `pv-hand-${seat}` },
-        el('div', { class: 'pv-name' }, name(seat), el('span', { class: 'muted' }, `${role ? ` · ${role}` : ''} · ${evaluate(handOf(b, seat)).hcp} HCP`)),
+        el('div', { class: 'pv-name' }, el('b', {}, COMPASS[seat]), el('span', { class: 'pv-meta' }, meta)),
         ...suitOrder(st.trump).map((s) => {
           const list = st.remaining[seat].filter((c) => c[0] === s);
           return el('div', { class: `pv-row${s === 'H' || s === 'D' ? ' red' : ''}` },
             el('span', { class: 'pv-pip' }, SYMBOL[s]),
-            ...(list.length ? list.map((c) => {
+            el('div', { class: 'pv-cards' }, ...(list.length ? list.map((c) => {
               const n = toPlay && scores && c in scores ? scores[c] : null;
-              const cls = n === null ? '' : n === best ? ' best' : ' worse';
-              return el('span', { class: `pv-c${cls}${toPlay && c === next ? ' next' : ''}`, 'aria-label': n === null ? `${rankLabel(c[1])} ${SYMBOL[s]}` : `${rankLabel(c[1])} ${SYMBOL[s]}: declarer ${n}` },
-                el('span', { class: 'pv-r' }, rankLabel(c[1])), n === null ? null : el('span', { class: 'pv-n' }, String(n)));
-            }) : [el('span', { class: 'pv-void' }, '—')]));
+              const cls = `pv-c${n === null ? '' : ' scored'}${n === null ? '' : n === best ? ' best' : ' worse'}`;
+              const label = `${rankLabel(c[1])} ${SYMBOL[s]}${n === null ? '' : `: declarer ${n}`}`;
+              const face = [el('span', { class: 'pv-r' }, rankLabel(c[1])), n === null ? null : el('span', { class: 'pv-n' }, String(n))];
+              // The card that was played is ringed; tapping it plays it.
+              return toPlay && c === next
+                ? el('button', { type: 'button', class: `${cls} next`, 'data-key': 'pv-play', 'aria-label': `${label}, played: tap for the next card`, onclick: () => go(step + 1) }, ...face)
+                : el('span', { class: cls, 'aria-label': label }, ...face);
+            }) : [el('span', { class: 'pv-void' }, '—')])));
         }));
     };
-    // The middle: the trick being played at this step (or the trick just won, shaded, until the next lead).
+    // The middle: the trick being played at this step (or the trick just won, shaded, until the next lead), and the arrows.
     const won = st.current.length ? null : st.tricks.at(-1) ?? null;
     const trick = st.current.length ? st.current : won?.cards ?? [];
+    const arrow = (k2, label, aria, to, off) => el('button', { type: 'button', class: 'pv-arrow', 'data-key': k2, 'aria-label': aria, disabled: off, onclick: () => go(to) }, label);
     const middle = el('div', { class: `pv-trick${won ? ' done' : ''}` },
+      el('div', { class: 'pv-head' }, !st.next ? 'End' : `Trick ${st.tricks.length + 1}`),
       ...['top', 'left', 'right', 'bottom'].map((w) => {
         const p = trick.find((x) => x.seat === pos[w]);
         return el('div', { class: `tspot t-${w}${won && won.winner === pos[w] ? ' won' : ''}` }, p ? playedCard(p.card) : null);
       }),
-      el('div', { class: 'pv-count' }, `Declarer ${st.declarerTricks} · Defence ${st.defenderTricks}`));
-    const where = !st.next ? (st.complete ? 'End of the play' : 'Where the play stopped')
-      : step === 0 ? 'Opening lead'
-      : `Trick ${st.tricks.length + 1}, ${st.current.length ? `card ${st.current.length + 1}` : 'lead'}`;
-    let says;
-    if (d === undefined) says = 'Solving every card…';
-    else if (!d) says = 'The double-dummy solver is not available on this device.';
-    else if (!st.next) says = `Declarer took ${st.declarerTricks} trick${st.declarerTricks === 1 ? '' : 's'}.`;
-    else {
-      says = `${COMPASS[st.next]} to ${st.current.length ? 'play' : 'lead'}: with the best card declarer ends with ${best}.`;
-      if (v) says += v.lost > 0 ? ` ${cardText(next)} was played and cost ${v.lost} trick${v.lost === 1 ? '' : 's'} (declarer ${v.got}).` : ` ${cardText(next)} was played: no trick lost.`;
-      else if (step === last) says += Number.isInteger(b.claim) ? ` The play ended here with a claim: declarer ${st.declarerTricks + b.claim} in all.` : ' The play ended here.';
-    }
-    const btn = (k2, label, aria, to, off) => el('button', { type: 'button', class: 'pill pv-btn', 'data-key': k2, 'aria-label': aria, disabled: off, onclick: () => go(to) }, label);
-    const trickStart = (n) => Math.max(0, Math.min(last, n * 4)); // the step at the lead to trick n + 1
-    const tNow = Math.floor(step / 4);
+      trick.length ? null : el('div', { class: 'pv-lead' }, st.next ? `${COMPASS[st.next]} to lead` : ''),
+      el('div', { class: 'pv-count' }, `Declarer ${st.declarerTricks} · Defence ${st.defenderTricks}`),
+      el('div', { class: 'pv-nav' },
+        arrow('pv-prev', '‹', 'Previous card', step - 1, step === 0),
+        arrow('pv-next', '›', 'Next card', step + 1, step === last)));
     return el('div', { class: 'panel pv', 'data-key': 'play-viewer', tabindex: '-1', 'aria-label': 'Play by play',
       onkeydown: (e) => { if (e.key === 'ArrowRight') { e.preventDefault(); go(step + 1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); go(step - 1); } } },
-    el('div', { class: 'label' }, 'Play by play · double dummy'),
+    el('div', { class: 'label' }, `Play by play · double dummy${d === undefined ? ' · solving…' : d ? '' : ' · not available on this device'}`),
     el('div', { class: 'pv-grid' },
       el('div', { class: 'pv-top' }, hand(pos.top)),
       el('div', { class: 'pv-left' }, hand(pos.left)),
       el('div', { class: 'pv-mid' }, middle),
       el('div', { class: 'pv-right' }, hand(pos.right)),
-      el('div', { class: 'pv-bottom' }, hand(pos.bottom))),
-    el('div', { class: 'pv-where', 'aria-live': 'polite' }, el('b', {}, where), ` · step ${step} of ${last}`),
-    el('div', { class: 'pv-nav' },
-      btn('pv-start', 'Start', 'Back to the opening lead', 0, step === 0),
-      btn('pv-prev-trick', '«', 'Previous trick', step % 4 ? trickStart(tNow) : trickStart(tNow - 1), step === 0),
-      btn('pv-prev', '‹', 'Previous card', step - 1, step === 0),
-      btn('pv-next', '›', 'Next card', step + 1, step === last),
-      btn('pv-next-trick', '»', 'Next trick', trickStart(tNow + 1), step === last),
-      btn('pv-end', 'End', 'To the end of the play', last, step === last)),
-    el('p', { class: 'pv-says' }, says),
-    d?.costly?.length ? el('div', {},
-      el('div', { class: 'label' }, 'Cards that gave tricks away (tap to see)'),
-      el('div', { class: 'chips' }, ...d.costly.map((x) => el('button', { type: 'button', class: `chip pv-err${x.step === step ? ' on' : ''}`, 'data-key': `pv-err-${x.step}`, onclick: () => go(x.step) },
-        `Trick ${x.trick}: ${COMPASS[x.seat]} ${cardText(x.card)} −${x.lost}`))))
-      : d ? el('p', { class: 'muted small' }, 'No card in the play gave a trick away, double dummy.') : null,
-    el('p', { class: 'muted small' }, 'Under each card the player to move may play: the tricks declarer ends with if it is played. Green: the best cards; red: cards that give tricks away; ringed: the card played.'));
+      el('div', { class: 'pv-bottom' }, hand(pos.bottom))));
   }
 
   // past: the previous board, looked at again from this phone only (no Next board / Bid it again).
