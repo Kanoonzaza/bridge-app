@@ -493,3 +493,12 @@ button.bids-btn{padding:3px 8px;font-size:.66rem}
 .theme-menu .label{margin:0}
 .theme-menu .seg{margin-top:4px}
 .style-swatch{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.2)}
+
+/* ---- Cards moving on the table: in from the player's side; a finished trick slides to its winner ---- */
+.tmove{display:inline-block;will-change:transform,opacity}
+@keyframes card-in-top{from{transform:translateY(-46px) scale(.9);opacity:0}}
+@keyframes card-in-bottom{from{transform:translateY(46px) scale(.9);opacity:0}}
+@keyframes card-in-left{from{transform:translateX(-46px) scale(.9);opacity:0}}
+@keyframes card-in-right{from{transform:translateX(46px) scale(.9);opacity:0}}
+@keyframes trick-out{to{transform:translate(var(--tx,0),var(--ty,0)) scale(.45);opacity:0}}
+@media (prefers-reduced-motion:reduce){.tmove{animation:none!important}}

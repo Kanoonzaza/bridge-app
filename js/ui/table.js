@@ -9,7 +9,7 @@ import {
   setOpponents, sit, leave, setSeatKind, PROTO, prank, hostOf, kick, allowBack, moveSeat, takeOver, giveBack, keepRobot, choicePending, autoDeclare, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
-import { legalCards, controller } from '../table/play.js';
+import { legalCards, controller, splitPlay } from '../table/play.js';
 import { sharedPool, poolChoose } from '../table/pool.js';
 import { simulatedAdvice } from '../sim-advice.js';
 import { resultText } from '../report.js';
@@ -228,6 +228,12 @@ export function tableView(root, store) {
     return sim?.sim?.changed ? sim.call : null;
   }
 
+  // A robot waits a little before acting; after a finished trick it waits until the trick has slid off the table.
+  function robotPause(t) {
+    const st = phase(t) === 'play' ? playOf(t.board) : null;
+    return st && st.tricks.length && !st.current.length && !reduceMotion() ? TRICK_STAY + TRICK_OUT + 100 : 600;
+  }
+
   function driveRobots() {
     const t = ui.table;
     if (!t || isOver(t) || choicePending(t)) return;
@@ -248,7 +254,7 @@ export function tableView(root, store) {
       ui.robotKey = '';
       // Still this robot's turn (the write failed): try again shortly.
       if (failed) setTimeout(driveRobots, 2000);
-    }, 600);
+    }, robotPause(t));
   }
 
   async function start(opponents) {
@@ -517,19 +523,57 @@ export function tableView(root, store) {
     const old = back ? st.tricks[n - back] : null;
     const last = old ?? st.tricks.at(-1);
     const shown = old ? old.cards : st.current.length ? st.current : last ? last.cards : [];
-    const at = Object.fromEntries(shown.map((p) => [p.seat, p.card]));
+    // Where each shown card sits in the whole play (to know when it arrived).
+    const first = old ? (n - back) * 4 : st.current.length ? n * 4 : (n - 1) * 4;
+    const at = Object.fromEntries(shown.map((p, i) => [p.seat, { card: p.card, idx: first + i }]));
     const showing = old || !st.current.length ? last : null; // a finished trick is on show
+    // Motion: a card slides in from its player's side; a finished trick stays a moment, then slides to the winner.
+    const live = !old && !reduceMotion();
+    const now = Date.now();
+    const seen = cardTimes(t, now);
+    const collecting = live && showing && !st.complete ? (() => {
+      const done = seen.get(n * 4 - 1) ?? 0;
+      return { delay: TRICK_STAY - (now - done), to: Object.keys(pos).find((w) => pos[w] === showing.winner) };
+    })() : null;
     const spot = (where) => {
       const c = at[pos[where]];
-      return el('div', { class: `tspot t-${where}${showing && c && showing.winner === pos[where] ? ' won' : ''}` }, c ? playedCard(c) : null);
+      // Negative delays keep each animation where it was when the table is drawn again.
+      const anim = [];
+      if (c && live) {
+        const age = now - (seen.get(c.idx) ?? 0);
+        if (age < CARD_IN) anim.push(`card-in-${where} ${CARD_IN}ms cubic-bezier(.2,.8,.2,1) -${age}ms both`);
+        if (collecting) anim.push(`trick-out ${TRICK_OUT}ms ease-in ${collecting.delay}ms forwards`);
+      }
+      // Every card of the finished trick heads for the winner's side of the table.
+      const v = { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] };
+      const go = collecting ? [0, 1].map((k) => `${Math.round((v[collecting.to][k] * 1.6 - v[where][k]) * 34)}px`) : null;
+      const style = anim.length ? `animation:${anim.join(',')};${go ? `--tx:${go[0]};--ty:${go[1]}` : ''}` : '';
+      return el('div', { class: `tspot t-${where}${showing && c && showing.winner === pos[where] ? ' won' : ''}` },
+        c ? el('span', { class: 'tmove', style }, playedCard(c.card)) : null);
     };
     const k = st.contract;
-    const foot = old ? `${relative(me, old.winner)} won it.`
-      : st.current.length || !last ? `Tricks: declarer ${st.declarerTricks}, defence ${st.defenderTricks}` : `${relative(me, last.winner)} won trick ${n} · declarer ${st.declarerTricks}, defence ${st.defenderTricks}`;
+    // The corners already count the tricks, so the footer only says who won the trick on show.
+    const foot = old ? `${relative(me, old.winner)} won it.` : !st.current.length && last ? `${relative(me, last.winner)} won trick ${n}` : '';
     return el('div', { class: `tbox${st.current.length && !old ? '' : ' last'}`, 'aria-label': old ? `Trick ${n - back + 1} of ${n}` : 'Cards played to this trick' },
       el('div', { class: 'thead' }, old ? `${back === 1 ? 'Last trick' : 'Earlier trick'} (${n - back + 1} of ${n})` : `${callLabel(k.bid)}${k.doubled ? ` ${k.doubled === 'XX' ? 'XX' : 'X'}` : ''} by ${relative(me, k.declarer)}`),
       spot('top'), spot('left'), spot('right'), spot('bottom'),
-      el('div', { class: 'tfoot' }, foot));
+      el('div', { class: 'tfoot' }, foot || '\u00a0')); // kept when empty, so the box does not jump
+  }
+  // When this phone first showed each card of the board (by its place in the play). Cards already played when the
+  // board was opened count as old, so nothing replays on a reload.
+  const CARD_IN = 320;
+  const TRICK_STAY = 1000;
+  const TRICK_OUT = 380;
+  const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function cardTimes(t, now) {
+    const key = `${t.code}:${t.board.n}`;
+    const count = splitPlay(t.board.play).length;
+    if (ui.cardKey !== key || !ui.cardSeen || count < ui.cardSeen.size) {
+      ui.cardKey = key;
+      ui.cardSeen = new Map(Array.from({ length: count }, (_, i) => [i, 0]));
+    }
+    for (let i = ui.cardSeen.size; i < count; i++) ui.cardSeen.set(i, now);
+    return ui.cardSeen;
   }
   // How many tricks back the board number has taken the table's centre (0 once the play moves on).
   function reviewBack(t, st) {
