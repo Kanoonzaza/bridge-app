@@ -896,11 +896,12 @@ export function tableView(root, store) {
         el('div', { class: 'eyebrow' }, 'Board over'),
         el('div', { class: 'big' }, kText(k)),
         k ? el('p', { 'data-key': 'result' }, el('b', {}, 'Result: '), resultText(b, (s) => relative(me, s))) : null,
-        el('p', { class: 'muted' }, `The Advisor would reach: ${kText(sysK)} (${sys.calls.map(callLabel).join(' ')}).`)),
+        el('p', { class: 'muted' }, `The Advisor would reach: ${kText(sysK)} (${sys.calls.map(callLabel).join(' ')}).`),
+        past ? null : el('div', { class: 'row-buttons' },
+          el('button', { type: 'button', class: 'pill on', 'data-key': 'next-board', onclick: () => act((cur) => cur && nextBoard(cur, rand)) }, 'Next board'),
+          el('button', { type: 'button', class: 'pill', 'data-key': 'rebid', onclick: () => act((cur) => cur && rebid(cur)) }, 'Bid it again'))),
       el('div', { class: 'compass' }, ...['N', 'W', 'E', 'S'].map((s) => el('div', { class: `seat-${s}` }, handView(handOf(b, s), `${COMPASS[s]} (${relative(me, s)})`)))),
       ddPanel(t, me, k),
-      playRecord(t.board),
-      saveBoardButton(t, me),
       el('div', {},
         el('div', { class: 'label' }, 'Call by call'),
         rows.some((r) => r.skipped) ? el('p', { class: 'muted' }, 'Only each player\'s first difference from the Advisor is shown: the calls after it depend on it.') : null,
@@ -913,22 +914,29 @@ export function tableView(root, store) {
           r.differs && r.misfit?.length ? el('p', {}, el('b', {}, `Why ${callLabel(r.call)} does not fit your hand: `), `${r.misfit.join('; ')}.`) : null,
           r.differs && r.advisor.close ? el('p', { class: 'close' }, el('b', {}, 'Close call: '), r.advisor.close) : null,
           r.entry || r.notes ? el('a', { href: `${NOTES_URL}#${r.entry?.notes ?? r.notes}` }, 'Read more in the system notes') : null)))),
-      past ? null : el('div', { class: 'row-buttons' },
-        el('button', { type: 'button', class: 'pill on', 'data-key': 'next-board', onclick: () => act((cur) => cur && nextBoard(cur, rand)) }, 'Next board'),
-        el('button', { type: 'button', class: 'pill', 'data-key': 'rebid', onclick: () => act((cur) => cur && rebid(cur)) }, 'Bid it again')),
-      copyButton('Copy this board', () => boardReport(t, me, ui.dd.get(ddKey(t))), 'copy-board'));
+      playRecord(t.board),
+      el('div', { class: 'row-buttons' }, saveBoardButton(t, me), copyButton('Copy this board', () => boardReport(t, me, ui.dd.get(ddKey(t))), 'copy-board')));
   }
 
-  // The play of a board, trick by trick: who played what, and who won.
+  // The play of a board, trick by trick: one row a trick, a column a seat; the lead is marked and the winner highlighted.
   function playRecord(b) {
     const st = playOf(b);
     if (!st || !b.play) return null;
-    const line = (cards, winner) => el('div', { class: 'trick-line' }, ...cards.flatMap((p) => [el('span', { class: `tseat${p.seat === winner ? ' won' : ''}` }, p.seat), el('span', { class: `tcard${p.seat === winner ? ' won' : ''}` }, `${SYMBOL[p.card[0]]}${rankLabel(p.card[1])}`)]));
-    return el('details', { class: 'manage', 'data-key': 'play-record', open: true },
+    const seats = ['N', 'E', 'S', 'W'];
+    const cell = (cards, winner, s) => {
+      const p = cards.find((x) => x.seat === s);
+      if (!p) return el('td', {});
+      const red = p.card[0] === 'H' || p.card[0] === 'D';
+      return el('td', { class: `${p.seat === winner ? 'won' : ''}${cards[0].seat === s ? ' lead' : ''}` },
+        el('span', { class: red ? 'red' : '' }, SYMBOL[p.card[0]]), rankLabel(p.card[1]));
+    };
+    const rows = [...st.tricks.map((tr, i) => [i + 1, tr.cards, tr.winner]), ...(st.current.length ? [[st.tricks.length + 1, st.current, null]] : [])];
+    return el('details', { class: 'manage', 'data-key': 'play-record' },
       el('summary', {}, `The play (${st.tricks.length} trick${st.tricks.length === 1 ? '' : 's'}${st.trump ? `, trumps ${SYMBOL[st.trump]}` : ', notrump'})`),
-      el('div', { class: 'lines' },
-        ...st.tricks.map((tr, i) => el('div', { class: 'line' }, el('div', { class: 'row' }, el('span', { class: 'who' }, String(i + 1)), line(tr.cards, tr.winner), el('span', { class: 'muted' }, `${tr.winner} wins`)))),
-        ...(st.current.length ? [el('div', { class: 'line' }, el('div', { class: 'row' }, el('span', { class: 'who' }, String(st.tricks.length + 1)), line(st.current, null)))] : [])));
+      el('table', { class: 'play-table' },
+        el('thead', {}, el('tr', {}, el('th', {}, '#'), ...seats.map((s) => el('th', {}, s)))),
+        el('tbody', {}, ...rows.map(([n, cards, winner]) => el('tr', {}, el('th', {}, String(n)), ...seats.map((s) => cell(cards, winner, s)))))),
+      el('p', { class: 'muted small' }, 'Highlighted: the card that won the trick. Underlined: the lead.'));
   }
 
   // Saving a finished board on this phone, to look at again later (also after the table is gone).
@@ -936,7 +944,7 @@ export function tableView(root, store) {
   function saveBoardButton(t, me) {
     const id = boardId(t);
     const have = saved.boards.some((x) => x.id === id);
-    return el('div', { class: 'row-buttons' },
+    return (
       el('button', { type: 'button', class: `pill${have ? ' on' : ''}`, 'data-key': 'save-board', 'aria-pressed': String(have),
         onclick: () => {
           if (have) saved.boards = saved.boards.filter((x) => x.id !== id);
@@ -1034,12 +1042,12 @@ export function tableView(root, store) {
       prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = prev.n; render(); } }, `← Earlier boards (${Math.min(b.n - 1, Object.keys(t.history).length)})`)) : null,
       felt(t, me),
       requestNote(t, 'claim'),
+      ph === 'over' || hold ? null : me && now === me ? null : el('p', { class: 'muted status-line', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
       hold ? el('div', { class: 'panel row-buttons', 'data-key': 'last-trick-hold' },
         el('span', {}, 'The last trick. The result comes up in a moment.'),
         el('button', { type: 'button', class: 'pill', 'data-key': 'show-result', onclick: () => { clearTimeout(ui.holdTimer); ui.heldDone = ui.holdKey; render(); } }, 'Show the result now'))
         : st ? playArea(t, me, st) : chatPanel(t, me),
-      st ? chatPanel(t, me) : me ? myHand(handOf(b, me)) : null,
-      ph === 'over' || hold ? null : me && now === me ? null : el('p', { class: 'muted', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
+      st ? chatPanel(t, me) : me && ph !== 'over' ? myHand(handOf(b, me)) : null,
       st && me && !hold ? claimControls(t, me) : null,
       !hold && (undoButton(t) || (st && me)) ? el('div', { class: 'row-buttons' }, undoButton(t),
         st && me ? el('button', { type: 'button', class: 'pill', 'data-key': 'skip-play', onclick: () => act((cur) => cur && skipPlay(cur)) }, 'Skip the play') : null) : null,

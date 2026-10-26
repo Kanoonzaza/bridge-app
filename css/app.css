@@ -85,7 +85,8 @@ body.has-update{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 .theme-btn{margin-bottom:8px;padding:5px 10px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font-size:.82rem}
 .field{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font:inherit}
 .join{display:flex;gap:8px;align-items:center}
-.field.code{max-width:9em;text-transform:uppercase;letter-spacing:.15em;font-weight:600}
+.field.code{flex:1;min-width:0;text-transform:uppercase;letter-spacing:.15em;font-weight:600}
+.field.code::placeholder{text-transform:none;letter-spacing:normal;font-weight:400}
 .table-head{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;flex-wrap:wrap}
 .code-big{font-size:1.4rem;font-weight:700;letter-spacing:.12em}
 .seats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -280,6 +281,15 @@ button.bnum.tap:focus-visible{outline:2px solid var(--turn);outline-offset:2px}
 .tseat.won{color:var(--accent)}
 .tcard{font-weight:700}
 .tcard.won{text-decoration:underline}
+.play-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.95rem}
+.play-table th,.play-table td{padding:4px 2px;text-align:center;border-bottom:1px solid var(--rule)}
+.play-table thead th{color:var(--muted);font-size:.8rem;font-weight:700}
+.play-table tbody th{color:var(--muted);font-weight:600;font-size:.8rem;width:2.2em}
+.play-table td{font-weight:700}
+.play-table td.won{background:var(--accent-soft);border-radius:6px}
+.play-table td.lead{text-decoration:underline;text-underline-offset:3px}
+.muted.small{font-size:.8rem;margin:6px 0 0}
+.status-line{margin:-4px 0 0;font-size:.9rem}
 button.amini-btn{appearance:none;background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;text-align:inherit}
 button.amini-btn:focus-visible{outline:2px solid var(--turn);outline-offset:2px;border-radius:6px}
 .auction-big .abox{width:100%;color:var(--ink)}
@@ -353,3 +363,5 @@ button.bids-btn{padding:3px 8px;font-size:.66rem}
 @keyframes fx-zoom{0%{transform:scale(.2) rotate(-20deg);opacity:0}30%{opacity:.95}100%{transform:scale(7) rotate(25deg);opacity:0}}
 @keyframes fx-ricochet{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(var(--bx),calc(var(--by) * -1)) rotate(calc(var(--r) / 2))}100%{transform:translate(calc(var(--bx) * -1),var(--by)) rotate(var(--r))}}
 .tbox.last .tspot.won .card{opacity:1;box-shadow:0 0 0 2px var(--turn)}
+.row-buttons > .copy > .row-buttons{margin-top:0}
+.row-buttons:has(> .copy){align-items:flex-start}
