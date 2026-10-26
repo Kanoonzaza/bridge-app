@@ -1,4 +1,4 @@
-const CACHE = 'bc-c5b76edd';
+const CACHE = 'bc-54985500';
 const FILES = [
   './',
   'index.html',
@@ -50,6 +50,7 @@ const FILES = [
   'js/table/dd.js',
   'js/table/dd-worker.js',
   'js/table/ddreview.js',
+  'js/table/ddplay.js',
   'js/table/ddtext.js',
   'js/table/pool.js',
   'js/sim-bid.js',

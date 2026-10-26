@@ -5,6 +5,8 @@
 //   -> { id, part: { n, sums } }: IMPs gained by each candidate call on sampled deals.
 // Messages in (kind 'review'): { id, kind: 'review', hands, dealer, vul }
 //   -> { id, part }: the double-dummy table and par of a finished board (see ddreview.js).
+// Messages in (kind 'cards'): { id, kind: 'cards', hands, contract, play }
+//   -> { id, part: { [step]: { [card]: declarer's tricks } } }: every playable card scored at every point of the play (see ddplay.js).
 // Kind 'warm' loads the solver (and the bidding rules) ahead of time. part is null if a job failed.
 import { loadDds, Dds } from '../vendor/dds/api.js';
 import { playState } from './play.js';
@@ -24,6 +26,11 @@ self.onmessage = async (e) => {
     if (kind === 'review') {
       const { ddReview } = await import('./ddreview.js');
       self.postMessage({ id, part: ddReview(dds, { hands, dealer: e.data.dealer, vul: e.data.vul }) });
+      return;
+    }
+    if (kind === 'cards') {
+      const { ddShare } = await import('./ddplay.js');
+      self.postMessage({ id, part: ddShare(dds, { hands, contract, play }) });
       return;
     }
     if (kind === 'claim') {
