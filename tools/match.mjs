@@ -2,7 +2,10 @@
 // On every deal the NEW version (this checkout) sits North-South at table 1 and East-West at table 2, with the BASE
 // version (another checkout, e.g. `git worktree add ../base main`) on the other side of each table. The new team's
 // result is table 1 minus table 2 in IMPs, so luck of the deal cancels out and only the difference in bidding is left.
-// Usage: node tools/match.mjs <base-checkout> [deals=2000] [seed=1] [procs=4]
+// Usage: node tools/match.mjs <base-checkout> [deals=2000] [seed=1] [procs=4] [--card <card>] [--base-card <card>]
+//   --card: the card the new version bids (default: the house card); --base-card: the same for the base version
+//   (the base checkout must have js/pool/). Compare two cards of this checkout with: node tools/match.mjs . --card sayc
+//   Cards: see tools/card-arg.mjs.
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -10,6 +13,7 @@ import { SEATS, addCall, isComplete, nextSeat, sideOf } from '../js/auction.js';
 import { deal } from './coverage.mjs';
 import { packHand } from '../js/table/model.js';
 import { nsScore, imps } from './ddcheck.mjs';
+import { cardFromArg, takeFlag } from './card-arg.mjs';
 
 const VULS = ['none', 'NS', 'EW', 'both'];
 
@@ -35,11 +39,20 @@ function bid(hands, dealer, vul, ns, ew) {
   return a;
 }
 
-async function play({ base, deals, seed, start, step }) {
+async function play({ base, deals, seed, start, step, card, baseCard }) {
   const { loadDds, Dds } = await import('../js/vendor/dds/api.js');
   const dds = new Dds(await loadDds());
-  const mine = (await import('../js/engine.js')).advise;
-  const theirs = (await import(pathToFileURL(resolve(base, 'js/engine.js')).href)).advise;
+  const myAdvise = (await import('../js/engine.js')).advise;
+  const myBook = card ? (await import('../js/pool/system.js')).systemFor(cardFromArg(card)) : undefined;
+  const mine = (h, a) => myAdvise(h, a, myBook);
+  const theirAdvise = (await import(pathToFileURL(resolve(base, 'js/engine.js')).href)).advise;
+  let theirBook;
+  if (baseCard) {
+    const { systemFor } = await import(pathToFileURL(resolve(base, 'js/pool/system.js')).href);
+    const { normalizeCard } = await import(pathToFileURL(resolve(base, 'js/pool/card.js')).href);
+    theirBook = systemFor(normalizeCard(cardFromArg(baseCard)));
+  }
+  const theirs = (h, a) => theirAdvise(h, a, theirBook);
   const r = rng(seed);
   const out = { boards: 0, differ: 0, imps: 0, won: 0, lost: 0, sumSq: 0, rows: [] };
   for (let i = 0; i < deals; i++) {
@@ -79,19 +92,23 @@ export function report(parts, base) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [, , base, d = '2000', s = '1', p = '4'] = process.argv;
-  if (!base) { console.error('Usage: node tools/match.mjs <base-checkout> [deals] [seed] [procs]'); process.exit(1); }
+  const argv = process.argv.slice(2);
+  const card = takeFlag(argv, '--card');
+  const baseCard = takeFlag(argv, '--base-card');
+  const [base, d = '2000', s = '1', p = '4'] = argv;
+  if (!base) { console.error('Usage: node tools/match.mjs <base-checkout> [deals] [seed] [procs] [--card <card>] [--base-card <card>]'); process.exit(1); }
   if (process.env.MATCH_WORKER) {
-    process.stdout.write(JSON.stringify(await play({ base, deals: Number(d), seed: Number(s), start: Number(process.env.MATCH_WORKER) - 1, step: Number(p) })));
+    process.stdout.write(JSON.stringify(await play({ base, deals: Number(d), seed: Number(s), start: Number(process.env.MATCH_WORKER) - 1, step: Number(p), card, baseCard })));
   } else {
     const procs = Number(p);
     const parts = await Promise.all(Array.from({ length: procs }, (_, k) => new Promise((res, rej) => {
-      const c = spawn(process.execPath, [process.argv[1], base, d, s, p], { env: { ...process.env, MATCH_WORKER: String(k + 1) } });
+      const flags = [...(card ? ['--card', card] : []), ...(baseCard ? ['--base-card', baseCard] : [])];
+      const c = spawn(process.execPath, [process.argv[1], base, d, s, p, ...flags], { env: { ...process.env, MATCH_WORKER: String(k + 1) } });
       let buf = '';
       c.stdout.on('data', (x) => { buf += x; });
       c.stderr.on('data', (x) => process.stderr.write(x));
       c.on('close', (code) => (code === 0 ? res(JSON.parse(buf)) : rej(new Error(`worker ${k + 1} exited ${code}`))));
     })));
-    console.log(report(parts, base).text);
+    console.log(report(parts, `${base}${baseCard ? ` (${baseCard})` : ''}${card ? `, new side playing ${card}` : ''}`).text);
   }
 }

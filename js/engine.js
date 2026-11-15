@@ -9,11 +9,16 @@
 // Patterns: an entry's `after` lists the calls so far, opponents' calls in brackets. Placeholders bind to
 // strains: M = a major, m = a minor, x = any suit, O = the other major, n = the other minor (e.g. ['1M', '2M']).
 // A `tail` entry matches the end of any auction (e.g. answers to 4NT once a suit is agreed).
+//
+// Books: every function below that takes rules accepts one rule list (default ALL, the house card) or a book
+// { NS, EW } with one list per side (js/pool/system.js). Each call is read, and each hand bid, with the rules
+// of the side that makes the call.
 import { SYMBOL, SUITS, evaluate } from './cards.js';
 import { legalCalls, seatAt, situationAt, partnerOf, isComplete, sideOf } from './auction.js';
 import ALL from './system/index.js';
 import { describeCall } from './general.js';
 import { fallback } from './fallback.js';
+import { sysOf, isSystem, forSeat } from './pool/system.js';
 
 const PLACE = { M: ['H', 'S'], m: ['C', 'D'], x: ['C', 'D', 'H', 'S'] };
 
@@ -148,10 +153,10 @@ function candidatesFor(situation, entries, onlyPickable) {
 }
 
 // With { general: true }, calls no rule covers get a general meaning (marked `general`) from the notes' general rules.
-export function explain(auction, entries = ALL, { general = false } = {}) {
+export function explain(auction, book = ALL, { general = false } = {}) {
   const rows = [];
   auction.calls.forEach((call, i) => {
-    const c = candidates(situationAt(auction, i), entries).find((x) => x.call === call);
+    const c = candidates(situationAt(auction, i), forSeat(book, seatAt(auction, i))).find((x) => x.call === call);
     const row = {
       i,
       seat: seatAt(auction, i),
@@ -160,7 +165,7 @@ export function explain(auction, entries = ALL, { general = false } = {}) {
       shows: c ? resolveShows(c.entry.shows, c.env) : null,
       entry: c ? c.entry : null,
     };
-    const g = !c && general ? describeCall(auction, i, rows) : null;
+    const g = !c && general ? describeCall(auction, i, rows, sysOf(forSeat(book, seatAt(auction, i)))) : null;
     rows.push(g ? { ...row, meaning: g.meaning, shows: g.shows, notes: g.notes, general: true } : row);
   });
   return rows;
@@ -202,8 +207,9 @@ export function describeShown(acc) {
   return out;
 }
 
-export function nextOptions(auction, entries = ALL) {
+export function nextOptions(auction, book = ALL) {
   if (isComplete(auction)) return [];
+  const entries = forSeat(book, seatAt(auction, auction.calls.length));
   const byCall = new Map(candidates(situationAt(auction, auction.calls.length), entries).map((c) => [c.call, c]));
   return legalCalls(auction)
     .filter((call) => byCall.has(call))
@@ -215,10 +221,10 @@ export function nextOptions(auction, entries = ALL) {
 
 // With no rule for the next call: the general meaning of the natural candidates
 // (double, our suits, their suit, notrump, game), cheapest first.
-export function generalOptions(auction, entries = ALL) {
+export function generalOptions(auction, book = ALL) {
   if (isComplete(auction)) return [];
   const legal = legalCalls(auction).filter((c) => c !== 'P');
-  const rows = explain(auction, entries, { general: true });
+  const rows = explain(auction, book, { general: true });
   const side = sideOf(seatAt(auction, auction.calls.length));
   const strains = new Set(rows.filter((r) => /^[1-7][CDHSN]$/.test(r.call)).map((r) => r.call[1]));
   const picks = new Set(legal.filter((c) => c === 'X' || c === 'XX'));
@@ -233,24 +239,26 @@ export function generalOptions(auction, entries = ALL) {
   }
   if (legal.includes('3N')) picks.add('3N');
   return legal.filter((c) => picks.has(c)).map((call) => {
-    const row = explain({ ...auction, calls: [...auction.calls, call] }, entries, { general: true }).at(-1);
+    const row = explain({ ...auction, calls: [...auction.calls, call] }, book, { general: true }).at(-1);
     return { call, meaning: row.meaning, notes: row.entry?.notes ?? row.notes, general: !row.entry };
   }).filter((o) => o.meaning);
 }
 
-function prepare(hand, auction, entries) {
+function prepare(hand, auction, book) {
   const s = situationAt(auction, auction.calls.length);
+  const entries = forSeat(book, s.actor);
   const legal = new Set(legalCalls(auction));
-  const rows = explain(auction, entries);
-  const base = { ...s, partner: summarize(rows, partnerOf(s.actor)), me: summarize(rows, s.actor) };
+  const rows = explain(auction, book);
+  // sys: the card's answers, for decision functions that mix conventions (st.sys.is('passed-2c', 'drury')).
+  const base = { ...s, partner: summarize(rows, partnerOf(s.actor)), me: summarize(rows, s.actor), sys: sysOf(entries) };
   const list = candidates(s, entries, true)
     .filter((c) => legal.has(c.call))
     .sort((a, b) => (a.entry.priority ?? 50) - (b.entry.priority ?? 50));
-  return { e: evaluate(hand), base, list };
+  return { e: evaluate(hand), base, list, entries };
 }
 
-export function advise(hand, auction, entries = ALL) {
-  const { e, base, list } = prepare(hand, auction, entries);
+export function advise(hand, auction, book = ALL) {
+  const { e, base, list, entries } = prepare(hand, auction, book);
   for (const c of list) {
     const st = { ...base, bind: c.env };
     if (!c.entry.pick(e, st)) continue;
@@ -261,12 +269,27 @@ export function advise(hand, auction, entries = ALL) {
       plan: c.entry.plan ? c.entry.plan(e, st) : null,
       close: c.entry.close ? c.entry.close(e, st) : null,
       notes: c.entry.notes,
+      opt: c.entry.opt ?? null,
     };
   }
-  return (entries === ALL ? fallback(hand, auction, entries) : null) ?? { notCovered: true, options: nextOptions(auction, entries) };
+  // General judgment only for a card's rules; a hand-made list (in a test) gets none.
+  return (isSystem(entries) ? fallback(hand, auction, book) : null) ?? { notCovered: true, options: nextOptions(auction, book) };
 }
 
-export function matchingEntries(hand, auction, entries = ALL) {
-  const { e, base, list } = prepare(hand, auction, entries);
+export function matchingEntries(hand, auction, book = ALL) {
+  const { e, base, list } = prepare(hand, auction, book);
   return list.filter((c) => c.entry.pick(e, { ...base, bind: c.env })).map((c) => ({ call: c.call, priority: c.entry.priority }));
+}
+
+// For checks (tests/pool-safety.test.js): when no rule on the side's card accepts the hand, the rules outside
+// the card that would have. A decision function shared by several options that returns a call the card does
+// not play shows up here.
+export function leaks(hand, auction, book = ALL) {
+  const { e, base, list, entries } = prepare(hand, auction, book);
+  if (entries === ALL || list.some((c) => c.entry.pick(e, { ...base, bind: c.env }))) return [];
+  const inside = new Set(entries);
+  const legal = new Set(legalCalls(auction));
+  return candidates(situationAt(auction, auction.calls.length), ALL, true)
+    .filter((c) => !inside.has(c.entry) && legal.has(c.call) && c.entry.pick(e, { ...base, bind: c.env }))
+    .map((c) => ({ call: c.call, opt: c.entry.opt }));
 }

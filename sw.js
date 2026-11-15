@@ -1,4 +1,4 @@
-const CACHE = 'bc-48978734';
+const CACHE = 'bc-c795b05c';
 const FILES = [
   './',
   'index.html',
@@ -22,6 +22,10 @@ const FILES = [
   'js/advisor-model.js',
   'js/store.js',
   'js/state.js',
+  'js/pool/catalog.js',
+  'js/pool/card.js',
+  'js/pool/tags.js',
+  'js/pool/system.js',
   'js/system/index.js',
   'js/system/opening/openings.js',
   'js/system/opening/notrump.js',

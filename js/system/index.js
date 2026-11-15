@@ -13,6 +13,9 @@ import responder from './rebids/responder.js';        //         responder's reb
 import thirdRound from './rebids/third-round.js';     //         the third round and later
 import slam from './rebids/slam.js';                  //         RKCB, Gerber, control bids
 import competitive from './competitive/index.js';     // Part 5: contested auctions
+import { tagAll } from '../pool/tags.js';             // which option of the convention pool each rule belongs to
 
 const ALL = [...openings, ...respMajor, ...respMinor, ...opener, ...responder, ...notrump, ...twos, ...slam, ...thirdRound, ...competitive];
+// Every rule gets `opt`: the pool option it belongs to ('passed-2c:drury', 'base:2/1', ...), or null for core.
+export const TAG_REPORT = tagAll(ALL);
 export default ALL;

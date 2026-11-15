@@ -312,6 +312,15 @@ The test runs for: the house card, each preset, and each single change from each
 
 `sw.js`: add `js/pool/*.js` (the service-worker test fails otherwise). `npm test`, `npm run stamp`, commit, push. Open the app: every tab behaves as before.
 
+### Phase 1: as built (2026-11-15)
+
+- **Tagging** works in two steps (`js/pool/tags.js`). A *root* is the rule that makes a conventional call (a 2/1 response, a splinter, Texas, Ogust, the minor puppet, 1m–2NT/3NT, the RKCB replies), plus every non-pass call of a one-convention notes section. Every later rule of the same auction (a *descendant*: its `after` starts with the root's calls, with a compatible passed-hand context) takes the root's tag. A 2/1 root beats every other root. This tagged 2,083 rules; 4,432 are core. Counts are frozen in `tests/pool-tags.test.js`.
+- Added to the tag table: `nt-2s:puppet` (1NT–2♠ and what follows).
+- **Not tagged yet, on purpose:** the limit raise `1M–3M` (both bases; SAYC gets its own in task 5.1) and the non-tail "RKCB: slam interest" asks inside specific auctions (task 4.13 must give Blackwood cards their own wording for these).
+- Lebensohl's tag covers advancer's replies after partner doubles their weak two (37 rules); the double itself is core. Task 4.9 must write the natural replies.
+- **Safety net:** `leaks(hand, auction, book)` in `js/engine.js` lists the rules outside a card that would have accepted a hand no rule on the card accepts. A trial card with Drury and DONT off reported 29 and 264 leaks on 1,500 deals, as expected: those options have no replacement rules yet.
+- **Tools:** `--card` for `tools/selfcheck.mjs` and `tools/match.mjs` (plus `--base-card`), in the forms of `tools/card-arg.mjs`: `sayc`, `2/1`, `2/1+passed-2c=natural`, or a `.json` file.
+
 ---
 
 ## Phase 2. The Card tab (cards on this device)
