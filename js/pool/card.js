@@ -103,3 +103,31 @@ export function rebase(card, base) {
 // Small form for a table: { b, p, n, d? }.
 export const pack = (card) => ({ b: card.base, p: { ...card.picks }, n: card.name, ...(card.discuss.length ? { d: [...card.discuss] } : {}) });
 export const unpack = (x) => normalizeCard({ base: x?.b, picks: x?.p, name: x?.n, discuss: x?.d });
+
+// Is a rule tag on this card? (null = core, always; 'base:x' = the base; 'slot:option' = that answer.)
+export function optActive(card, opt) {
+  if (!opt) return true;
+  if (opt.startsWith('base:')) return opt === `base:${card.base}`;
+  const i = opt.indexOf(':');
+  return resolve(card)[opt.slice(0, i)] === opt.slice(i + 1);
+}
+
+// The answers on this card whose rules are not written yet: [{ slot, option }] (text slots excluded).
+export function unready(card) {
+  const r = resolve(card);
+  return SLOTS.filter((s) => !s.text && !option(s.id, r[s.id])?.ready).map((s) => ({ slot: s.id, option: r[s.id] }));
+}
+
+// The card the robots can bid: every answer whose rules are not written yet is played as on the house card
+// (and an unready base as 2/1), so a pair can write down what they really play before the app knows all of it.
+export function playable(card) {
+  if (!unready(card).length) return card;
+  const r = resolve(card);
+  const base = option('base', card.base)?.ready ? card.base : '2/1';
+  const picks = {};
+  for (const s of SLOTS) {
+    if (s.id === 'base') continue;
+    picks[s.id] = s.text || option(s.id, r[s.id])?.ready ? r[s.id] : PRESETS['2/1'][s.id];
+  }
+  return normalizeCard({ ...card, base, picks });
+}

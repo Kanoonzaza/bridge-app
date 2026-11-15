@@ -3,7 +3,7 @@
 //   sysOf(list)     -> { base, is(slot, option), get(slot), discuss(slot), active(opt) } for that list.
 //   book            -> one rule list, or { NS, EW } with one list per side (two pairs on different cards).
 import ALL from '../system/index.js';
-import { resolve, cardKey, HOUSE_CARD } from './card.js';
+import { resolve, cardKey, HOUSE_CARD, playable } from './card.js';
 import { splitOpt } from './catalog.js';
 
 function makeSys(card) {
@@ -32,10 +32,9 @@ SYS.set(ALL, HOUSE);
 const keyOf = (card) => `${cardKey(card)}|${[...(card.discuss ?? [])].sort().join(',')}`;
 const houseKey = cardKey(HOUSE_CARD);
 
+// The rules exactly as the card says, ready or not (for tests and tools; the app uses systemFor).
 // The same card always gets the same array back, so the engine indexes it once.
-// Cards that bid like the house card (any discuss list) share ALL; the "to discuss" marks
-// of those cards are read from sysFor(card), not from the list.
-export function systemFor(card = HOUSE_CARD) {
+export function rulesFor(card) {
   if (cardKey(card) === houseKey && !(card.discuss ?? []).length) return ALL;
   const key = keyOf(card);
   let list = LISTS.get(key);
@@ -47,6 +46,10 @@ export function systemFor(card = HOUSE_CARD) {
   }
   return list;
 }
+
+// The rules the app bids a card with: answers whose rules are not written yet are played as on the house card
+// (playable, js/pool/card.js).
+export const systemFor = (card = HOUSE_CARD) => rulesFor(playable(card));
 
 export const sysOf = (entries) => SYS.get(entries) ?? HOUSE;
 // A list made by systemFor (not a hand-made list from a test): the engine's fallback runs only for these.

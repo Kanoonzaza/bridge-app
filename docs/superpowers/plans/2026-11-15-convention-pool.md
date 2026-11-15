@@ -380,6 +380,14 @@ One notes file stays the source. No splitting.
 
 `sw.js` files, `npm run stamp`, commit, push.
 
+### Phase 2: as built (2026-11-15)
+
+- **Changed from the plan: options without rules can be chosen.** The plan said they could not be ticked; that would have left a new pair only the 2/1 preset until phase 5. Now a pair writes down what they really play. `playable(card)` (`js/pool/card.js`) bids every answer whose rules are not written yet as on the house card (an unready base as 2/1); `systemFor` uses it. The card says so in one line ("Robots: not yet" on the row, a note at the top). `rulesFor(card)` is the exact filter, for tests and the tools (`--card` bids a card exactly as written, so an option can be tested while it is being built).
+- **Every question is a row of pills**, also the two-answer ones (the plan had checkboxes for those): one control to learn, and the answer names are always visible.
+- **Notes stay one file.** Headings carry `data-opt`; the in-app notes page hides a marked heading and the text under it, up to the next heading of its level, when the card in use does not play it. A marked subsection inside a hidden section is decided on its own. `?all`, or a link into a hidden section, shows everything. The Notes tab's contents follow the card too; both redraw when the card in use changes (event `bc:cards`).
+- The Card tab remembers its screen and an unsaved draft (`bc:cardui`).
+- Five tabs: the tab row was tightened so every style fits down to 320px wide.
+
 ---
 
 ## Phase 3. The Table plays the card

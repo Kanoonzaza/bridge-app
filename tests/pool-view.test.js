@@ -1,0 +1,33 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { SLOTS, GROUPS } from '../js/pool/catalog.js';
+import { normalizeCard, pick, HOUSE_CARD } from '../js/pool/card.js';
+import { cardPanels, cardText } from '../js/pool/view.js';
+
+test('every slot is in exactly one panel, panels in card order', () => {
+  const panels = cardPanels(normalizeCard({ base: 'sayc' }));
+  assert.deepEqual(panels.map((p) => p.group), GROUPS.map(([g]) => g));
+  const slots = panels.flatMap((p) => p.rows.map((r) => r.slot));
+  assert.deepEqual([...slots].sort(), SLOTS.map((s) => s.id).sort());
+});
+
+test('rows show the card\'s answers, discuss marks, readiness and free text', () => {
+  let c = normalizeCard({ base: '2/1', discuss: ['keycard'], text: { slam: 'Exclusion when we agree.' } });
+  c = pick(c, 'nt-defence', 'landy');
+  const panels = cardPanels(c);
+  const row = (slot) => panels.flatMap((p) => p.rows).find((r) => r.slot === slot);
+  assert.equal(row('nt-defence').optionTitle, 'Landy');
+  assert.equal(row('nt-defence').ready, false);
+  assert.equal(row('passed-2c').optionTitle, 'Drury');
+  assert.equal(row('keycard').discuss, true);
+  assert.equal(panels.find((p) => p.group === 'slam').text, 'Exclusion when we agree.');
+  assert.ok(panels[0].lines.some((l) => /game forcing, 12\+/.test(l)));
+});
+
+test('the text copy names the card and every answer', () => {
+  const t = cardText({ ...HOUSE_CARD, discuss: ['keycard'] });
+  assert.match(t, /^House card \(2\/1 Game Forcing\)/);
+  assert.match(t, /Drury/);
+  assert.match(t, /4NT: RKCB 1430 \[to discuss\]/);
+  assert.match(cardText(normalizeCard({ base: 'sayc' })), /Standard American/);
+});

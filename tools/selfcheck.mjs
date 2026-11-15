@@ -7,7 +7,7 @@ import { SEATS, addCall, isComplete, nextSeat, partnerOf, isBid } from '../js/au
 import { deal } from './coverage.mjs';
 import { packHand } from '../js/table/model.js';
 import { cardFromArg, takeFlag } from './card-arg.mjs';
-import { systemFor } from '../js/pool/system.js';
+import { rulesFor } from '../js/pool/system.js';
 
 function rng(seed) {
   let a = seed >>> 0;
@@ -67,7 +67,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const argv = process.argv.slice(2);
   const card = takeFlag(argv, '--card');
   const n = Number(argv[0] ?? 2000);
-  const res = selfcheck(n, Number(argv[1] ?? 77), card ? systemFor(cardFromArg(card)) : undefined);
+  const res = selfcheck(n, Number(argv[1] ?? 77), card ? rulesFor(cardFromArg(card)) : undefined);
   const shown = Number(argv[2] ?? 30);
   const by = (k) => Object.fromEntries([...res.issues.reduce((m, x) => m.set(x[k], (m.get(x[k]) ?? 0) + 1), new Map())]);
   console.log(`${res.deals} deals, ${res.calls} calls (${res.bids} bids)`);

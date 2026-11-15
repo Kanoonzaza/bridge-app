@@ -3,7 +3,7 @@
 // version (another checkout, e.g. `git worktree add ../base main`) on the other side of each table. The new team's
 // result is table 1 minus table 2 in IMPs, so luck of the deal cancels out and only the difference in bidding is left.
 // Usage: node tools/match.mjs <base-checkout> [deals=2000] [seed=1] [procs=4] [--card <card>] [--base-card <card>]
-//   --card: the card the new version bids (default: the house card); --base-card: the same for the base version
+//   --card: the card the new version bids, exactly as written, ready or not (default: the house card); --base-card: the same for the base version
 //   (the base checkout must have js/pool/). Compare two cards of this checkout with: node tools/match.mjs . --card sayc
 //   Cards: see tools/card-arg.mjs.
 import { spawn } from 'node:child_process';
@@ -43,12 +43,13 @@ async function play({ base, deals, seed, start, step, card, baseCard }) {
   const { loadDds, Dds } = await import('../js/vendor/dds/api.js');
   const dds = new Dds(await loadDds());
   const myAdvise = (await import('../js/engine.js')).advise;
-  const myBook = card ? (await import('../js/pool/system.js')).systemFor(cardFromArg(card)) : undefined;
+  const myBook = card ? (await import('../js/pool/system.js')).rulesFor(cardFromArg(card)) : undefined;
   const mine = (h, a) => myAdvise(h, a, myBook);
   const theirAdvise = (await import(pathToFileURL(resolve(base, 'js/engine.js')).href)).advise;
   let theirBook;
   if (baseCard) {
-    const { systemFor } = await import(pathToFileURL(resolve(base, 'js/pool/system.js')).href);
+    const sys = await import(pathToFileURL(resolve(base, 'js/pool/system.js')).href);
+    const systemFor = sys.rulesFor ?? sys.systemFor;
     const { normalizeCard } = await import(pathToFileURL(resolve(base, 'js/pool/card.js')).href);
     theirBook = systemFor(normalizeCard(cardFromArg(baseCard)));
   }

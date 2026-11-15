@@ -484,6 +484,8 @@ button.bids-btn{padding:3px 8px;font-size:.66rem}
 :root[data-style="nerd"] .top h1::after{content:"_";animation:nerd-blink 1s steps(1) infinite;color:var(--accent)}
 :root[data-style="nerd"] .felt{border-width:1px;box-shadow:0 0 0 1px var(--felt-edge),0 0 18px color-mix(in srgb,var(--felt-edge) 35%,transparent)}
 :root[data-style="nerd"] .tabs button[aria-selected="true"]::before{content:"> "}
+/* Five tabs in a monospace font: smaller text on narrow phones, and the "> " marker only where it fits. */
+@media (max-width:420px){:root[data-style="nerd"] .tabs button{font-size:.8rem;letter-spacing:-.02em}:root[data-style="nerd"] .tabs button[aria-selected="true"]::before{content:none}}
 @keyframes nerd-blink{50%{opacity:0}}
 @media (prefers-reduced-motion:reduce){:root[data-style="nerd"] .top h1::after{animation:none}}
 
@@ -550,3 +552,52 @@ button.pv-c{border:0;background:none;color:inherit;font:inherit;padding:0;cursor
 .pv-tricks{display:flex;gap:3px}
 .pv-tricks span{display:flex;flex-direction:column;align-items:center;min-width:28px;padding:1px 4px;border-radius:4px;background:#2c6fb7;color:#fff;font-weight:700;font-size:.9rem;line-height:1.1}
 .pv-tricks small{font-size:.55rem;font-weight:600;opacity:.85}
+
+/* Card tab: convention cards (js/ui/card.js) */
+.tabs button{min-width:0;padding:8px 2px;font-size:.92rem}
+@media (max-width:380px){.tabs{gap:5px}.tabs button{font-size:.84rem}}
+@media (max-width:340px){.tabs{gap:4px}.tabs button{font-size:.74rem;padding:8px 1px}:root[data-style="nerd"] .tabs button{font-size:.7rem}}
+.intro{margin:4px 0 0}
+.card-item{display:grid;gap:2px}
+.card-item.in-use{border-color:var(--accent)}
+.card-item-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card-item-head .doc-title{font-size:1.05rem;font-weight:700;overflow-wrap:anywhere}
+.card-item p{margin:0}
+.pill.danger{border-color:var(--red);color:var(--red)}
+.card-panel{display:grid;gap:12px}
+.card-h{font-family:var(--font-head);font-size:1rem;margin:0}
+.slot{display:grid;gap:6px;padding-top:12px;border-top:1px solid var(--rule)}
+.card-h + .slot{padding-top:0;border-top:0}
+.slot .label{margin-bottom:0;color:var(--ink);font-weight:600;font-size:.9rem}
+.slot .seg{margin-top:0}
+.slot .pill{min-height:36px}
+.slot-line{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:.88rem;color:var(--muted)}
+.slot-more{font-weight:600}
+.slot .toggle{font-size:.85rem}
+.base-help{margin:0;font-size:.85rem}
+.core-line{margin:0;font-size:.85rem}
+.card-panel textarea{resize:vertical;min-height:2.6em}
+.card-panel .label{margin:0}
+.card-name{font-family:var(--font-head);font-size:1.6rem;line-height:1.15;margin:2px 0;overflow-wrap:anywhere}
+.card-page header p{display:flex;align-items:center;gap:8px;margin:0}
+.core-list{margin:0;padding-left:18px;font-size:.9rem}
+.core-list li{margin:2px 0}
+.cc{display:grid;grid-template-columns:minmax(0,1fr);margin:0}
+.cc dt{font-size:.8rem;color:var(--muted);padding-top:10px;border-top:1px solid var(--rule)}
+.cc dt:first-of-type{border-top:0;padding-top:0}
+.cc dd{margin:0 0 2px;overflow-wrap:anywhere}
+.cc dd .chip{margin-left:6px}
+.cc dd .muted{font-size:.88rem}
+.card-text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+@media (min-width:520px){
+  .cc{grid-template-columns:minmax(0,10.5rem) minmax(0,1fr);column-gap:14px}
+  .cc dt,.cc dd{padding:10px 0;border-top:1px solid var(--rule);margin:0}
+  .cc dt:first-of-type,.cc dd:first-of-type{border-top:0;padding-top:0}
+}
+@media print{
+  body.print-card{background:#fff;color:#000;padding:0}
+  body.print-card .top,body.print-card .update,body.print-card .card-actions,body.print-card main > section:not(#card){display:none!important}
+  body.print-card main{max-width:none;padding:0}
+  body.print-card .panel{break-inside:avoid;border-color:#999;background:#fff}
+  body.print-card .chip{border:1px solid #999}
+}

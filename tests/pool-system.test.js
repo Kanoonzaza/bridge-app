@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ALL from '../js/system/index.js';
 import { HOUSE_CARD, normalizeCard, pick } from '../js/pool/card.js';
-import { systemFor, sysOf, isSystem, bookFor, forSeat, HOUSE } from '../js/pool/system.js';
+import { systemFor, rulesFor, sysOf, isSystem, bookFor, forSeat, HOUSE } from '../js/pool/system.js';
 
 test('the house card plays every rule: its list is ALL itself', () => {
   assert.equal(systemFor(HOUSE_CARD), ALL);
@@ -14,21 +14,21 @@ test('the house card plays every rule: its list is ALL itself', () => {
 
 test('the same card gets the same list back', () => {
   const c = pick(normalizeCard({ base: '2/1' }), 'nt-defence', 'natural');
-  assert.equal(systemFor(c), systemFor(normalizeCard({ ...c, name: 'Other name' })));
-  assert.ok(isSystem(systemFor(c)));
+  assert.equal(rulesFor(c), rulesFor(normalizeCard({ ...c, name: 'Other name' })));
+  assert.ok(isSystem(rulesFor(c)));
   assert.equal(isSystem([...ALL]), false);
 });
 
 test('an option switched off takes its rules out and leaves the core', () => {
   const c = pick(normalizeCard({ base: '2/1' }), 'passed-2c', 'natural');
-  const list = systemFor(c);
+  const list = rulesFor(c);
   assert.equal(list.filter((e) => e.opt === 'passed-2c:drury').length, 0);
   assert.equal(list.length, ALL.length - ALL.filter((e) => e.opt === 'passed-2c:drury').length);
   assert.equal(sysOf(list).is('passed-2c', 'natural'), true);
 });
 
 test('a SAYC card drops the 2/1 base and every house-only option, keeps the core', () => {
-  const list = systemFor(normalizeCard({ base: 'sayc' }));
+  const list = rulesFor(normalizeCard({ base: 'sayc' }));
   assert.equal(list.some((e) => e.opt === 'base:2/1'), false);
   assert.equal(list.some((e) => e.opt === 'nt-defence:dont'), false);
   assert.equal(list.filter((e) => e.opt === null).length, ALL.filter((e) => e.opt === null).length);
@@ -41,11 +41,17 @@ test('"to discuss" marks belong to the card, even when the rules are the house c
 });
 
 test('a book has one list per side', () => {
-  const sayc = normalizeCard({ base: 'sayc' });
-  const book = bookFor({ EW: sayc });
+  const other = normalizeCard({ base: '2/1', discuss: ['keycard'] });
+  const book = bookFor({ EW: other });
   assert.equal(book.NS, ALL);
-  assert.equal(book.EW, systemFor(sayc));
+  assert.equal(book.EW, systemFor(other));
+  assert.notEqual(book.EW, ALL);
   assert.equal(forSeat(book, 'S'), ALL);
-  assert.equal(forSeat(book, 'W'), systemFor(sayc));
+  assert.equal(forSeat(book, 'W'), systemFor(other));
   assert.equal(forSeat(ALL, 'W'), ALL);
+});
+
+test('answers without rules are bid as on the house card', () => {
+  assert.equal(systemFor(normalizeCard({ base: 'sayc' })), ALL);
+  assert.equal(systemFor(pick(normalizeCard({ base: '2/1' }), 'passed-2c', 'natural')), ALL);
 });

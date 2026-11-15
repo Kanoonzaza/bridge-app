@@ -82,3 +82,16 @@ test('cardKey ignores name, text, discuss and the defence text slots', () => {
   assert.notEqual(cardKey(a), cardKey(normalizeCard({ base: 'sayc' })));
   assert.notEqual(cardKey(a), cardKey(pick(a, 'smolen', 'off')));
 });
+
+test('playable: answers without rules are bid as on the house card', async () => {
+  const { playable, unready, optActive } = await import('../js/pool/card.js');
+  const sayc = normalizeCard({ base: 'sayc' });
+  assert.ok(unready(sayc).some((u) => u.slot === 'base'));
+  const p = playable(sayc);
+  assert.equal(p.base, '2/1');
+  assert.equal(cardKey(p), cardKey(HOUSE_CARD), 'today no SAYC option has rules, so SAYC bids as the house card');
+  assert.equal(playable(HOUSE_CARD), HOUSE_CARD);
+  assert.equal(optActive(sayc, 'base:sayc'), true);
+  assert.equal(optActive(sayc, 'passed-2c:drury'), false);
+  assert.equal(optActive(sayc, null), true);
+});
