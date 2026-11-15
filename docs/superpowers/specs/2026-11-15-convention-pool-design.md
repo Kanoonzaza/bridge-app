@@ -9,7 +9,7 @@ Plan: `docs/superpowers/plans/2026-11-15-convention-pool.md`
 > - **The Advisor and Decoder tabs are out of scope** (owner's decision: they are rarely used). They stay on the house card. The card drives the Card tab, the Table (robots, call meanings, hint, review) and the notes. Ignore what sections 5 and 7 say about those two tabs.
 > - **The pool list in section 3.3 is replaced by section 1 of the plan.** Jacoby 2NT, Gerber, Michaels, Unusual 2NT and Jordan 2NT are in both SAYC and our system, so they are core, not slots. Two slots were added: jump shift responses (strong or weak) and 1m–2NT (13–15 forcing or 11–12 invitational).
 > - **Notes (section 8):** the notes stay one file; each block is marked with its option and the page hides the blocks that are not on the active card. No splitting into fragments.
-> - **A side with only robots** plays the house card, not the SAYC preset.
+> - **A side with only robots** copies the human side's card.
 > - **Build order (section 9):** foundation, Card tab, Table, standard options, SAYC, sharing, alternatives.
 
 ## 1. Purpose

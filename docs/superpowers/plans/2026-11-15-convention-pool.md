@@ -383,7 +383,7 @@ Result: at the Table each side has a card. Robots, call meanings, the hint and t
 
 ```js
 export const PROTO = 5;
-// t.cards     = { NS: packedCard, EW: packedCard }   what this board is played with (missing side = house card)
+// t.cards     = { NS: packedCard, EW: packedCard }   what this board is played with (a robot side copies the human side; none at all = house card)
 // t.cardsNext = { NS?: packedCard, EW?: packedCard } a change that starts with the next board
 // history[n].cards = the cards board n was played with
 ```
@@ -431,7 +431,7 @@ Tests: `tests/sim.test.js` and `tests/table.test.js` pass unchanged with the def
 - In the seating screen and above the auction: one line per side, "N–S play: *Noon & Pim (SAYC)*" and "E–W play: *House card (2/1)*". Tapping a name opens that card's View (read-only, built from the packed card with `cardPanels`).
 - A seated player sees *Change* on their own side: a list of the cards on this device plus the two presets. Choosing calls `setCard`. If the board has started, a toast: "Starts with the next board."
 - When a player sits on a side that has no card yet and their active card is not the house card, the side takes their active card in the same transaction as `sit`.
-- A side with no human plays the house card and the line says so.
+- A side with no human copies the card of the human side (owner left the choice open; chosen so that a pair meets opponents who bid the system they know, and "Probably: …" under the opponents' calls reads as they expect). `cardsOf` does this, so nothing is stored for a robot side. The line reads "E–W (robots) play the same card". A table with no humans plays the house card.
 - The review header names the card each side played on that board.
 - `confRow` receives `sysOf(…)` so "Agreed system" reads "On your card", and a `discuss` pick shows "To discuss".
 
@@ -541,7 +541,7 @@ Tail rules, as RKCB has:
 - `4N` = asks for aces. Replies: `5C` 0 or 4 · `5D` 1 · `5H` 2 · `5S` 3.
 - `5N` by the asker = all four aces held; asks for kings: `6C` 0 or 4 · `6D` 1 · `6H` 2 · `6S` 3.
 - Asker: two aces missing = five of the suit; one missing = six; none missing and 37+ points or a source of tricks = `5N`.
-- They bid over 4NT: DOPI. `X` = 0 aces, `P` = 1, next step = 2. (Owner to confirm, see the questions at the end.)
+- They bid over 4NT: DOPI. `X` = 0 aces, `P` = 1, next step = 2. (Confirmed by the owner.)
 
 `js/general.js` and `js/judgment.js` read the reply table from the `keycard` option (prepared in task 1.6).
 
@@ -580,7 +580,9 @@ Result: `base: 'sayc'` is selectable. Files in `js/system/sayc/`, every rule tag
 Source of truth: the ACBL SAYC booklet. Where the booklet is silent, the rule says so in its meaning ("Standard treatment").
 
 ### Task 5.1: Responding to 1♥ / 1♠. L
-`js/system/sayc/major.js`, `respondToMajorSayc(e, M, passed, sys)`. Raises, Jacoby 2NT, `3N`, `4M` and passed-hand calls are core and are reused. New:
+`js/system/sayc/major.js`, `respondToMajorSayc(e, M, passed, sys)`. The simple raise, Jacoby 2NT, `3N`, `4M` and passed-hand calls are core and are reused. New:
+
+- `3M` = limit raise as the booklet defines it (owner's decision: follow the booklet). Read the booklet's wording when writing the rule; from memory it is 10–11 dummy points with three or more trumps, where the house rule needs four and 10–12. The house `3M` rule is tagged `base:2/1` and the SAYC rule `base:sayc`; opener's replies are shared. With three trumps opener should expect a 4-3 or 5-3 fit, so the game decision counts one trump fewer.
 
 - `1N` = 6–10, not forcing; denies 3-card support worth a raise and (over 1♥) 4 spades.
 - `2x` lower suit = 10+ (11+, or a good 10), 4+ cards (`2H` over `1S` = 5+). Forcing one round; promises another bid unless opener bids game.
@@ -615,7 +617,14 @@ Third-round rules: only what the robots meet often. Run `tools/gaps.mjs --card s
 - Read the opener's-rebid rules (308, core): any rule whose meaning mentions a game force created by a two-over-one must be tagged `base:2/1` and get a SAYC twin.
 
 ### Task 5.6: Competitive rules that assume 2/1. M
-`when-we-open-and-they-compete` (1,106 rules) is core. Search its meanings and decisions for "game forc" and "2/1"; a free two-level bid over their overcall is 10+ in both systems, so few should change. List what was found in the commit message.
+The competitive rules are shared: about 3,500 of the 4,300 contested rules are core and serve SAYC unchanged, with all the tuning they carry (the other 800 belong to competitive slots such as DONT, Lebensohl and support doubles). SAYC therefore starts tuned wherever the opponents bid.
+
+What is left to check is the small set that depends on what an uncontested bid showed:
+- `when-we-open-and-they-compete` (1,106 rules): search meanings and decisions for "game forc" and "2/1". A free two-level bid over their overcall is 10+ in both systems, so few should change.
+- Auctions where they come in **after** our two-over-one or our 1NT response: in 2/1 we are in a game force (passes are forcing, doubles are penalty); in SAYC we are not. Tag those rules `base:2/1` and write the SAYC twins.
+- The fallback step "as if they had passed" (`js/fallback.js`) reaches the uncontested rules of the side's own card through the book; confirm with one SAYC test.
+
+List what was found in the commit message.
 
 ### Task 5.7: SAYC notes and card. M
 A notes part "Standard American (SAYC)" with `data-opt="base:sayc"`: two-over-one at 10+, non-forcing 1NT, opener's rebids, with two worked auctions each. The existing "2/1 Game Forcing" and "Forcing 1NT response" blocks get `data-opt="base:2/1"`. Card lines in `view.js`.
@@ -694,13 +703,13 @@ Later, not planned here: weak 1NT, Acol, Precision (see spec, section 3.3).
 | Tagging 6,515 rules wrongly | Audit tool read by the owner; counts frozen in a test; the house card must still equal `ALL` |
 | A decision function returns a call the card does not play | Safety net, check 2, on every preset and single change |
 | Options interact | Slots that share a call are one slot; the safety net tests single changes; pairs of changes are sampled at random (50 cards per run) |
-| New rules weaker than the tuned 2/1 | `tools/match.mjs --card` per option; the review says "Standard treatment" for options not yet match-tested |
+| New rules weaker than the tuned 2/1 | Most of the tuning is in the competitive rules, which are core and shared by every card. The untuned part is the uncontested SAYC skeleton and the new options: `tools/match.mjs --card` per option; the review says "Standard treatment" for options not yet match-tested |
 | Old phones at a `PROTO` 5 table | Existing update prompt; a table without `cards` plays the house card |
 | Advisor and Decoder tabs confuse a SAYC pair | Out of scope by decision. Cheapest later fix: one line under each tab title, "Uses the house card (2/1)" |
 | Bundle size | Measure `js/system/` after phase 5; load option files on demand by slot only if the first load passes 1.5 MB |
 
-## Questions for the owner before phase 4
+## Decisions (owner, 2026-11-15)
 
-1. Blackwood when they bid over 4NT (task 4.13): DOPI as proposed?
-2. SAYC limit raise: the booklet allows three trumps; our rule needs four. Keep four for both, or follow the booklet on a SAYC card?
-3. A side with only robots plays the house card. Or should it copy the human side's card?
+1. Blackwood when they bid over 4NT: DOPI.
+2. SAYC limit raise: follow the booklet (three trumps allowed), not the house rule.
+3. A side with only robots: owner left it open; it copies the human side's card (task 3.3).
