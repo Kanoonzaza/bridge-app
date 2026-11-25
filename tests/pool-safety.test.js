@@ -28,6 +28,21 @@ export function cardsToCheck() {
       }
     }
   }
+  // Combinations: every answer that is not the house card's at once, and a few seeded random mixes.
+  const standard = SLOTS.filter((x) => !x.text && x.id !== 'base' && x.options[0].ready)
+    .reduce((c, x) => pick(c, x.id, x.options[0].id), normalizeCard({ base: '2/1', name: '2/1 with every standard answer' }));
+  out.set(cardKey(standard), standard);
+  let seed = 11;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let i = 0; i < 3; i++) {
+    let c = normalizeCard({ base: '2/1', name: `random mix ${i + 1}` });
+    for (const x of SLOTS) {
+      if (x.text || x.id === 'base') continue;
+      const opts = x.options.filter((o) => o.ready);
+      c = pick(c, x.id, opts[Math.floor(rnd() * opts.length)].id);
+    }
+    if (!out.has(cardKey(c))) out.set(cardKey(c), c);
+  }
   return [...out.values()];
 }
 

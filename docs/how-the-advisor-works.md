@@ -49,6 +49,8 @@ Most situations are written as **one decision function plus a table of meanings*
 
 Every entry carries `opt`: the option of the convention pool it belongs to (`'passed-2c:drury'`, `'base:2/1'`, …), or `null` for the core every card plays. `js/pool/tags.js` sets it for the rules written before the pool; `node tools/tags.mjs` prints the result. `systemFor(card)` (`js/pool/system.js`) returns the rules a card plays; for the house card (our own system) that is `ALL` itself.
 
+`js/system/index.js` exports `EVERY`, the rules of every option; its default export (`ALL`) is the house card's selection. Rules for answers the house card does not play live in `js/system/options/` (and as `opt`-marked meanings next to the house rules). A decision function that serves several answers asks the card with `plays(st.sys, slot, option)` (`js/pool/answers.js`).
+
 The engine's functions take a **book**: one rule list (default `ALL`), or `{ NS, EW }` with one list per side, so two pairs on different cards can sit at one table. A decision function that mixes conventions asks the card through `st.sys.is(slot, option)`. See `docs/superpowers/plans/2026-11-15-convention-pool.md`.
 
 ### Matching

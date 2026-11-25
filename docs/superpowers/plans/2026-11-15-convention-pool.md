@@ -596,6 +596,24 @@ Every option above has `ready: true`. The safety net now covers 2 presets and ab
 
 After this phase a 2/1 pair can describe almost any ordinary card. SAYC is still "coming soon".
 
+### Phase 4: as built (2026-11-25)
+
+All eighteen options of this phase are written and marked ready. Each one: zero leaks over 2,000–4,000 random deals (`leaks()`), a test hand that bids differently from the house card (`tests/pool-options.test.js`), a notes subsection marked with its `data-opt` ("Other answers on a convention card", Part 7), and a duplicate match against the house card (table below).
+
+**Machinery**
+- `js/system/index.js` exports `EVERY` (every rule of every option); its default export is the house card's selection, so every existing caller and tool is unchanged. `rulesFor` filters `EVERY`.
+- `plays(sys, slot, option)` (`js/pool/answers.js`) for decision functions; no sys reads as the house card. Decision functions take `sys` as a last argument; the rule builders pass `st.sys`.
+- A meaning can belong to one option: tables key it `call|option`, and competitive `def(…, { opt })` / `advise(…, opt)` keep options apart.
+- `onCard()` in the engine words the RKCB asks inside particular auctions for the card (Blackwood: "asks for aces"); the answers come from the option's own tail rules.
+
+**Tagging changed, house card unchanged.** Sections that mixed a convention with natural calls are now tagged by their conventional calls only: XYZ's relay, 2♦, 2NT puppet and its game-forcing jump (and what follows them); the support double and redouble (and responder's answers); the fourth-suit bid itself (its answers are core: the same whether game forcing or one round). The plain passes of the lead-directing and Lightner sections are core. A house option written with its own `opt` passes it to the calls after it; another option's rules never tag a house rule. A 1,500-board match of the house card against the previous commit differed on no board.
+
+**Simplifications, to revisit with SAYC (phase 5)**
+- Fourth suit forcing one round bids exactly as game forcing (the robots use it with 13+, inside "11+"); only the meaning differs.
+- Standard minor raises: a 13+ hand with support and no major bids notrump or a new suit; there is no inverted-style strong raise.
+- Strong jump shifts: opener's rebid is written; responder's later bids fall to general judgment (the auction is marked game forcing).
+- Natural defence to 1NT: advancer runs from the double only with 0–5 and a 5-card suit, and does not escape after their double of an overcall.
+
 ---
 
 ## Phase 5. SAYC
