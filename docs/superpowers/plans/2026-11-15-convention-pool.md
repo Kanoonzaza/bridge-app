@@ -608,6 +608,31 @@ All eighteen options of this phase are written and marked ready. Each one: zero 
 
 **Tagging changed, house card unchanged.** Sections that mixed a convention with natural calls are now tagged by their conventional calls only: XYZ's relay, 2♦, 2NT puppet and its game-forcing jump (and what follows them); the support double and redouble (and responder's answers); the fourth-suit bid itself (its answers are core: the same whether game forcing or one round). The plain passes of the lead-directing and Lightner sections are core. A house option written with its own `opt` passes it to the calls after it; another option's rules never tag a house rule. A 1,500-board match of the house card against the previous commit differed on no board.
 
+**Matches against the house card** (`node tools/match.mjs . 800 5 4 --card 2/1+<slot>=<option>`, 800 boards, double dummy; IMPs per board for the option's side):
+
+| Option | Boards that differ | IMPs per board |
+|---|---|---|
+| passed-jump:none | 0 | 0.000 |
+| splinters:off | 5 | 0.000 |
+| weak-two-defence:natural | 2 | +0.014 |
+| slam-doubles:penalty | 4 | +0.015 |
+| responsive:off | 7 | −0.018 |
+| texas:off | 2 | 0.000 |
+| smolen:off | 2 | 0.000 |
+| nt-interference:natural | 6 | −0.006 |
+| passed-2c:natural | 17 | −0.055 (Drury is the better tool) |
+| minor-raise:standard | 6 | −0.007 |
+| minor-2nt:forcing | 11 | +0.005 |
+| jump-shift:strong | 6 | −0.025 |
+| weak-two-ask:feature | 5 | 0.000 |
+| keycard:blackwood | 3 | +0.016 |
+| nt-defence:natural | 24 | −0.018 |
+| checkback:none | 26 | +0.005 |
+| fourth-suit:round | 0 | 0.000 |
+| support-doubles:off | 6 | +0.006 |
+
+No option loses more than the convention is worth; none needs another pass before SAYC.
+
 **Simplifications, to revisit with SAYC (phase 5)**
 - Fourth suit forcing one round bids exactly as game forcing (the robots use it with 13+, inside "11+"); only the meaning differs.
 - Standard minor raises: a 13+ hand with support and no major bids notrump or a new suit; there is no inverted-style strong raise.
