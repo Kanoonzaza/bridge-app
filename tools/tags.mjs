@@ -1,8 +1,7 @@
 // Audit of the pool tags: how many rules each option holds, and the rules that took a tag from an earlier
 // call of their auction (descendants), grouped by root, so the borderline ones can be read.
 // Usage: node tools/tags.mjs [--detail <opt>]
-import ALL from '../js/system/index.js';
-import { TAG_REPORT } from '../js/system/index.js';
+import { EVERY as ALL, TAG_REPORT } from '../js/system/index.js';
 
 const detail = process.argv.includes('--detail') ? process.argv[process.argv.indexOf('--detail') + 1] : null;
 const { report, why } = TAG_REPORT;

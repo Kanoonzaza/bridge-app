@@ -84,6 +84,9 @@ export function describeCall(auction, i, rows, sys = null) {
       return general(`Takeout double: short in their suit, ${unbid.length ? `support for ${list(unbid)}` : 'support for the unbid suits'}, opening values or more.`, 'takeout-doubles', { hcp: [11, 37] });
     }
     // Partner overcalled, they bid on, and this is my first action: responsive.
+    if (!iActed && pardActed && !weOpened && sys && !sys.is('responsive', 'on')) {
+      return general('Penalty double: length and strength in their suit (no responsive doubles on this card).', 'penalty-or-takeout-the-general-rule');
+    }
     if (!iActed && pardActed && !weOpened) {
       return general(`Responsive double (takeout): values and ${unbid.length ? `cards in ${list(unbid)} (often 5 with a weaker hand)` : 'no clear bid'}, usually some support for partner too. Partner picks the contract.`, 'responsive-doubles');
     }

@@ -1,4 +1,5 @@
 import { SUITS, NAME, SYMBOL, dummyPoints, quality } from '../../cards.js';
+import { plays } from '../../pool/answers.js';
 
 // Responder's first bid after partner's 1♥ / 1♠ (opponents passing): raises (with Jacoby, splinters and Drury),
 // 2/1 game force, forcing 1NT, 1♠ over 1♥, jumps. One decision function, respondToMajor, picks the call.
@@ -52,13 +53,14 @@ export function fitJump(e, M) {
   return s ? WJS[M][s] : null;
 }
 
-export function respondToMajor(e, M, passed) {
+// sys: the card's answers (js/pool/answers.js); none = the house card.
+export function respondToMajor(e, M, passed, sys = null) {
   const tr = e.len[M];
   const dp = dummyPoints(e, M);
-  if (passed && fitJump(e, M)) return fitJump(e, M);
+  if (passed && plays(sys, 'passed-jump', 'fit') && fitJump(e, M)) return fitJump(e, M);
   if (tr >= 4) {
     if (!passed) {
-      const s = splinterSuit(e, M);
+      const s = plays(sys, 'splinters', 'on') ? splinterSuit(e, M) : null;
       const call = s && `${s === 'S' ? 3 : 4}${s}`;
       if (call && SPLINTER[M].includes(call) && e.hcp >= 10 && e.hcp <= 14) return call;
       if (e.hcp >= 10 && dp >= 13) return '2N';
@@ -76,14 +78,14 @@ export function respondToMajor(e, M, passed) {
     const s = (M === 'S' ? ['H', 'D'] : ['D']).filter((t) => e.len[t] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
     if (s) return `2${s}`;
   }
-  const wj = passed ? null : weakJump(e, M);
+  const wj = passed || !plays(sys, 'jump-shift', 'weak') ? null : weakJump(e, M);
   if (wj) return wj;
   if (e.hcp >= 6) return '1N';
   return 'P';
 }
 
 const M_OF = (st) => st.key[0][1];
-const pick = (call) => (e, st) => respondToMajor(e, M_OF(st), st.ctx.responderPassed) === call.replace('M', M_OF(st));
+const pick = (call) => (e, st) => respondToMajor(e, M_OF(st), st.ctx.responderPassed, st.sys) === call.replace('M', M_OF(st));
 const dpWhy = (e, M) => `${dummyPoints(e, M)} dummy points with ${e.len[M]} ${NAME[M]}`;
 
 function oneNtPlan(e, M) {

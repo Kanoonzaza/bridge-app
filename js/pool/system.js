@@ -2,7 +2,7 @@
 //   systemFor(card) -> rule list: the core plus the options the card picked. The house card's list is ALL itself.
 //   sysOf(list)     -> { base, is(slot, option), get(slot), discuss(slot), active(opt) } for that list.
 //   book            -> one rule list, or { NS, EW } with one list per side (two pairs on different cards).
-import ALL from '../system/index.js';
+import ALL, { EVERY } from '../system/index.js';
 import { resolve, cardKey, HOUSE_CARD, playable, sideCards } from './card.js';
 import { splitOpt } from './catalog.js';
 
@@ -43,7 +43,7 @@ export function rulesFor(card) {
   let list = LISTS.get(key);
   if (!list) {
     const sys = makeSys(card);
-    list = ALL.filter((e) => sys.active(e.opt));
+    list = EVERY.filter((e) => sys.active(e.opt));
     SYS.set(list, sys);
     LISTS.set(key, list);
   }

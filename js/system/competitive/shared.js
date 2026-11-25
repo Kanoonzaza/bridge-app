@@ -52,17 +52,19 @@ export function raiseAtThree(e, y, vul) {
 
 // Every contested-auction entry. The first meaning defined for a call in a situation wins.
 export const entries = [];
+// extra.opt: the pool option the meaning belongs to (js/pool/catalog.js); meanings of different options coexist.
 export const def = (after, call, meaning, shows = {}, notes = /^1[CDHS]$/.test(after[0]) ? OURS : COMP, extra = {}) => {
-  if (entries.some((e) => !e.tail && JSON.stringify(e.after) === JSON.stringify(after) && e.call === call && JSON.stringify(e.ctx ?? {}) === JSON.stringify(extra.ctx ?? {}))) return;
+  if (entries.some((e) => !e.tail && JSON.stringify(e.after) === JSON.stringify(after) && e.call === call && JSON.stringify(e.ctx ?? {}) === JSON.stringify(extra.ctx ?? {}) && e.opt === extra.opt)) return;
   entries.push({ after, call, meaning, shows, notes, ...extra });
 };
 
 // Attach the Advisor's decision to the calls already defined for `after`. Samples are auctions the tests replay.
+// opt: attach only to the meanings of that pool option (undefined: the meanings written without one).
 export const SAMPLES = [];
-export function advise(after, decide, samples) {
+export function advise(after, decide, samples, opt = undefined) {
   const k = JSON.stringify(after);
   for (const en of entries) {
-    if (en.tail || JSON.stringify(en.after) !== k) continue;
+    if (en.tail || JSON.stringify(en.after) !== k || en.opt !== opt) continue;
     en.priority = 10;
     en.pick = (e, st) => decide(e, st).call === en.call;
     en.why = (e, st) => decide(e, st).why;

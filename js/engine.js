@@ -15,7 +15,7 @@
 // of the side that makes the call.
 import { SYMBOL, SUITS, evaluate } from './cards.js';
 import { legalCalls, seatAt, situationAt, partnerOf, isComplete, sideOf } from './auction.js';
-import ALL from './system/index.js';
+import ALL, { EVERY } from './system/index.js';
 import { describeCall } from './general.js';
 import { fallback } from './fallback.js';
 import { sysOf, isSystem, forSeat } from './pool/system.js';
@@ -289,7 +289,7 @@ export function leaks(hand, auction, book = ALL) {
   if (entries === ALL || list.some((c) => c.entry.pick(e, { ...base, bind: c.env }))) return [];
   const inside = new Set(entries);
   const legal = new Set(legalCalls(auction));
-  return candidates(situationAt(auction, auction.calls.length), ALL, true)
+  return candidates(situationAt(auction, auction.calls.length), EVERY, true)
     .filter((c) => !inside.has(c.entry) && legal.has(c.call) && c.entry.pick(e, { ...base, bind: c.env }))
     .map((c) => ({ call: c.call, opt: c.entry.opt }));
 }

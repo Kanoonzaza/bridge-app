@@ -280,6 +280,7 @@ function maximalDouble(c) {
 // raise, so partner can choose between our two suits.
 function responsiveDouble(c) {
   const { e, legal, mRows, pFirst, pLast, opened, theyBidLast, lastBid, theirSuits } = c;
+  if (c.sys && !c.sys.is('responsive', 'on')) return null;
   if (opened !== 'them' || !theyBidLast || !legal.has('X') || pLast !== pFirst || mRows.some((r) => r.call !== 'P')) return null;
   if (!isBid(pFirst.call) || pFirst.call[1] === 'N' || Number(lastBid[0]) > 2 || lastBid[1] === 'N') return null;
   const ps = pFirst.call[1];

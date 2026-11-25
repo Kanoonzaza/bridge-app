@@ -1,7 +1,8 @@
 import { dummyPoints } from '../../cards.js';
 import {
-  LEB, SUITS4, RANK, MAJORS, isMajor, cap, nm, cheapest, above, top3, stopper, stops, shortness, longestOf, goodSuit, R, raiseAtThree, def, advise,
+  LEB, COMP, SUITS4, RANK, MAJORS, isMajor, cap, nm, cheapest, above, top3, stopper, stops, shortness, longestOf, goodSuit, R, raiseAtThree, def, advise,
 } from './shared.js';
+import { plays } from '../../pool/answers.js';
 
 // They opened: our overcalls, takeout doubles, two-suiters and bids over their preempts and strong 2♣,
 // and how partner advances. Notes: Part 5, "Competitive bidding: when they open".
@@ -187,13 +188,14 @@ function overcallPass(e, x, balancing) {
   return R('P', why, close ? { close } : {});
 }
 
-export function overWeakTwo(e, x, lv, balancing) {
+// sys: the card's answers (js/pool/answers.js); none = the house card.
+export function overWeakTwo(e, x, lv, balancing, sys = null) {
   const h = e.hcp;
   const L = e.len;
   const others = SUITS4.filter((s) => s !== x);
   const stop = stopper(e, x);
   const minX = (lv === 3 ? 13 : 12) - (balancing ? 2 : 0);
-  const leap = lv === 2 ? leapingMichaels(e, x) : null;
+  const leap = lv === 2 && plays(sys, 'weak-two-defence', 'leaping') ? leapingMichaels(e, x) : null;
   if (leap) return leap;
   if (lv === 2 && e.balanced && stop && h >= 15 && h <= 18) return R('2N', [`${h} HCP balanced, ${nm(x)} stopped`]);
   // With 4 cards in the other major, double is the alternative: it can find a 4-4 fit, but partner, often weak, may answer at the 4-level.
@@ -294,7 +296,7 @@ for (const x of SUITS4) {
     for (const bal of lv === 2 ? [false, true] : [false]) {
       const k = bal ? [`(2${x})`, 'P'] : [`(${lv}${x})`];
       def(k, 'P', 'Pass.');
-      advise(k, (e) => overWeakTwo(e, x, lv, bal), [bal ? { dealer: 'W', calls: [`2${x}`, 'P', 'P'] } : { dealer: 'E', calls: [`${lv}${x}`] }]);
+      advise(k, (e, st) => overWeakTwo(e, x, lv, bal, st?.sys), [bal ? { dealer: 'W', calls: [`2${x}`, 'P', 'P'] } : { dealer: 'E', calls: [`${lv}${x}`] }]);
     }
   }
   // Advancing
@@ -410,11 +412,19 @@ for (const x of SUITS4) {
       def(k, 'X', pc === 'X'
         ? `Responsive double: values (8+), both unbid ${MAJORS.includes(x) ? 'suits' : 'majors'}.`
         : `Responsive double: values (8+), the unbid suits (${unbid.map(nm).join(' and ')}).`, { hcp: [8, 37] }, 'responsive-doubles');
+      def(k, 'X', `Penalty: length and strength in ${nm(x)} (no responsive doubles).`, { hcp: [10, 37], len: { [x]: [4, 13] } }, COMP, { opt: 'responsive:off' });
       def(k, 'P', 'Pass.');
       const raiseCall = pc === 'X' ? null : `${cheapest(theirRaise, pc[1])}${pc[1]}`;
       if (raiseCall) def(k, raiseCall, `Raise: competing in ${nm(pc[1])}.`, { len: { [pc[1]]: [3, 13] } });
       for (const t of unbid) def(k, `${cheapest(theirRaise, t)}${t}`, `Natural: 5+ ${nm(t)}.`, { len: { [t]: [5, 13] } });
-      advise(k, (e, st) => {
+      // Without responsive doubles (pool question 'responsive'), a double is for penalty: only with a trump stack.
+      const decide = (e, st) => {
+        const r = houseDecide(e, st);
+        if (r.call !== 'X' || plays(st?.sys, 'responsive', 'on')) return r;
+        if (e.len[x] >= 4 && top3(e, x) >= 2 && e.hcp >= 10) return R('X', [`${e.len[x]} ${nm(x)} with two top honors, ${e.hcp} HCP: penalty double`]);
+        return R('P', ['no responsive doubles on this card: pass']);
+      };
+      const houseDecide = (e, st) => {
         const r = responsive(e, x, pc);
         const tooThin = (why) => (e.hcp >= 10 ? R('X', [`${e.hcp} HCP: show the values with a responsive double`]) : R('P', [why]));
         if (r.call === 'RAISE') {
@@ -430,7 +440,9 @@ for (const x of SUITS4) {
           return e.hcp >= 10 ? R('X', [`${e.hcp} HCP: too strong to pass, the suit is too high to bid: responsive double`]) : R('P', ['too high']);
         }
         return r;
-      }, [{ dealer: 'W', calls: [`1${x}`, pc, theirRaise] }]);
+      };
+      advise(k, decide, [{ dealer: 'W', calls: [`1${x}`, pc, theirRaise] }]);
+      advise(k, decide, [], 'responsive:off');
     }
   }
 }
@@ -457,7 +469,10 @@ for (const x of ['D', 'H', 'S']) {
       const om = x === 'H' ? 'S' : 'H';
       for (const m of ['C', 'D']) def(k, `4${m}`, `Leaping Michaels: 5+ ${nm(m)} and 5+ ${nm(om)}, game values. (Proposed.)`, { hcp: [11, 37], len: { [m]: [5, 13], [om]: [5, 13] } }, 'leaping-michaels');
     }
-    advise(k, (e) => overWeakTwo(e, x, 2, k.length === 2), []); // re-attach so the new calls are pickable
+    // Without Leaping Michaels (pool question 'weak-two-defence'), a jump to 4 of a minor is natural.
+    for (const m of ['C', 'D']) if (m !== x) def(k, `4${m}`, `Natural: a long, strong ${nm(m)} suit (7+), game values.`, { hcp: [11, 37], len: { [m]: [7, 13] } }, COMP, { opt: 'weak-two-defence:natural' });
+    advise(k, (e, st) => overWeakTwo(e, x, 2, k.length === 2, st?.sys), []); // re-attach so the new calls are pickable
+    advise(k, (e, st) => overWeakTwo(e, x, 2, k.length === 2, st?.sys), [], 'weak-two-defence:natural');
   }
 }
 

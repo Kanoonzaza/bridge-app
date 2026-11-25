@@ -1,5 +1,6 @@
 import { SUITS, NAME } from '../../cards.js';
 import { splinterSuit } from './major.js';
+import { plays } from '../../pool/answers.js';
 
 // Responder's first bid after partner's 1♣ / 1♦ (opponents passing). One decision function, respondToMinor,
 // picks the call. Notes: Part 3, "Responding to 1♣ / 1♦" and "Inverted minor raises".
@@ -27,10 +28,11 @@ function notrump(e) {
 }
 
 // The whole decision for responder's first bid after partner's 1♣/1♦ (opponents passing).
-export function respondToMinor(e, m, passed) {
+// sys: the card's answers (js/pool/answers.js); none = the house card.
+export function respondToMinor(e, m, passed, sys = null) {
   const majors = majorsOf(e);
   const maxMajor = Math.max(e.len.H, e.len.S);
-  if (!passed && !majors.length && e.len[m] >= 5 && e.hcp >= 12 && e.hcp <= 15) {
+  if (!passed && plays(sys, 'splinters', 'on') && !majors.length && e.len[m] >= 5 && e.hcp >= 12 && e.hcp <= 15) {
     const s = splinterSuit(e, m);
     if (s === 'H' || s === 'S') return `3${s}`;
   }
@@ -41,7 +43,7 @@ export function respondToMinor(e, m, passed) {
   if (majors.length && e.hcp >= 6) return `1${majorToShow(e)}`;
   if (!majors.length && e.balanced && e.hcp >= 6 && e.hcp <= 15 && (e.len[m] < 5 || e.hcp < 10)) return notrump(e);
   if (e.hcp >= 5 && e.hcp <= 9 && e.len[m] >= 5 && !e.balanced) return `3${m}`;
-  if (e.hcp >= 2 && e.hcp <= 5) {
+  if (e.hcp >= 2 && e.hcp <= 5 && plays(sys, 'jump-shift', 'weak')) {
     const s = SUITS.find((t) => t !== m && e.len[t] >= 6);
     if (s) return WJS[m][s];
   }
@@ -58,7 +60,7 @@ export function respondToMinor(e, m, passed) {
 }
 
 const M_OF = (st) => st.key[0][1];
-const pick = (callFor) => (e, st) => respondToMinor(e, M_OF(st), st.ctx.responderPassed) === callFor(M_OF(st));
+const pick = (callFor) => (e, st) => respondToMinor(e, M_OF(st), st.ctx.responderPassed, st.sys) === callFor(M_OF(st));
 const fixed = (call) => pick(() => call);
 
 function majorWhy(e, s, st) {

@@ -1,5 +1,6 @@
 import { SUITS, NAME, SYMBOL, dummyPoints } from '../../cards.js';
 import { splinterSuit } from '../responding/major.js';
+import { plays } from '../../pool/answers.js';
 
 // Opener's second bid after each uncontested first response. Notes: Part 4, "Opener's rebids" (and the raise, 2/1 and Drury sections).
 const REBID = 'openers-rebids-tier-0';
@@ -28,13 +29,14 @@ const splinterCall = (o, r, s) => `${kind(o, r, s) === 'lower' ? 4 : 3}${s}`;
 const jumpShiftCall = (o, r, s) => `${kind(o, r, s) === 'one' ? 2 : 3}${s}`;
 
 // ---------- 1o–1r ----------
-export function afterOneLevel(e, o, r) {
+// sys: the card's answers (js/pool/answers.js); none = the house card.
+export function afterOneLevel(e, o, r, sys = null) {
   const h = e.hcp;
   const L = e.len;
   const others = SUITS.filter((s) => s !== o && s !== r);
   if (isMajor(r) && L[r] >= 4) {
     const sp = dummyPoints(e, r);
-    const s = splinterSuit(e, r);
+    const s = plays(sys, 'splinters', 'on') ? splinterSuit(e, r) : null;
     const why = [`4-card ${NAME[r]} support`, `${sp} points counting shortness`];
     if (s && s !== o && sp >= 19 && h >= 15) return R(splinterCall(o, r, s), [...why, `${e.len[s] ? 'singleton' : 'void'} in ${NAME[s]}: splinter`]);
     if (sp >= 19) return R(`4${r}`, why);
@@ -102,7 +104,7 @@ function oneLevelSituation(o, r) {
     if (k !== 'reverse') put(jumpShiftCall(o, r, s), `Jump shift: 19+, 4+ ${NAME[s]}. Game forcing.`, { hcp: [19, 37], len: { [s]: [4, 13] }, force: 'game' });
     if (isMajor(r)) put(splinterCall(o, r, s), `Splinter: 4 ${NAME[r]}, singleton or void in ${NAME[s]}, about 18+.`, { hcp: [15, 37], len: { [r]: [4, 13], [s]: [0, 1] }, force: 'game' }, RAISE);
   }
-  return { after: [`1${o}`, `1${r}`], calls, decide: (e) => afterOneLevel(e, o, r) };
+  return { after: [`1${o}`, `1${r}`], calls, decide: (e, st) => afterOneLevel(e, o, r, st?.sys) };
 }
 
 // ---------- 1m–1NT (6–10, not forcing) ----------

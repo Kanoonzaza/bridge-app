@@ -30,7 +30,7 @@ export const SLOTS = [
     o('weak', 'Weak', 'Unpassed hand: 6-card suit, 2–5 HCP', { notes: 'raising-partners-major-tier-0' }),
   ] },
   { id: 'splinters', group: 'majors', title: 'Splinter raises', options: [
-    soon('off', 'Off', 'Double jumps in a new suit are natural'),
+    o('off', 'Off', 'Double jumps in a new suit are natural'),
     o('on', 'Splinters', '4+ trumps, singleton or void, 10–14, game forcing', { notes: 'raising-partners-major-tier-0' }),
   ] },
   { id: 'passed-2c', group: 'majors', title: 'Passed hand: 2♣ over partner\'s 1♥ / 1♠', options: [
@@ -38,7 +38,7 @@ export const SLOTS = [
     o('drury', 'Drury', '2♣ = 3+ support, 10–11 (a limit raise) · opener\'s 2♦ = full opening', { notes: 'drury-tier-1' }),
   ] },
   { id: 'passed-jump', group: 'majors', title: 'Passed hand: jump shift', options: [
-    soon('none', 'No special meaning', 'Read as natural'),
+    o('none', 'No special meaning', 'Read as natural'),
     o('fit', 'Fit-showing', 'Good 5-card suit, 4+ support, 10–11', { notes: 'passed-hand-jump-shifts' }),
   ] },
   { id: 'major-raise', group: 'majors', title: 'Jump raise of 1♥ / 1♠', options: [
@@ -104,15 +104,15 @@ export const SLOTS = [
     o('on', 'Support doubles', 'X / XX = exactly 3-card support for responder\'s major', { notes: 'support-doubles-and-redoubles-tier-2' }),
   ] },
   { id: 'responsive', group: 'competitive', title: 'Responsive doubles', options: [
-    soon('off', 'Off', 'Double of their raise = penalty'),
+    o('off', 'Off', 'Double of their raise = penalty'),
     o('on', 'Responsive doubles', 'Double of their raise = takeout, the unbid suits', { notes: 'responsive-doubles' }),
   ] },
   { id: 'weak-two-defence', group: 'competitive', title: '4♣ / 4♦ over their weak two', options: [
-    soon('natural', 'Natural', 'Long minor'),
+    o('natural', 'Natural', 'A jump to 4♣ / 4♦ = a long, strong minor'),
     o('leaping', 'Leaping Michaels', 'That minor and the other major, 5-5, game values', { notes: 'leaping-michaels' }),
   ] },
   { id: 'slam-doubles', group: 'competitive', title: 'Doubles of their slams and artificial bids', options: [
-    soon('penalty', 'Penalty', 'Plain penalty doubles'),
+    o('penalty', 'Penalty', 'Plain penalty doubles'),
     o('lead', 'Lead-directing and Lightner', 'Double of an artificial bid = lead this suit · double of a slam = unusual lead', { notes: 'lead-directing-doubles' }),
   ] },
 

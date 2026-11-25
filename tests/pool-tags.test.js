@@ -8,7 +8,7 @@ import { isTag } from '../js/pool/tags.js';
 const COUNTS = {
   'base:2/1': 410,
   'checkback:xyz': 453,
-  core: 4432,
+  core: 4454, // 2026-11-25: the 22 plain passes of the lead-directing and Lightner sections became core
   'fourth-suit:gf': 151,
   'jump-shift:weak': 51,
   'keycard:rkcb-1430': 34,
@@ -20,7 +20,7 @@ const COUNTS = {
   'passed-2c:drury': 11,
   'passed-jump:fit': 6,
   'responsive:on': 32,
-  'slam-doubles:lead': 48,
+  'slam-doubles:lead': 26,
   'smolen:on': 14,
   'splinters:on': 29,
   'support-doubles:on': 472,
