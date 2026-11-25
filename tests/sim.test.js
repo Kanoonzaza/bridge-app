@@ -132,3 +132,17 @@ test('board 82: no pushing the same suit higher over our own doubled bid, and no
   const over = { dealer: 'E', vul: 'NS', calls: 'P P 1D 1S X XX 2H 2S 4H X P 4S'.split(' ') };
   assert.deepEqual(sensible(east, over, ['P', '5H'], 'P', { W: { len: { H: [4, 13] } } }), ['P', '5H'], 'after their 4♠ over our doubled 4♥ a 5♥ push is an ordinary competitive call');
 });
+
+test('simulation with a book of house cards on both sides gives exactly the same result', async () => {
+  const { loadDds, Dds } = await import('../js/vendor/dds/api.js');
+  const { bookOfCards } = await import('../js/pool/system.js');
+  const { pack, normalizeCard } = await import('../js/pool/card.js');
+  const dds = new Dds(await loadDds());
+  const hand = unpackHand('QJT98632.A7.AT.4');
+  const auction = { dealer: 'E', vul: 'NS', calls: ['P', '1S', '2S', 'X', '4H'] };
+  const r = advise(hand, auction);
+  const run = (book) => simulateParts({ hand, auction, baseCall: r.call, dds, rand: rng(9), samples: 4, minSamples: 4, timeMs: 1e9, book });
+  // A named card that bids like the house card, as a worker receives it from a table.
+  const book = bookOfCards({ NS: pack(normalizeCard({ base: '2/1', name: 'Noon & Pim' })), EW: pack(normalizeCard({ base: 'sayc' })) });
+  assert.deepEqual(run(book), run(undefined));
+});

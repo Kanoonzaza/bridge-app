@@ -601,3 +601,10 @@ button.pv-c{border:0;background:none;color:inherit;font:inherit;padding:0;cursor
   body.print-card .panel{break-inside:avoid;border-color:#999;background:#fff}
   body.print-card .chip{border:1px solid #999}
 }
+
+/* Table: which convention card each side plays (js/ui/table.js cardsView) */
+.side-card{display:grid;gap:2px;padding:10px 0;border-top:1px solid var(--rule)}
+.side-card:first-of-type{border-top:0}
+.side-card p{margin:2px 0 0}
+.card-pick{display:grid;gap:4px;margin-top:6px}
+.card-pick .label{margin:0}

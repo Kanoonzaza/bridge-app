@@ -458,6 +458,14 @@ Check by hand: two browser windows at one table, each side on a different card; 
 
 `PROTO` 5 means older installed copies are told to update, as on earlier protocol changes; confirm that message appears with an old cached copy. Stamp, commit, push.
 
+### Phase 3: as built (2026-11-25)
+
+- **One field per level instead of `cardsNext`.** `t.cards` is the card each side wants; `board.cards` is what the board is played with, worked out while no call has been made (from `t.cards` and who sits where) and then fixed. History keeps it with the board. A change after the first call shows "starts with the next board"; restarting the bidding or taking back the first call picks it up. A side's choice stays on the table while robots sit there, and comes back when those players sit again.
+- **The model holds no rules.** `js/table/model.js` stores packed cards only; the screen gives robots an engine bound to the board (`bookOfBoard`), and `review.js` reads the board's cards by default, so `report.js` and the saved-board review needed no change of call.
+- Workers get the packed cards in the `bid` message and build the book themselves (`bookOfCards`).
+- **Screen:** a "Systems" panel (outside the play) names each side's card and how it differs from the house card; a seated player picks their side's card from the cards on the phone. Starting or joining a table, or sitting down, brings the card in use when the side has none yet. The review and "Copy this board" name the cards. The confidence label reads "On your card" for a pair's own card.
+- Until phase 4 writes options, every card bids as the house card (the unready parts are played as on the house card, and the Systems panel says so); the mechanics are proven with exact rule lists in `tests/pool-table.test.js`.
+
 ---
 
 ## Phase 4. Standard options

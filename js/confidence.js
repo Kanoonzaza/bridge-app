@@ -16,6 +16,9 @@ export function confidence(r, sys = null) {
   if (PROPOSED.has(r.notes) || /\(Proposed\.\)/.test(r.meaning ?? '') || (slotOfOpt && sys?.discuss(slotOfOpt))) {
     return { level: 'proposed', label: 'Proposed agreement', note: 'Follows an agreement proposed in the notes but not yet confirmed with partner.' };
   }
-  if (r.fallback === 'quiet') return { level: 'agreed', label: 'Agreed system', note: 'Their bids took none of our room, so our agreement applies as if they had passed.' };
-  return { level: 'agreed', label: 'Agreed system', note: 'Our notes cover this exact sequence.' };
+  // A pair's own card (not the house card): the agreement is theirs.
+  const own = sys && !sys.house;
+  const label = own ? 'On your card' : 'Agreed system';
+  if (r.fallback === 'quiet') return { level: 'agreed', label, note: own ? 'Their bids took none of your room, so your agreement applies as if they had passed.' : 'Their bids took none of our room, so our agreement applies as if they had passed.' };
+  return { level: 'agreed', label, note: own ? `Your card${sys.name ? ` (${sys.name})` : ''} covers this exact sequence.` : 'Our notes cover this exact sequence.' };
 }

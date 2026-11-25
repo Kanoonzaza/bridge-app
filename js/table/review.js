@@ -1,5 +1,6 @@
 // After a board: compare the table's auction with what the Advisor would bid, call by call.
 import { advise, explain } from '../engine.js';
+import { bookOfBoard, sysOf, forSeat } from '../pool/system.js';
 import { evaluate, pointsFor } from '../cards.js';
 import { NAME } from '../cards.js';
 import { addCall, isComplete, nextSeat, seatAt, sideOf, isBid } from '../auction.js';
@@ -36,20 +37,21 @@ export function misfit(hand, row) {
 
 // The whole auction as the Advisor would bid it, with the table's opponents
 // (robots bid by the engine, always-pass seats pass, human opponents are bid by the engine too).
-export function systemAuction(b, seats) {
+// book: the rules each side plays; by default the cards the board was played with (board.cards).
+export function systemAuction(b, seats, book = bookOfBoard(b)) {
   let a = { dealer: b.dealer, vul: b.vul, calls: [] };
   for (let g = 0; g < 60 && !isComplete(a); g++) {
     const s = nextSeat(a);
-    const r = seats[s].kind === 'pass' ? { call: 'P' } : advise(handOf(b, s), a);
+    const r = seats[s].kind === 'pass' ? { call: 'P' } : advise(handOf(b, s), a, book);
     a = addCall(a, r.notCovered ? 'P' : r.call);
   }
   return a;
 }
 
 // Each call of the table's auction, with its meaning and, for human seats, the Advisor's call at that point.
-export function reviewRows(b, seats) {
+export function reviewRows(b, seats, book = bookOfBoard(b)) {
   const a = auctionOf(b);
-  const rows = explain(a, undefined, { general: true });
+  const rows = explain(a, book, { general: true });
   // Only each player's first difference is compared: the calls after it depend on it.
   const departed = new Set();
   return rows.map((row) => {
@@ -59,8 +61,8 @@ export function reviewRows(b, seats) {
     let skipped = false;
     if (human && departed.has(seat)) skipped = true;
     else if (human) {
-      const r = advise(handOf(b, seat), { ...a, calls: a.calls.slice(0, row.i) });
-      advisor = r.notCovered ? null : { call: r.call, meaning: r.meaning, reasons: r.reasons, close: r.close ?? null, conf: confidence(r) };
+      const r = advise(handOf(b, seat), { ...a, calls: a.calls.slice(0, row.i) }, book);
+      advisor = r.notCovered ? null : { call: r.call, meaning: r.meaning, reasons: r.reasons, close: r.close ?? null, conf: confidence(r, sysOf(forSeat(book, seat))) };
     }
     const differs = !!advisor && advisor.call !== row.call;
     if (differs) departed.add(seat);
@@ -69,14 +71,14 @@ export function reviewRows(b, seats) {
 }
 
 // Where a robot's call departed from the Advisor's (the table's simulation chose it): each robot seat's first difference.
-export function robotDepartures(b, seats) {
+export function robotDepartures(b, seats, book = bookOfBoard(b)) {
   const a = auctionOf(b);
   const seen = new Set();
   const out = [];
   a.calls.forEach((call, i) => {
     const seat = seatAt(a, i);
     if (seats[seat].kind !== 'robot' || seen.has(seat)) return;
-    const r = advise(handOf(b, seat), { ...a, calls: a.calls.slice(0, i) });
+    const r = advise(handOf(b, seat), { ...a, calls: a.calls.slice(0, i) }, book);
     if (r.notCovered || r.call === call) return;
     seen.add(seat);
     out.push({ seat, call, advisor: r });

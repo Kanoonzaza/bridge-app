@@ -1,7 +1,8 @@
 // A double-dummy worker (DDS, WebAssembly), one of a pool that scores sampled deals in parallel off the main thread.
 // Messages in (kind 'play', the default): { id, hands, contract, play, constraints, samples, minSamples, timeMs }
 //   -> { id, part: { n, total } }: scores of the legal cards on sampled deals.
-// Messages in (kind 'bid'): { id, kind: 'bid', hand, auction, baseCall, samples, minSamples, timeMs }
+// Messages in (kind 'bid'): { id, kind: 'bid', hand, auction, baseCall, cards, samples, minSamples, timeMs }
+//   (cards: the packed convention cards of each side, as on a board; see js/pool/card.js)
 //   -> { id, part: { n, sums } }: IMPs gained by each candidate call on sampled deals.
 // Messages in (kind 'review'): { id, kind: 'review', hands, dealer, vul }
 //   -> { id, part }: the double-dummy table and par of a finished board (see ddreview.js).
@@ -46,8 +47,9 @@ self.onmessage = async (e) => {
     }
     if (kind === 'bid') {
       const { simulateParts } = await import('../sim-bid.js');
-      const { hand, auction, baseCall } = e.data;
-      self.postMessage({ id, part: simulateParts({ hand, auction, baseCall, dds, samples, minSamples, timeMs }) });
+      const { bookOfCards } = await import('../pool/system.js');
+      const { hand, auction, baseCall, cards } = e.data;
+      self.postMessage({ id, part: simulateParts({ hand, auction, baseCall, dds, samples, minSamples, timeMs, book: bookOfCards(cards) }) });
       return;
     }
     const st = playState(hands, contract, play);

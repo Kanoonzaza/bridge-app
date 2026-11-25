@@ -3,7 +3,7 @@
 //   sysOf(list)     -> { base, is(slot, option), get(slot), discuss(slot), active(opt) } for that list.
 //   book            -> one rule list, or { NS, EW } with one list per side (two pairs on different cards).
 import ALL from '../system/index.js';
-import { resolve, cardKey, HOUSE_CARD, playable } from './card.js';
+import { resolve, cardKey, HOUSE_CARD, playable, sideCards } from './card.js';
 import { splitOpt } from './catalog.js';
 
 function makeSys(card) {
@@ -11,6 +11,9 @@ function makeSys(card) {
   const discuss = new Set(card.discuss ?? []);
   return {
     base: card.base,
+    // The card's name, and whether it bids like the house card (our own system).
+    name: card.name ?? '',
+    house: cardKey(card) === cardKey(HOUSE_CARD),
     is: (slotId, optId) => picks[slotId] === optId,
     get: (slotId) => picks[slotId],
     discuss: (slotId) => discuss.has(slotId),
@@ -58,3 +61,8 @@ export const isBook = (x) => Array.isArray(x) || (x && Array.isArray(x.NS) && Ar
 export const forSeat = (book, seat) => (Array.isArray(book) ? book : book[seat === 'N' || seat === 'S' ? 'NS' : 'EW']);
 export const forSide = (book, side) => (Array.isArray(book) ? book : book[side]);
 export const bookFor = (cards = {}) => ({ NS: systemFor(cards.NS ?? HOUSE_CARD), EW: systemFor(cards.EW ?? HOUSE_CARD) });
+
+// The book for packed cards ({ NS?, EW? }, as stored on a table's board; a side left out plays the house card).
+export const bookOfCards = (packed) => (packed?.NS || packed?.EW ? bookFor(sideCards(packed)) : ALL);
+// The book a table's board was (or is being) played with.
+export const bookOfBoard = (b) => bookOfCards(b?.cards);

@@ -131,3 +131,9 @@ export function playable(card) {
   }
   return normalizeCard({ ...card, base, picks });
 }
+
+// The cards a board is played with, stored packed as { NS?, EW? } (a side left out plays the house card).
+export const sideCards = (packed) => ({
+  NS: packed?.NS ? unpack(packed.NS) : HOUSE_CARD,
+  EW: packed?.EW ? unpack(packed.EW) : HOUSE_CARD,
+});

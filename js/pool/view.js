@@ -1,7 +1,7 @@
 // A card as a page: one panel per group, in the order of a paper convention card. Pure data (no DOM),
 // shared by the Card tab, the printed card and "Copy as text".
 import { GROUPS, SLOTS, option } from './catalog.js';
-import { resolve } from './card.js';
+import { resolve, PRESETS } from './card.js';
 
 // What each base system plays that is not a choice on the card.
 const BASE_LINES = {
@@ -45,4 +45,12 @@ export function cardText(card) {
     out.push('');
   }
   return out.join('\n').trimEnd();
+}
+
+// The answers on a card that differ from the house card (our 2/1 system): what opponents most need to know.
+// [{ slot, title, optionTitle }]; the base system counts as one answer.
+export function differences(card) {
+  const r = resolve(card);
+  return SLOTS.filter((s) => !s.text && r[s.id] !== PRESETS['2/1'][s.id])
+    .map((s) => ({ slot: s.id, title: s.title, optionTitle: option(s.id, r[s.id]).title }));
 }

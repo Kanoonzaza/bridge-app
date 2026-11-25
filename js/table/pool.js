@@ -78,10 +78,11 @@ export async function poolChoose(pool, { hands, contract, play, constraints, tot
 }
 
 // Simulate a judgment call with the pool: sampled deals split across the workers, combined, decided.
-// auction: { dealer, vul, calls }; baseCall: the Advisor's call. Returns { call, changed, n, table } or null.
-export async function poolSimulate(pool, { hand, auction, baseCall, total = 48, timeMs = 2000 }) {
+// auction: { dealer, vul, calls }; baseCall: the Advisor's call; cards: the packed cards each side plays
+// ({ NS?, EW? }, as on a board; none = the house card). Returns { call, changed, n, table } or null.
+export async function poolSimulate(pool, { hand, auction, baseCall, cards = null, total = 48, timeMs = 2000 }) {
   const parts = await pool.run((k, n) => ({
-    kind: 'bid', hand, auction, baseCall,
+    kind: 'bid', hand, auction, baseCall, cards,
     samples: Math.ceil(total / n), minSamples: Math.max(2, Math.ceil(8 / n)), timeMs,
   }), timeMs + 8000);
   const merged = mergeParts(parts);
