@@ -125,7 +125,8 @@ test('Plan 4 sweep: every situation answers every hand with a decodable call', (
       const hand = randomHand(rng);
       const r = advise(hand, auction);
       assert.ok(!r.notCovered, `${sit.after}: not covered for ${JSON.stringify(hand)}`);
-      assert.ok(r.call in sit.calls, `${sit.after}: ${r.call} missing from the call table`);
+      // Keys are 'call' or 'call|option' (a meaning that belongs to one option of the convention pool).
+      assert.ok(Object.keys(sit.calls).some((k) => k.split('|')[0] === r.call), `${sit.after}: ${r.call} missing from the call table`);
       assert.equal(matchingEntries(hand, auction).length, 1, `${sit.after}: several entries matched`);
     }
   }

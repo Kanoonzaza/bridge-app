@@ -45,3 +45,32 @@ test('responsive doubles off: a double of their raise is for penalty', () => {
   assert.notEqual(bidWith(off, h, calls, { dealer: 'W' }).call, 'X');
   assert.match(meaningWith(off, [...calls, 'X'], { dealer: 'W' }).meaning, /^Penalty/);
 });
+
+test('Texas off: a game hand with six spades transfers, then bids game', () => {
+  const h = 'KQJ752.K3.Q42.73';
+  assert.equal(bidWith(HOUSE, h, ['1N', 'P']).call, '4H');
+  const off = card('2/1', { texas: 'off' });
+  assert.equal(bidWith(off, h, ['1N', 'P']).call, '2H');
+  assert.equal(bidWith(off, h, ['1N', 'P', '2H', 'P', '2S', 'P']).call, '4S');
+  assert.match(meaningWith(off, ['1N', 'P', '4H']).meaning, /^To play: 6\+ hearts/);
+});
+
+test('Smolen off: 5 spades and 4 hearts show the spades; opener raises with three', () => {
+  const h = 'AQJ43.KJ72.Q4.83';
+  const calls = ['1N', 'P', '2C', 'P', '2D', 'P'];
+  assert.equal(bidWith(HOUSE, h, calls).call, '3H');
+  const off = card('2/1', { smolen: 'off' });
+  assert.equal(bidWith(off, h, calls).call, '3S');
+  assert.match(meaningWith(off, [...calls, '3S']).meaning, /^5 spades/);
+  assert.equal(bidWith(off, 'K92.AQ5.KJ83.Q72', ['1N', 'P', '2C', 'P', '2D', 'P', '3S', 'P'], { dealer: 'S' }).call, '4S');
+});
+
+test('natural over their overcall of our 1NT: 2NT is an invitation, not a relay', () => {
+  const h = 'K84.Q93.A762.984';
+  const calls = ['1N', '2H'];
+  const nat = card('2/1', { 'nt-interference': 'natural' });
+  assert.equal(bidWith(nat, h, calls).call, '2N');
+  assert.match(meaningWith(nat, [...calls, '2N']).meaning, /^Natural: 8–9/);
+  assert.match(meaningWith(HOUSE, [...calls, '2N']).meaning, /Lebensohl/);
+  assert.equal(bidWith(nat, 'AQ3.KJ4.QJ52.K94', [...calls, '2N', 'P'], { dealer: 'S' }).call, '3N', 'opener accepts with 16');
+});

@@ -8,7 +8,7 @@ import { isTag } from '../js/pool/tags.js';
 const COUNTS = {
   'base:2/1': 410,
   'checkback:xyz': 453,
-  core: 4454, // 2026-11-25: the 22 plain passes of the lead-directing and Lightner sections became core
+  core: 4448, // 2026-11-25: +22 plain passes (lead-directing, Lightner); -6 '4M after a transfer' (mild slam interest: Texas only)
   'fourth-suit:gf': 151,
   'jump-shift:weak': 51,
   'keycard:rkcb-1430': 34,
@@ -24,7 +24,7 @@ const COUNTS = {
   'smolen:on': 14,
   'splinters:on': 29,
   'support-doubles:on': 472,
-  'texas:on': 16,
+  'texas:on': 22,
   'weak-two-ask:ogust': 44,
   'weak-two-defence:leaping': 12,
 };

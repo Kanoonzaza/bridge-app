@@ -56,11 +56,11 @@ export const SLOTS = [
   ] },
 
   { id: 'smolen', group: 'notrump', title: 'Smolen', options: [
-    soon('off', 'Off', '1NT–2♣–2♦–3♥ / 3♠ = 5 cards in the bid major, game forcing'),
+    o('off', 'Off', '1NT–2♣–2♦–3♥ / 3♠ = 5 cards in the bid major, game forcing'),
     o('on', 'Smolen', '1NT–2♣–2♦–3♥ / 3♠ = 4 cards in the bid major, 5 in the other', { notes: 'smolen-tier-2' }),
   ] },
   { id: 'texas', group: 'notrump', title: 'Texas transfers', options: [
-    soon('off', 'Off', '4♥ / 4♠ over 1NT = to play'),
+    o('off', 'Off', 'Game hands with a 6-card major transfer, then bid game · 4♥ / 4♠ = to play'),
     o('on', 'Texas', '4♦ / 4♥ = transfer to 4♥ / 4♠, sign-off', { notes: '1nt-opening-and-responses-tier-0' }),
   ] },
   { id: 'nt-2s', group: 'notrump', title: '2♠ over 1NT', options: [
@@ -68,7 +68,7 @@ export const SLOTS = [
     soon('four-suit', 'Four-suit transfers', '2♠ = clubs · 2NT = diamonds'),
   ] },
   { id: 'nt-interference', group: 'notrump', title: 'They bid over our 1NT', options: [
-    soon('natural', 'Natural', 'Suit = to play · cue-bid = Stayman · double = penalty'),
+    o('natural', 'Natural', '2-level suit = to play · 3-level suit = game forcing · 2NT = invitational · cue-bid = Stayman · double = penalty'),
     o('lebensohl', 'Lebensohl', '2NT = relay to 3♣ · direct 3-level = forcing · slow = stopper', { notes: 'lebensohl-tier-2' }),
   ] },
 

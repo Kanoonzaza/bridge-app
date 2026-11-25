@@ -1,6 +1,9 @@
 import { SUITS, NAME, SYMBOL, dummyPoints } from '../../cards.js';
+import { plays } from '../../pool/answers.js';
 
 // 1NT (15–17) and 2NT (20–21, or 22–24 after 2♣–2♦) auctions: responses, opener's replies, responder's next bid.
+// Decisions get the card's answers as `sys` (js/pool/answers.js): Texas transfers and Smolen are pool questions.
+// A meaning may belong to one option of the pool (its `opt`, e.g. 'texas:off'); the others are tagged by js/pool/tags.js.
 const NT = '1nt-opening-and-responses-tier-0';
 const SMOLEN = 'smolen-tier-2';
 const GERBER = 'rkcb-1430-and-slam-tools-tier-1';
@@ -9,12 +12,13 @@ const top3 = (e, s) => ['A', 'K', 'Q'].filter((r) => e.hand[s].includes(r)).leng
 const other = (M) => (M === 'H' ? 'S' : 'H');
 
 // ---------- Responder over 1NT ----------
-export function respond1NT(e) {
+export function respond1NT(e, sys = null) {
   const h = e.hcp;
   const { S, H, D, C } = e.len;
   const long = ['H', 'S'].filter((M) => e.len[M] >= 6).sort((a, b) => e.len[b] - e.len[a])[0];
   const xfer = (M) => (M === 'H' ? '2D' : '2H');
   if (long) {
+    if (h + e.len[long] - 6 >= 10 && h <= 15 && !plays(sys, 'texas', 'on')) return R(xfer(long), [`${e.len[long]} ${NAME[long]}`, `${h} HCP: game`, 'transfer, then bid game'], { plan: `Opener completes the transfer: bid 4${SYMBOL[long]}.` });
     if (h + e.len[long] - 6 >= 10 && h <= 15) return R(M4(long), [`${e.len[long]} ${NAME[long]}`, `${h} HCP: game${e.len[long] >= 7 && h >= 12 ? ', with slam interest after the transfer' : ', no slam interest'}`], { plan: e.len[long] >= 7 && h >= 12 ? `Opener bids 4${SYMBOL[long]}: bid 4NT (key cards) for slam.` : `Opener bids 4${SYMBOL[long]}: pass.` });
     return R(xfer(long), [`${e.len[long]} ${NAME[long]}`, 'transfer: the strong hand declares'],
       { plan: h <= 7 ? `Pass 2${SYMBOL[long]}.` : h <= 9 ? `Then 3${SYMBOL[long]} (invitational).` : `Then 4${SYMBOL[long]} (mild slam interest).` });
@@ -50,7 +54,8 @@ export function respond1NT(e) {
 }
 const M4 = (M) => (M === 'H' ? '4D' : '4H');
 
-const callTable = (rows, notes = NT) => Object.fromEntries(rows.map(([call, meaning, shows = {}]) => [call, { meaning, shows, notes }]));
+// Rows: [call, meaning, shows?, notes?, opt?]. A call may have one meaning per option: the key is then 'call|opt'.
+const callTable = (rows, notes = NT) => Object.fromEntries(rows.map(([call, meaning, shows = {}, n = notes, opt]) => [opt ? `${call}|${opt}` : call, { meaning, shows, notes: n, ...(opt ? { opt } : {}) }]));
 
 const ONE_NT = callTable([
   ['P', '0–7, no game.', { hcp: [0, 7] }],
@@ -66,16 +71,18 @@ const ONE_NT = callTable([
   ['4C', 'Gerber: asks for aces.', {}],
   ['4D', 'Texas: transfer to 4♥, to play.', { len: { H: [6, 13] } }],
   ['4H', 'Texas: transfer to 4♠, to play.', { len: { S: [6, 13] } }],
+  ['4H', 'To play: 6+ hearts.', { len: { H: [6, 13] } }, NT, 'texas:off'],
+  ['4S', 'To play: 6+ spades.', { len: { S: [6, 13] } }, NT, 'texas:off'],
   ['4N', 'Quantitative: 16–17, invites 6NT.', { hcp: [16, 17] }],
   ['6N', 'To play.', { hcp: [18, 19] }],
 ]);
 
 // ---------- Responder over 2NT (20–21) or 2♣–2♦–2NT (22–24): same structure one level higher ----------
-export function respond2NT(e, min) {
+export function respond2NT(e, min, sys = null) {
   const h = e.hcp;
   const need = 25 - min;
   const long = ['H', 'S'].filter((M) => e.len[M] >= 6).sort((a, b) => e.len[b] - e.len[a])[0];
-  if (long && h >= need && h <= need + 6) return R(M4(long), [`${e.len[long]} ${NAME[long]}`, `${h} HCP: game`]);
+  if (long && h >= need && h <= need + 6 && plays(sys, 'texas', 'on')) return R(M4(long), [`${e.len[long]} ${NAME[long]}`, `${h} HCP: game`]);
   const five = ['S', 'H'].find((M) => e.len[M] >= 5);
   if (five && e.len[other(five)] === 4 && h >= need) return R('3C', [`5 ${NAME[five]} + 4 ${NAME[other(five)]}`, 'Stayman'], { plan: `Over 3♦, bid 3${SYMBOL[other(five)]} (Smolen).` });
   if (five) return R(five === 'H' ? '3D' : '3H', [`${e.len[five]} ${NAME[five]}`, 'transfer'], { plan: h < need ? 'Pass the completion.' : 'Then 3NT (choice of games) or game in the major with 6.' });
@@ -97,6 +104,8 @@ const twoNTTable = () => callTable([
   ['4C', 'Gerber: asks for aces.', {}],
   ['4D', 'Texas: transfer to 4♥.', { len: { H: [6, 13] } }],
   ['4H', 'Texas: transfer to 4♠.', { len: { S: [6, 13] } }],
+  ['4H', 'To play: 6+ hearts.', { len: { H: [6, 13] } }, NT, 'texas:off'],
+  ['4S', 'To play: 6+ spades.', { len: { S: [6, 13] } }, NT, 'texas:off'],
   ['4N', 'Quantitative: invites 6NT.', {}],
   ['6N', 'To play.', {}],
 ]);
@@ -125,7 +134,7 @@ const GERBER_REPLIES = callTable([
 ], GERBER);
 
 // ---------- Responder's next bid ----------
-export function afterStayman(e, reply, min) {
+export function afterStayman(e, reply, min, sys = null) {
   const h = e.hcp;
   const need = 25 - min;
   const lv = Number(reply[0]);
@@ -135,6 +144,7 @@ export function afterStayman(e, reply, min) {
   if (s === 'D') {
     const five = ['S', 'H'].find((M) => e.len[M] === 5 && e.len[other(M)] === 4);
     if (five && inv) return R(`2${five}`, [`5 ${NAME[five]} + 4 ${NAME[other(five)]}`, 'invitational']);
+    if (five && !plays(sys, 'smolen', 'on')) return R(`3${five}`, [`5 ${NAME[five]} + 4 ${NAME[other(five)]}`, `show the 5 ${NAME[five]}, game forcing: opener raises with 3 or bids 3NT`]);
     if (five) return R(`3${other(five)}`, [`4 ${NAME[other(five)]} + 5 ${NAME[five]}`, 'Smolen: game forcing, the notrump hand declares']);
     if (h >= 33 - min) return R('6N', [`${h} HCP: small slam`]);
     if (h >= 31 - min) return R('4N', [`${h} HCP: invite 6NT`]);
@@ -156,6 +166,8 @@ function staymanFollowTable(reply) {
   const s = reply[1];
   const rows = [['P', 'Weak: to play.', {}]];
   if (s === 'D') {
+    rows.push(['3H', '5 hearts (and 4 spades), game forcing: opener raises with 3 hearts or bids 3NT.', { len: { H: [5, 5], S: [4, 4] }, force: 'game' }, NT, 'smolen:off']);
+    rows.push(['3S', '5 spades (and 4 hearts), game forcing: opener raises with 3 spades or bids 3NT.', { len: { S: [5, 5], H: [4, 4] }, force: 'game' }, NT, 'smolen:off']);
     if (lv === 2) {
       rows.push(['2H', '5 hearts + 4 spades, invitational.', { len: { H: [5, 5], S: [4, 4] } }]);
       rows.push(['2S', '5 spades + 4 hearts, invitational.', { len: { S: [5, 5], H: [4, 4] } }]);
@@ -171,10 +183,10 @@ function staymanFollowTable(reply) {
   rows.push(['3N', s === 'H' ? 'To play; may hold 4 spades (opener corrects to 4♠ with 4).' : 'To play.', {}]);
   rows.push(['4N', 'Quantitative: invites 6NT.', {}], ['6N', 'To play.', {}]);
   if (s !== 'D') rows.push([`6${s}`, 'Small slam.', {}]);
-  return Object.fromEntries(rows.map(([call, meaning, shows, notes = NT]) => [call, { meaning, shows, notes }]));
+  return callTable(rows);
 }
 
-export function afterTransfer(e, M, completion, min) {
+export function afterTransfer(e, M, completion, min, sys = null) {
   const h = e.hcp;
   const need = 25 - min;
   const lv = Number(completion[0]);
@@ -189,7 +201,7 @@ export function afterTransfer(e, M, completion, min) {
   if (M === 'H' && e.len.S >= 5) return R('2S', ['5 spades too, invitational']);
   if (M === 'S' && e.len.H >= 5 && h >= need) return R('3H', ['5 hearts too, game forcing']);
   if (h < need - 2) return R('P', [`${h} HCP: weak, play here`]);
-  if (L >= 6) return h < need ? R(`3${M}`, [`${L} ${NAME[M]}`, 'invitational']) : R(`4${M}`, [`${L} ${NAME[M]}`, 'game with mild slam interest']);
+  if (L >= 6) return h < need ? R(`3${M}`, [`${L} ${NAME[M]}`, 'invitational']) : R(`4${M}`, [`${L} ${NAME[M]}`, plays(sys, 'texas', 'on') ? 'game with mild slam interest' : 'game']);
   if (h < need) return R('2N', ['5 cards, invitational']);
   if (h >= need + 6) return R('4N', [`${h} HCP: quantitative, 5-card ${NAME[M]}`]);
   return R('3N', ['5 cards, game values: opener chooses 3NT or the major']);
@@ -201,7 +213,8 @@ function transferFollowTable(M, completion, superAccepted) {
   const rows = [
     ['P', 'Weak: to play.', {}],
     ['3N', `Exactly 5 ${NAME[M]}, game values: choose 3NT or 4${SYMBOL[M]}.`, { len: { [M]: [5, 5] } }],
-    [`4${M}`, lv === 2 ? `6+ ${NAME[M]}, game, mild slam interest.` : `6+ ${NAME[M]}, game.`, { len: { [M]: [6, 13] } }],
+    [`4${M}`, lv === 2 ? `6+ ${NAME[M]}, game, mild slam interest.` : `6+ ${NAME[M]}, game.`, { len: { [M]: [6, 13] } }, NT, 'texas:on'],
+    [`4${M}`, `6+ ${NAME[M]}, game.`, { len: { [M]: [6, 13] } }, NT, 'texas:off'],
     ['4N', `Quantitative with 5 ${NAME[M]} (not RKCB).`, {}],
   ];
   if (lv === 2) {
@@ -220,7 +233,7 @@ const S1 = [];
 const add = (after, calls, decide, extra = {}) => S1.push({ after, calls, decide, ...extra });
 
 // 1NT
-add(['1N'], ONE_NT, respond1NT);
+add(['1N'], ONE_NT, (e, sys) => respond1NT(e, sys));
 add(['1N', '2C'], staymanTable(2), stayman(2));
 add(['1N', '2D'], transferTable('H', 2, true), transferReply('H', 2, true));
 add(['1N', '2H'], transferTable('S', 2, true), transferReply('S', 2, true));
@@ -244,11 +257,11 @@ add(['1N', '4H', '4S'], ...slamAfterTexas('S'));
 add(['1N', '4N'], callTable([['P', '15: decline.', {}], ['6N', '17, or 16 with a good 5-card suit: accept.', {}]]), (e) => quantReply(e, 15));
 add(['1N', '4C'], GERBER_REPLIES, gerberReply(4));
 for (const pass of ['3N', '6N']) add(['1N', pass], callTable([['P', 'To play.', {}]]), () => R('P', ['partner placed the contract']));
-for (const reply of ['2D', '2H', '2S']) add(['1N', '2C', reply], staymanFollowTable(reply), (e) => afterStayman(e, reply, 15));
-add(['1N', '2D', '2H'], transferFollowTable('H', '2H', false), (e) => afterTransfer(e, 'H', '2H', 15));
-add(['1N', '2H', '2S'], transferFollowTable('S', '2S', false), (e) => afterTransfer(e, 'S', '2S', 15));
-add(['1N', '2D', '3H'], transferFollowTable('H', '3H', true), (e) => afterTransfer(e, 'H', '3H', 15));
-add(['1N', '2H', '3S'], transferFollowTable('S', '3S', true), (e) => afterTransfer(e, 'S', '3S', 15));
+for (const reply of ['2D', '2H', '2S']) add(['1N', '2C', reply], staymanFollowTable(reply), (e, sys) => afterStayman(e, reply, 15, sys));
+add(['1N', '2D', '2H'], transferFollowTable('H', '2H', false), (e, sys) => afterTransfer(e, 'H', '2H', 15, sys));
+add(['1N', '2H', '2S'], transferFollowTable('S', '2S', false), (e, sys) => afterTransfer(e, 'S', '2S', 15, sys));
+add(['1N', '2D', '3H'], transferFollowTable('H', '3H', true), (e, sys) => afterTransfer(e, 'H', '3H', 15, sys));
+add(['1N', '2H', '3S'], transferFollowTable('S', '3S', true), (e, sys) => afterTransfer(e, 'S', '3S', 15, sys));
 add(['1N', '3S'], callTable([['3N', 'No 4-card minor: no slam.', {}], ['4C', '4+ clubs: slam interest.', { len: { C: [4, 13] } }], ['4D', '4+ diamonds: slam interest.', { len: { D: [4, 13] } }]]),
   (e) => (e.len.C >= 4 || e.len.D >= 4 ? (e.len.D > e.len.C ? R('4D', [`${e.len.D} diamonds: a fit`]) : R('4C', [`${e.len.C} clubs: a fit`])) : R('3N', ['no 4-card minor'])));
 for (const m of ['C', 'D']) {
@@ -260,7 +273,7 @@ add(['1N', '2S', '3C'], callTable([['P', 'Long clubs: to play.', {}], ['3D', 'Lo
 
 // 2NT and 2♣–2♦–2NT
 for (const [pre, min] of [[['2N'], 20], [['2C', '2D', '2N'], 22]]) {
-  add([...pre], twoNTTable(), (e) => respond2NT(e, min));
+  add([...pre], twoNTTable(), (e, sys) => respond2NT(e, min, sys));
   add([...pre, '3C'], staymanTable(3), stayman(3));
   add([...pre, '3D'], transferTable('H', 3, false), transferReply('H', 3, false));
   add([...pre, '3H'], transferTable('S', 3, false), transferReply('S', 3, false));
@@ -271,24 +284,29 @@ for (const [pre, min] of [[['2N'], 20], [['2C', '2D', '2N'], 22]]) {
   add([...pre, '3S'], callTable([['3N', 'No minor fit.', {}], ['4C', '4+ clubs.', {}], ['4D', '4+ diamonds.', {}]]),
     (e) => (e.len.C >= 4 && e.len.C >= e.len.D ? R('4C', ['club fit']) : e.len.D >= 4 ? R('4D', ['diamond fit']) : R('3N', ['no minor fit'])));
   for (const pass of ['3N', '6N']) add([...pre, pass], callTable([['P', 'To play.', {}]]), () => R('P', ['partner placed the contract']));
-  for (const reply of ['3D', '3H', '3S']) add([...pre, '3C', reply], staymanFollowTable(reply), (e) => afterStayman(e, reply, min));
-  add([...pre, '3D', '3H'], transferFollowTable('H', '3H', false), (e) => afterTransfer(e, 'H', '3H', min));
-  add([...pre, '3H', '3S'], transferFollowTable('S', '3S', false), (e) => afterTransfer(e, 'S', '3S', min));
+  for (const reply of ['3D', '3H', '3S']) add([...pre, '3C', reply], staymanFollowTable(reply), (e, sys) => afterStayman(e, reply, min, sys));
+  add([...pre, '3D', '3H'], transferFollowTable('H', '3H', false), (e, sys) => afterTransfer(e, 'H', '3H', min, sys));
+  add([...pre, '3H', '3S'], transferFollowTable('S', '3S', false), (e, sys) => afterTransfer(e, 'S', '3S', min, sys));
 }
 
 const SITUATIONS = S1;
-const entries = SITUATIONS.flatMap((sit) => Object.entries(sit.calls).map(([call, c]) => ({
-  after: sit.after,
-  call,
-  meaning: c.meaning,
-  shows: c.shows,
-  notes: c.notes,
-  priority: 10,
-  pick: (e) => sit.decide(e).call === call,
-  why: (e) => sit.decide(e).why,
-  plan: (e) => sit.decide(e).plan ?? null,
-  close: (e) => sit.decide(e).close ?? null,
-})));
+// Each decision gets the card's answers (st.sys); a meaning that belongs to one option carries `opt`.
+const entries = SITUATIONS.flatMap((sit) => Object.entries(sit.calls).map(([key, c]) => {
+  const call = key.split('|')[0];
+  return {
+    after: sit.after,
+    call,
+    meaning: c.meaning,
+    shows: c.shows,
+    notes: c.notes,
+    ...(c.opt || sit.opt ? { opt: c.opt ?? sit.opt } : {}),
+    priority: 10,
+    pick: (e, st) => sit.decide(e, st?.sys).call === call,
+    why: (e, st) => sit.decide(e, st?.sys).why,
+    plan: (e, st) => sit.decide(e, st?.sys).plan ?? null,
+    close: (e, st) => sit.decide(e, st?.sys).close ?? null,
+  };
+}));
 
 export default entries;
 export { SITUATIONS };
