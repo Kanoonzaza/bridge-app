@@ -111,3 +111,33 @@ test('strong jump shifts: 19 with a good 6-card suit jumps; opener supports', ()
   assert.equal(bidWith(s, 'Q73.AKJ84.65.K42', ['1H', 'P', '2S', 'P'], { dealer: 'S' }).call, '3S');
   assert.notEqual(bidWith(s, '83.42.T97532.J42', ['1H', 'P']).call, '3D', 'no weak jump shift');
 });
+
+test('feature ask over a weak two: a maximum shows its outside ace or king', () => {
+  const f = card('2/1', { 'weak-two-ask': 'feature' });
+  const calls = ['2S', 'P', '2N', 'P'];
+  assert.equal(bidWith(f, 'KQJ952.83.A62.94', calls).call, '3D', 'maximum (9) with the diamond ace');
+  assert.equal(bidWith(f, 'KJ9852.83.Q62.94', calls).call, '3S', 'minimum');
+  assert.match(meaningWith(f, [...calls, '3D']).meaning, /ace or king of diamonds/);
+  assert.match(meaningWith(HOUSE, [...calls, '3D']).meaning, /Minimum \(5–7\), good suit/, 'Ogust on the house card');
+  assert.match(bidWith(f, 'A4.KQ5.AKJ62.Q73', ['2S', 'P']).reasons.join(' '), /feature/);
+});
+
+test('Blackwood: replies count aces; interference is DOPI; asks are worded for the card', () => {
+  const bw = card('2/1', { keycard: 'blackwood' });
+  const calls = ['1S', 'P', '2N', 'P', '3S', 'P', '4N', 'P'];
+  const hand = 'KQJ84.A2.K73.K52';
+  assert.equal(bidWith(HOUSE, hand, calls).call, '5S', 'RKCB 1430: 2 key cards (♥A, ♠K) with the queen');
+  assert.equal(bidWith(bw, hand, calls).call, '5D', 'Blackwood: 1 ace');
+  assert.equal(meaningWith(bw, [...calls, '5D']).meaning, '1 ace.');
+  assert.match(meaningWith(bw, ['1S', 'P', '2N', 'P', '3S', 'P', '4N']).meaning, /^Blackwood/);
+  assert.match(meaningWith(bw, ['1S', 'P', '2N', 'P', '3S', 'P', '4N', '5C', 'X']).meaning, /0 aces \(DOPI\)/);
+  assert.equal(bidWith(bw, 'A9752.K3.AQ4.A63', ['1S', 'P', '2N', 'P', '3S', 'P', '4N', 'P', '5D', 'P'], { dealer: 'S' }).call, '6S', '3 + 1 aces: one missing');
+});
+
+test('natural defence to their 1NT: double is penalty, a long suit overcalls', () => {
+  const nat = card('2/1', { 'nt-defence': 'natural' });
+  assert.equal(bidWith(nat, 'AQ3.KJ4.AQ52.K94', ['1N'], { dealer: 'E' }).call, 'X');
+  assert.match(meaningWith(nat, ['1N', 'X'], { dealer: 'E' }).meaning, /^Penalty/);
+  assert.match(meaningWith(HOUSE, ['1N', 'X'], { dealer: 'E' }).meaning, /^DONT/);
+  assert.equal(bidWith(nat, 'KQJ854.83.A62.94', ['1N'], { dealer: 'E' }).call, '2S');
+});

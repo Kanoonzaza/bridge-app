@@ -64,6 +64,15 @@ export function resolveCall(call, env) {
   return /^[1-7]/.test(call) ? call[0] + strainFor(call[1], env) : call;
 }
 
+// Wording that depends on the card: an ask written for RKCB 1430 reads as Blackwood (aces) or RKCB 0314 on a card
+// that plays those (pool question 'keycard'); the answers come from that option's own rules.
+export function onCard(text, sys) {
+  const k = sys?.get?.('keycard');
+  if (!text || !k || k === 'rkcb-1430') return text;
+  if (k === 'blackwood') return text.replace(/\bRKCB( 1430)?\b/g, 'Blackwood').replace(/\bkey cards\b/g, 'aces');
+  return text.replace(/\bRKCB 1430\b/g, 'RKCB 0314');
+}
+
 export function fill(text, env) {
   return text.replace(/\{([MmxOn])\}/g, (_, ch) => SYMBOL[strainFor(ch, env)] ?? '');
 }
@@ -161,7 +170,7 @@ export function explain(auction, book = ALL, { general = false } = {}) {
       i,
       seat: seatAt(auction, i),
       call,
-      meaning: c ? fill(c.entry.meaning, c.env) : null,
+      meaning: c ? onCard(fill(c.entry.meaning, c.env), sysOf(forSeat(book, seatAt(auction, i)))) : null,
       shows: c ? resolveShows(c.entry.shows, c.env) : null,
       entry: c ? c.entry : null,
     };
@@ -264,7 +273,7 @@ export function advise(hand, auction, book = ALL) {
     if (!c.entry.pick(e, st)) continue;
     return {
       call: c.call,
-      meaning: fill(c.entry.meaning, c.env),
+      meaning: onCard(fill(c.entry.meaning, c.env), base.sys),
       reasons: c.entry.why ? c.entry.why(e, st) : [],
       plan: c.entry.plan ? c.entry.plan(e, st) : null,
       close: c.entry.close ? c.entry.close(e, st) : null,

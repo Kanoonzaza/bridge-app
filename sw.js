@@ -1,4 +1,4 @@
-const CACHE = 'bc-bf0bf755';
+const CACHE = 'bc-8e3352db';
 const FILES = [
   './',
   'index.html',
@@ -32,7 +32,9 @@ const FILES = [
   'js/system/index.js',
   'js/system/options/index.js',
   'js/system/options/nt-interference.js',
+  'js/system/options/nt-defence.js',
   'js/system/options/responses.js',
+  'js/system/options/keycard.js',
   'js/system/opening/openings.js',
   'js/system/opening/notrump.js',
   'js/system/opening/twos.js',

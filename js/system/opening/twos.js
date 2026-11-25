@@ -1,4 +1,5 @@
 import { SUITS, NAME } from '../../cards.js';
+import { plays } from '../../pool/answers.js';
 
 // Strong 2♣, weak twos (with Ogust), 3- and 4-level preempts and Gambling 3NT: partner's responses and the follow-ups.
 const STRONG = 'strong-2-opening-tier-2';
@@ -8,7 +9,8 @@ const NT = '1nt-opening-and-responses-tier-0';
 const R = (call, why, extra = {}) => ({ call, why, ...extra });
 const top3 = (e, s) => ['A', 'K', 'Q'].filter((r) => e.hand[s].includes(r)).length;
 const RANK = { C: 0, D: 1, H: 2, S: 3 };
-const table = (notes, rows) => Object.fromEntries(rows.map(([call, meaning, shows = {}]) => [call, { meaning, shows, notes }]));
+// Rows: [call, meaning, shows?, opt?]: a meaning that belongs to one option of the convention pool is keyed 'call|opt'.
+const table = (notes, rows) => Object.fromEntries(rows.map(([call, meaning, shows = {}, opt]) => [opt ? `${call}|${opt}` : call, { meaning, shows, notes, ...(opt ? { opt } : {}) }]));
 const stopped = (e, s) => /A/.test(e.hand[s]) || (/K/.test(e.hand[s]) && e.len[s] >= 2) || (/Q/.test(e.hand[s]) && e.len[s] >= 3);
 
 // ---------- Strong 2♣ ----------
@@ -57,17 +59,18 @@ function openerSuitTable(x) {
 }
 
 // ---------- Weak twos ----------
-export function respondWeakTwo(e, x) {
+export function respondWeakTwo(e, x, sys = null) {
+  const ask = plays(sys, 'weak-two-ask', 'ogust') ? 'ask with Ogust' : 'ask for a feature';
   const h = e.hcp;
   const fit = e.len[x];
   const major = x === 'H' || x === 'S';
   if (h >= 15) {
     if (major && fit >= 3 && h >= 17) return R(`4${x}`, [`${fit} ${NAME[x]}, ${h} HCP: game`]);
-    if (fit >= 2) return R('2N', [`${h} HCP: ask with Ogust`]);
+    if (fit >= 2) return R('2N', [`${h} HCP: ${ask}`]);
     const own = SUITS.filter((s) => s !== x && e.len[s] >= 5 && top3(e, s) >= 2)[0];
     if (own) return R(`${RANK[own] > RANK[x] ? 2 : 3}${own}`, [`good ${e.len[own]}-card ${NAME[own]}: forcing`]);
     if (h >= 16 && SUITS.filter((s) => s !== x).every((s) => stopped(e, s))) return R('3N', [`${h} HCP, other suits stopped`]);
-    return R('2N', [`${h} HCP: ask with Ogust`]);
+    return R('2N', [`${h} HCP: ${ask}`]);
   }
   if (major && fit >= 4 && h <= 14) return R(`4${x}`, [`${fit} ${NAME[x]}`, h >= 12 ? `${h} HCP: game should make` : 'a bigger preempt: take away their bidding room']);
   if (fit >= 3 && h <= 14) return R(`3${x}`, [`${fit} ${NAME[x]}: preemptive raise`]);
@@ -79,6 +82,7 @@ function weakTwoTable(x) {
     ['P', 'No game.', {}],
     [`3${x}`, 'Preemptive raise: to play, not invitational.', { len: { [x]: [3, 13] } }],
     ['2N', 'Ogust: asks about strength and suit quality.', { hcp: [15, 37] }],
+    ['2N', 'Feature ask: forcing; opener shows a maximum with an ace or king outside, or rebids the suit with a minimum.', { hcp: [15, 37] }, 'weak-two-ask:feature'],
     ['3N', 'To play.', {}],
   ];
   if (x !== 'D') rows.push([`4${x}`, 'To play: to make, or a bigger preempt.', {}]);
@@ -111,6 +115,39 @@ export function afterOgust(e, x, reply) {
   if (reply === `3${x}`) return R('P', ['partner is minimum: stop here']);
   return R(`3${x}`, ['partner is minimum: sign off']);
 }
+// ---------- Feature ask (pool question 'weak-two-ask', answer 'feature') ----------
+// 2NT asks; opener rebids the suit with a minimum (5–7), bids an outside suit with its ace or king with a maximum
+// (8–10), or bids 3NT with a maximum and no outside ace or king.
+const FEATURE = 'weak-two-ask:feature';
+const featureSuits = (x) => SUITS.filter((s) => s !== x);
+const featureCall = (x, s) => `3${s}`; // every feature is shown at the 3-level
+export function featureReply(e, x) {
+  if (e.hcp < 8) return R(`3${x}`, [`${e.hcp} HCP: minimum`]);
+  const f = featureSuits(x).filter((s) => /[AK]/.test(e.hand[s])).sort((a, b) => RANK[a] - RANK[b])[0];
+  return f ? R(featureCall(x, f), [`${e.hcp} HCP: maximum`, `the ${/A/.test(e.hand[f]) ? 'ace' : 'king'} of ${NAME[f]}`]) : R('3N', [`${e.hcp} HCP: maximum, no outside ace or king`]);
+}
+const featureTable = (x) => table(WEAK, [
+  [`3${x}`, 'Minimum (5–7).', { hcp: [5, 7] }],
+  ...featureSuits(x).map((s) => [featureCall(x, s), `Maximum (8–10) with the ace or king of ${NAME[s]}.`, { hcp: [8, 10] }]),
+  ['3N', 'Maximum (8–10), no outside ace or king.', { hcp: [8, 10] }],
+]);
+export function afterFeature(e, x, reply) {
+  const max = reply !== `3${x}`;
+  const major = x === 'H' || x === 'S';
+  if (max || e.hcp >= 18) {
+    if (major) return R(`4${x}`, [max ? 'partner is maximum' : `${e.hcp} HCP: game anyway`]);
+    return reply === '3N' ? R('P', ['partner chose 3NT']) : R('3N', [max ? 'partner is maximum' : `${e.hcp} HCP: game anyway`]);
+  }
+  return R('P', ['partner is minimum: stop here']);
+}
+function afterFeatureTable(x, reply) {
+  const rows = [];
+  if (reply === `3${x}` || reply === '3N') rows.push(['P', reply === '3N' ? 'To play.' : 'Sign-off.', {}]);
+  if (x === 'H' || x === 'S') rows.push([`4${x}`, 'Game.', {}]);
+  else if (reply !== '3N') rows.push(['3N', 'To play.', {}]);
+  return table(WEAK, rows);
+}
+
 function afterOgustTable(x, reply) {
   const rows = [];
   if (reply === `3${x}` || reply === '3N') rows.push(['P', reply === '3N' ? 'To play.' : 'Sign-off.', {}]);
@@ -210,7 +247,11 @@ const SITUATIONS = [
   ...['H', 'S', 'C', 'D'].map((x) => ({ after: ['2C', '2D', POSITIVE[x]], calls: openerSuitTable(x), decide: (e) => afterOpenerSuit(e, x) })),
   ...['2H', '2S', '3C', '3D', '2N'].map((pos) => ({ after: ['2C', pos], calls: positiveTable(pos), decide: (e) => afterPositive(e, pos) })),
   ...['D', 'H', 'S'].flatMap((x) => [
-    { after: [`2${x}`], calls: weakTwoTable(x), decide: (e) => respondWeakTwo(e, x) },
+    { after: [`2${x}`], calls: weakTwoTable(x), decide: (e, sys) => respondWeakTwo(e, x, sys) },
+    { after: [`2${x}`, '2N'], opt: FEATURE, calls: featureTable(x), decide: (e) => featureReply(e, x) },
+    ...[`3${x}`, ...featureSuits(x).map((s) => featureCall(x, s)), '3N'].map((reply) => ({
+      after: [`2${x}`, '2N', reply], opt: FEATURE, calls: afterFeatureTable(x, reply), decide: (e) => afterFeature(e, x, reply),
+    })),
     { after: [`2${x}`, '2N'], calls: OGUST, decide: (e) => ogustReply(e, x) },
     ...['3C', '3D', '3H', '3S', '3N'].map((reply) => ({
       after: [`2${x}`, '2N', reply], calls: afterOgustTable(x, reply), decide: (e) => afterOgust(e, x, reply),
@@ -223,17 +264,20 @@ const SITUATIONS = [
   { after: ['3N', '5C'], calls: table(NT, [['P', 'Clubs.', {}], ['5D', 'Diamonds.', {}]]), decide: gamblingCorrect(5) },
 ];
 
-const entries = SITUATIONS.flatMap((sit) => Object.entries(sit.calls).map(([call, c]) => ({
+// Decisions get the card's answers (st.sys). A situation or a meaning that belongs to one option of the
+// convention pool carries `opt`; table keys are 'call' or 'call|opt'.
+const entries = SITUATIONS.flatMap((sit) => Object.entries(sit.calls).map(([key, c]) => ({
   after: sit.after,
-  call,
+  call: key.split('|')[0],
   meaning: c.meaning,
   shows: c.shows,
   notes: c.notes,
+  ...(c.opt || sit.opt ? { opt: c.opt ?? sit.opt } : {}),
   priority: 10,
-  pick: (e) => sit.decide(e).call === call,
-  why: (e) => sit.decide(e).why,
-  plan: (e) => sit.decide(e).plan ?? null,
-  close: (e) => sit.decide(e).close ?? null,
+  pick: (e, st) => sit.decide(e, st?.sys).call === key.split('|')[0],
+  why: (e, st) => sit.decide(e, st?.sys).why,
+  plan: (e, st) => sit.decide(e, st?.sys).plan ?? null,
+  close: (e, st) => sit.decide(e, st?.sys).close ?? null,
 })));
 
 export default entries;

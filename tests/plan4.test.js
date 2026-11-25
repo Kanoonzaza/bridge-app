@@ -118,7 +118,8 @@ test('Gerber: also over a notrump rebid, with the king ask', () => {
 
 test('Plan 4 sweep: every situation answers every hand with a decodable call', () => {
   const rng = mulberry32(47);
-  for (const sit of [...NT, ...TWOS]) {
+  // The house card's situations (a situation with `opt` belongs to another option of the convention pool).
+  for (const sit of [...NT, ...TWOS].filter((x) => !x.opt)) {
     const auction = auctionFor(sit.after);
     assert.equal(auction.calls.filter((c) => c !== 'P').join(' '), sit.after.join(' '), `auction for ${sit.after}`);
     for (let i = 0; i < 300; i++) {

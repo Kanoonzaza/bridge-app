@@ -4,7 +4,9 @@
 // Options of the contested auctions add their meanings to the competitive list (js/system/competitive/shared.js),
 // so importing them is enough.
 import './nt-interference.js';
+import './nt-defence.js';
 import responses from './responses.js';
+import keycard from './keycard.js';
 
-const options = [...responses];
+const options = [...responses, ...keycard];
 export default options;

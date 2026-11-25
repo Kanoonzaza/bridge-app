@@ -73,7 +73,7 @@ export const SLOTS = [
   ] },
 
   { id: 'weak-two-ask', group: 'twos', title: '2NT over our weak two', options: [
-    soon('feature', 'Feature ask', 'Rebid = minimum · new suit = maximum with an ace or king there'),
+    o('feature', 'Feature ask', 'Rebid = minimum · new suit = maximum with an ace or king there'),
     o('ogust', 'Ogust', '3♣ = bad hand, bad suit … 3NT = AKQ', { notes: 'weak-twos-and-ogust-tier-0' }),
   ] },
 
@@ -88,13 +88,13 @@ export const SLOTS = [
   ] },
 
   { id: 'keycard', group: 'slam', title: '4NT', options: [
-    soon('blackwood', 'Blackwood', '5♣ = 0 or 4 aces · 5♦ = 1 · 5♥ = 2 · 5♠ = 3 · over interference DOPI'),
+    o('blackwood', 'Blackwood', '5♣ = 0 or 4 aces · 5♦ = 1 · 5♥ = 2 · 5♠ = 3 · over interference DOPI'),
     o('rkcb-1430', 'RKCB 1430', '5♣ = 1 or 4 · 5♦ = 0 or 3 · 5♥ = 2 without the queen · 5♠ = 2 with', { notes: 'rkcb-1430-and-slam-tools-tier-1' }),
     soon('rkcb-0314', 'RKCB 0314', '5♣ = 0 or 3 · 5♦ = 1 or 4 · 5♥ / 5♠ as 1430'),
   ] },
 
   { id: 'nt-defence', group: 'competitive', title: 'Defence to their 1NT', options: [
-    soon('natural', 'Natural', 'Double = penalty · 2-level suits natural · 2NT = minors'),
+    o('natural', 'Natural', 'Double = penalty, 15+ · 2-level suits natural, 6+ cards, 8–14 · 2NT = both minors'),
     o('dont', 'DONT', 'X = one suit · 2♣ / 2♦ = that suit and a higher one · 2♥ = majors · 2♠ = spades', { notes: 'dont-against-their-1nt-tier-1' }),
     soon('cappelletti', 'Cappelletti', '2♣ = one suit · 2♦ = majors · 2♥ / 2♠ = that major and a minor'),
     soon('landy', 'Landy', '2♣ = majors · other suits natural'),
