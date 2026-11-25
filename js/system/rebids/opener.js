@@ -393,7 +393,7 @@ export function afterPassedNewSuit(e, o, r) {
 // The cheapest bid of s over partner's 2-level r.
 const newSuitOver = (r, s) => `${RANK[s] > RANK[r] ? 2 : 3}${s}`;
 
-function passedNewSuitSituation(o, r) {
+export function passedNewSuitSituation(o, r) {
   const sides = Object.fromEntries(SUITS.filter((s) => s !== o && s !== r).map((s) => [newSuitOver(r, s), { meaning: `4+ ${NAME[s]}, 14+: natural, forcing one round.`, shows: { hcp: [14, 21], len: { [s]: [4, 13] }, force: 'round' }, notes: GF }]));
   return {
     after: [`1${o}`, `2${r}`],

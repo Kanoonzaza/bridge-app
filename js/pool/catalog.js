@@ -26,7 +26,7 @@ export const SLOTS = [
   ] },
 
   { id: 'jump-shift', group: 'majors', title: 'Jump shift response', options: [
-    soon('strong', 'Strong', '17+, game forcing, slam interest'),
+    o('strong', 'Strong', '17+, game forcing, slam interest'),
     o('weak', 'Weak', 'Unpassed hand: 6-card suit, 2–5 HCP', { notes: 'raising-partners-major-tier-0' }),
   ] },
   { id: 'splinters', group: 'majors', title: 'Splinter raises', options: [
@@ -34,7 +34,7 @@ export const SLOTS = [
     o('on', 'Splinters', '4+ trumps, singleton or void, 10–14, game forcing', { notes: 'raising-partners-major-tier-0' }),
   ] },
   { id: 'passed-2c', group: 'majors', title: 'Passed hand: 2♣ over partner\'s 1♥ / 1♠', options: [
-    soon('natural', 'Natural', '2♣ = clubs, 10–11, not forcing'),
+    o('natural', 'Natural', '2♣ = clubs, 10–11, not forcing · passed limit raise = 3M with 3+ trumps'),
     o('drury', 'Drury', '2♣ = 3+ support, 10–11 (a limit raise) · opener\'s 2♦ = full opening', { notes: 'drury-tier-1' }),
   ] },
   { id: 'passed-jump', group: 'majors', title: 'Passed hand: jump shift', options: [
@@ -47,11 +47,11 @@ export const SLOTS = [
   ] },
 
   { id: 'minor-raise', group: 'minors', title: 'Raises of 1♣ / 1♦', options: [
-    soon('standard', 'Standard', '2m = 6–10 · 3m = 10–12, invitational'),
+    o('standard', 'Standard', '2m = 6–10 · 3m = 10–12, invitational'),
     o('inverted', 'Inverted', '2m = 10+, forcing · 3m = weak, preemptive', { notes: 'inverted-minor-raises-tier-1' }),
   ] },
   { id: 'minor-2nt', group: 'minors', title: '2NT over 1♣ / 1♦', options: [
-    soon('forcing', '13–15, game forcing', '3NT = 16–18'),
+    o('forcing', '13–15, game forcing', '3NT = 16–18'),
     o('invite', '11–12, invitational', '3NT = 13–15', { notes: 'responding-to-1-1-tier-0' }),
   ] },
 

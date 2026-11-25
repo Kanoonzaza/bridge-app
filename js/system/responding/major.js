@@ -53,10 +53,26 @@ export function fitJump(e, M) {
   return s ? WJS[M][s] : null;
 }
 
+// A strong jump shift (pool question 'jump-shift', answer 'strong'): 19+ with a good 6-card suit, or 17+ with
+// 4-card support for opener and a good 5-card side suit. table: the jump call in each suit.
+export function strongJump(e, o, table) {
+  const good = (s, n) => e.len[s] >= n && ['A', 'K', 'Q'].filter((r) => e.hand[s].includes(r)).length >= 2;
+  const s = SUITS.filter((t) => t !== o && table[t]).sort((a, b) => e.len[b] - e.len[a])[0];
+  if (!s) return null;
+  if (e.hcp >= 19 && good(s, 6)) return table[s];
+  if (e.hcp >= 17 && e.len[o] >= 4 && good(s, 5)) return table[s];
+  return null;
+}
+
 // sys: the card's answers (js/pool/answers.js); none = the house card.
 export function respondToMajor(e, M, passed, sys = null) {
   const tr = e.len[M];
   const dp = dummyPoints(e, M);
+  if (!passed && plays(sys, 'jump-shift', 'strong')) {
+    const js = strongJump(e, M, WJS[M]);
+    if (js) return js;
+  }
+  const drury = plays(sys, 'passed-2c', 'drury');
   if (passed && plays(sys, 'passed-jump', 'fit') && fitJump(e, M)) return fitJump(e, M);
   if (tr >= 4) {
     if (!passed) {
@@ -66,16 +82,16 @@ export function respondToMajor(e, M, passed, sys = null) {
       if (e.hcp >= 10 && dp >= 13) return '2N';
     }
     if (tr >= 5 && hasShortness(e, M) && e.hcp <= 9 && dp >= 6) return `4${M}`;
-    if (passed && dp >= 10 && e.hcp >= 7) return '2C';
+    if (passed && dp >= 10 && e.hcp >= 7) return drury ? '2C' : `3${M}`;
     if (dp >= 10 && e.hcp >= 7) return `3${M}`;
   }
-  if (tr === 3 && passed && dp >= 10 && e.hcp >= 7) return '2C';
+  if (tr === 3 && passed && dp >= 10 && e.hcp >= 7) return drury ? '2C' : `3${M}`;
   if (tr >= 3 && e.hcp >= 4 && dp >= 6 && (dp <= 9 || e.hcp < 7)) return `2${M}`;
   if (M === 'H' && e.len.S >= 4 && e.hcp >= 6) return '1S';
   if (!passed && tr === 2 && e.balanced && e.hcp >= 15 && e.hcp <= 17) return '3N';
   if (!passed && gameForce(e, tr >= 3)) return `2${twoOverOneSuit(e, M)}`;
   if (passed && e.hcp >= 10) {
-    const s = (M === 'S' ? ['H', 'D'] : ['D']).filter((t) => e.len[t] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
+    const s = [...(M === 'S' ? ['H', 'D'] : ['D']), ...(drury ? [] : ['C'])].filter((t) => e.len[t] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
     if (s) return `2${s}`;
   }
   const wj = passed || !plays(sys, 'jump-shift', 'weak') ? null : weakJump(e, M);

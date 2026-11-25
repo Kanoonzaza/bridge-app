@@ -1,5 +1,5 @@
 import { SUITS, NAME } from '../../cards.js';
-import { splinterSuit } from './major.js';
+import { splinterSuit, strongJump } from './major.js';
 import { plays } from '../../pool/answers.js';
 
 // Responder's first bid after partner's 1♣ / 1♦ (opponents passing). One decision function, respondToMinor,
@@ -21,10 +21,17 @@ export function majorToShow(e) {
   return s >= 4 ? 'S' : 'H';
 }
 
-function notrump(e) {
+// Balanced, no 4-card major. With 1m–2NT forcing (pool question 'minor-2nt'): 2NT = 13–15, 3NT = 16–18, and
+// 11–12 raises the minor when it can, else 1NT.
+function notrump(e, m, sys) {
   if (e.hcp <= 10) return '1N';
-  if (e.hcp <= 12) return '2N';
-  return '3N';
+  if (plays(sys, 'minor-2nt', 'invite')) return e.hcp <= 12 ? '2N' : '3N';
+  if (e.hcp <= 12) {
+    if (plays(sys, 'minor-raise', 'inverted') && e.len[m] >= (m === 'C' ? 5 : 4)) return `2${m}`;
+    if (!plays(sys, 'minor-raise', 'inverted') && e.len[m] >= 5) return `3${m}`;
+    return '1N';
+  }
+  return e.hcp <= 15 ? '2N' : '3N';
 }
 
 // The whole decision for responder's first bid after partner's 1♣/1♦ (opponents passing).
@@ -32,6 +39,10 @@ function notrump(e) {
 export function respondToMinor(e, m, passed, sys = null) {
   const majors = majorsOf(e);
   const maxMajor = Math.max(e.len.H, e.len.S);
+  if (!passed && plays(sys, 'jump-shift', 'strong')) {
+    const js = strongJump(e, m, WJS[m]);
+    if (js) return js;
+  }
   if (!passed && plays(sys, 'splinters', 'on') && !majors.length && e.len[m] >= 5 && e.hcp >= 12 && e.hcp <= 15) {
     const s = splinterSuit(e, m);
     if (s === 'H' || s === 'S') return `3${s}`;
@@ -41,8 +52,13 @@ export function respondToMinor(e, m, passed, sys = null) {
     if (m === 'D' && e.len.C >= 5 && e.len.C > maxMajor) return '2C';
   }
   if (majors.length && e.hcp >= 6) return `1${majorToShow(e)}`;
-  if (!majors.length && e.balanced && e.hcp >= 6 && e.hcp <= 15 && (e.len[m] < 5 || e.hcp < 10)) return notrump(e);
-  if (e.hcp >= 5 && e.hcp <= 9 && e.len[m] >= 5 && !e.balanced) return `3${m}`;
+  // Standard raises (pool question 'minor-raise'): 2m = 6–10, 3m = 10–12 (limit); 13+ makes another bid first.
+  if (!plays(sys, 'minor-raise', 'inverted') && !majors.length && e.len[m] >= (m === 'C' ? 5 : 4)) {
+    if (e.hcp >= 6 && e.hcp <= 10 && !(e.balanced && e.len[m] < 5 && e.hcp >= 8 && m === 'C')) return `2${m}`;
+    if (e.hcp >= 11 && e.hcp <= 12 && e.len[m] >= 5) return `3${m}`;
+  }
+  if (!majors.length && e.balanced && e.hcp >= 6 && e.hcp <= (plays(sys, 'minor-2nt', 'invite') ? 15 : 18) && (e.len[m] < 5 || e.hcp < 10)) return notrump(e, m, sys);
+  if (e.hcp >= 5 && e.hcp <= 9 && e.len[m] >= 5 && !e.balanced && plays(sys, 'minor-raise', 'inverted')) return `3${m}`;
   if (e.hcp >= 2 && e.hcp <= 5 && plays(sys, 'jump-shift', 'weak')) {
     const s = SUITS.find((t) => t !== m && e.len[t] >= 6);
     if (s) return WJS[m][s];
@@ -50,13 +66,13 @@ export function respondToMinor(e, m, passed, sys = null) {
   if (e.hcp < 6) return 'P';
   if (m === 'C') {
     if (e.len.D >= 4 && (e.len.D >= e.len.C || e.hcp < 10 || e.len.C < 5)) return '1D';
-    if (e.hcp >= 10 && e.len.C >= 4) return '2C';
+    if (e.hcp >= 10 && e.len.C >= 4 && plays(sys, 'minor-raise', 'inverted')) return '2C';
   } else {
     if (passed && e.hcp >= 10 && e.len.C >= 5 && e.len.C > e.len.D) return '2C';
-    if (e.len.D >= 4 && e.hcp >= 10 && (passed || e.hcp < 12 || e.len.D >= e.len.C)) return '2D';
+    if (e.len.D >= 4 && e.hcp >= 10 && (passed || e.hcp < 12 || e.len.D >= e.len.C) && plays(sys, 'minor-raise', 'inverted')) return '2D';
     if (!passed && e.hcp >= 12 && e.len.C >= 4) return '2C';
   }
-  return notrump(e);
+  return notrump(e, m, sys);
 }
 
 const M_OF = (st) => st.key[0][1];

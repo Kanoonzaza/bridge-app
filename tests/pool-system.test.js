@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import ALL from '../js/system/index.js';
+import ALL, { EVERY } from '../js/system/index.js';
 import { HOUSE_CARD, normalizeCard, pick } from '../js/pool/card.js';
 import { systemFor, rulesFor, sysOf, isSystem, bookFor, forSeat, HOUSE } from '../js/pool/system.js';
 
@@ -23,7 +23,9 @@ test('an option switched off takes its rules out and leaves the core', () => {
   const c = pick(normalizeCard({ base: '2/1' }), 'passed-2c', 'natural');
   const list = rulesFor(c);
   assert.equal(list.filter((e) => e.opt === 'passed-2c:drury').length, 0);
-  assert.equal(list.length, ALL.length - ALL.filter((e) => e.opt === 'passed-2c:drury').length);
+  const natural = EVERY.filter((e) => e.opt === 'passed-2c:natural').length;
+  assert.ok(natural > 0, 'the natural answer has rules of its own');
+  assert.equal(list.length, ALL.length - ALL.filter((e) => e.opt === 'passed-2c:drury').length + natural);
   assert.equal(sysOf(list).is('passed-2c', 'natural'), true);
 });
 

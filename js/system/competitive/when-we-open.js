@@ -2,6 +2,7 @@ import { dummyPoints } from '../../cards.js';
 import {
   OURS, JORDAN, SUPPORT, DRURY, SUITS4, RANK, MAJORS, isMajor, nm, cheapest, above, lvOf, top3, stopper, stops, shortness, longestOf, hcpIn, R, entries, def, advise,
 } from './shared.js';
+import { plays } from '../../pool/answers.js';
 
 // We opened and they overcalled or doubled: negative doubles, responder's bids, opener's next move,
 // support doubles, Jordan 2NT. Notes: Part 5, "Competitive bidding: when we open and they compete".
@@ -105,7 +106,8 @@ for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']
 }
 
 // ---------- Decisions: responder after their overcall ----------
-export function afterTheirOvercall(e, o, ov) {
+// sys: the card's answers (js/pool/answers.js); none = the house card.
+export function afterTheirOvercall(e, o, ov, sys = null) {
   const y = ov[1];
   const lv = Number(ov[0]);
   const h = e.hcp;
@@ -144,7 +146,7 @@ export function afterTheirOvercall(e, o, ov) {
     if (h >= 11 && h <= 12 && above('2N', ov)) return R('2N', [`${h} HCP with a ${nm(y)} stopper: invitational`]);
     if (h >= 13) return R('3N', [`${h} HCP with a ${nm(y)} stopper`]);
   }
-  if (h >= 2 && h <= 5) {
+  if (h >= 2 && h <= 5 && plays(sys, 'jump-shift', 'weak')) {
     const s = SUITS4.find((t) => t !== o && t !== y && L[t] >= 6 && cheapest(ov, t) + 1 <= 3);
     if (s) return R(`${cheapest(ov, s) + 1}${s}`, [`${L[s]} ${nm(s)}, ${h} HCP: weak jump shift`]);
   }
@@ -154,14 +156,14 @@ export function afterTheirOvercall(e, o, ov) {
 }
 
 // ---------- Decisions: responder after their double (Jordan 2NT, redouble) ----------
-export function afterTheirDouble(e, o, passed) {
+export function afterTheirDouble(e, o, passed, sys = null) {
   const h = e.hcp;
   const L = e.len;
   const dp = isMajor(o) ? dummyPoints(e, o) : h;
   const four = isMajor(o) ? 4 : 5;
   if (L[o] >= four && dp >= 10) return R('2N', [`${L[o]} ${nm(o)}, ${dp} points`, 'Jordan 2NT: limit raise or better']);
   if (isMajor(o) && L[o] === 3 && dp >= 10) {
-    return passed ? R('2C', ['3-card limit raise as a passed hand: Drury']) : R('XX', ['10+ with 3-card support'], { plan: `Raise ${nm(o)} on your next turn (3-card limit raise).` });
+    return passed && plays(sys, 'passed-2c', 'drury') ? R('2C', ['3-card limit raise as a passed hand: Drury']) : R('XX', ['10+ with 3-card support'], { plan: `Raise ${nm(o)} on your next turn (3-card limit raise).` });
   }
   if (L[o] >= four && h <= 6 && shortness(e, o)) return R(`3${o}`, [`${L[o]} ${nm(o)}, weak: preemptive raise`]);
   if (L[o] >= four - 1 && dp >= 6) return R(`2${o}`, [`${L[o]} ${nm(o)}, ${dp} points: weak raise`]);
@@ -213,7 +215,7 @@ for (const o of SUITS4) {
       def(k, 'P', 'Pass: weak, or length in their suit (hoping opener reopens with a double).');
       if (above('2N', ov)) def(k, '2N', `Natural: 11–12 with a ${nm(y)} stopper, invitational.`, { hcp: [11, 12] });
       def(k, '3N', `To play: 13+ with a ${nm(y)} stopper.`, { hcp: [13, 37] });
-      advise(k, (e) => afterTheirOvercall(e, o, ov), [{ dealer: 'N', calls: [`1${o}`, ov] }, { dealer: 'S', calls: ['P', 'P', `1${o}`, ov] }]);
+      advise(k, (e, st) => afterTheirOvercall(e, o, ov, st?.sys), [{ dealer: 'N', calls: [`1${o}`, ov] }, { dealer: 'S', calls: ['P', 'P', `1${o}`, ov] }]);
       const n = [`1${o}`, `(${ov})`, 'X'];
       for (const s of SUITS4.filter((t) => t !== o && t !== y && !isMajor(t) && cheapest(ov, t) <= 3)) def(n, `${cheapest(ov, s)}${s}`, `4+ ${nm(s)}, natural.`, { len: { [s]: [4, 13] } });
       advise(n, (e) => afterNegativeDouble(e, o, ov), [{ dealer: 'S', calls: [`1${o}`, ov, 'X', 'P'] }]);
@@ -221,7 +223,7 @@ for (const o of SUITS4) {
   }
   const d = [`1${o}`, '(X)'];
   def(d, 'P', 'Pass: weak, nothing to show.');
-  advise(d, (e, st) => afterTheirDouble(e, o, st.ctx.responderPassed), [{ dealer: 'N', calls: [`1${o}`, 'X'] }, { dealer: 'S', calls: ['P', 'P', `1${o}`, 'X'] }]);
+  advise(d, (e, st) => afterTheirDouble(e, o, st.ctx.responderPassed, st.sys), [{ dealer: 'N', calls: [`1${o}`, 'X'] }, { dealer: 'S', calls: ['P', 'P', `1${o}`, 'X'] }]);
 }
 
 for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']]) {
