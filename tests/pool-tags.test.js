@@ -6,10 +6,13 @@ import { isTag } from '../js/pool/tags.js';
 // Written down from `node tools/tags.mjs` after review (2026-11-15). A change here means a rule moved
 // between the core and an option: run the audit and check it was meant.
 const COUNTS = {
+  // 2026-11-25: only the conventional calls of XYZ, fourth suit and support doubles are tagged now (and what follows
+  // XYZ's artificial calls and the support double); their natural calls are core. The house card's rules did not
+  // change: a 1,500-board match against the previous commit differed on no board.
   'base:2/1': 410,
-  'checkback:xyz': 453,
-  core: 4448, // 2026-11-25: +22 plain passes (lead-directing, Lightner); -6 '4M after a transfer' (mild slam interest: Texas only)
-  'fourth-suit:gf': 151,
+  'checkback:xyz': 374,
+  core: 5006,
+  'fourth-suit:gf': 4,
   'jump-shift:weak': 51,
   'keycard:rkcb-1430': 34,
   'minor-2nt:invite': 10,
@@ -23,10 +26,11 @@ const COUNTS = {
   'slam-doubles:lead': 26,
   'smolen:on': 14,
   'splinters:on': 29,
-  'support-doubles:on': 472,
+  'support-doubles:on': 140,
   'texas:on': 22,
   'weak-two-ask:ogust': 44,
   'weak-two-defence:leaping': 12,
+
 };
 
 test('every rule has a valid tag (null = core)', () => {

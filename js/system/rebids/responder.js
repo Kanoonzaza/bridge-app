@@ -1,4 +1,5 @@
 import { SUITS, NAME, SYMBOL, dummyPoints } from '../../cards.js';
+import { plays } from '../../pool/answers.js';
 
 // Responder's second bid in uncontested auctions: XYZ, fourth suit forcing, after a reverse, after a forcing 1NT.
 const XYZ = 'xyz-tier-1';
@@ -14,7 +15,9 @@ const R = (call, why, extra = {}) => ({ call, why, ...extra });
 const fourthCall = (z, w) => `${RANK[w] > RANK[z] ? 2 : 3}${w}`;
 
 // ---------- XYZ: 1o–1r–1z (z a suit or NT) ----------
-export function afterXYZ(e, o, r, z) {
+// Pool question 'checkback': with 'xyz' (the house card) afterXYZ decides; with 'none', afterNatural.
+export function afterXYZ(e, o, r, z, sys = null) {
+  if (!plays(sys, 'checkback', 'xyz')) return afterNatural(e, o, r, z);
   const h = e.hcp;
   const L = e.len;
   if (z !== 'N' && L[z] >= 4) {
@@ -53,23 +56,98 @@ export function afterXYZ(e, o, r, z) {
   return R('P', [`${h} HCP: weak`]);
 }
 
+// No checkback (pool question 'checkback', answer 'none'): every bid is natural.
+//   weak: pass, 1NT, 2 of responder's 6-card major, a raise of opener's second suit (6–9)
+//   11–12 invites: 2NT, 3 of responder's 6-card suit, 3 of opener's second suit (4 cards), 3 of opener's minor (4+)
+//   13+: game (3NT, 4 of a major with a fit or a good 6-card suit), 6NT with 19+ balanced
+export function afterNatural(e, o, r, z) {
+  const h = e.hcp;
+  const L = e.len;
+  if (z !== 'N' && L[z] >= 4) {
+    const dp = dummyPoints(e, z);
+    const why = [`4 ${NAME[z]}: a fit`, `${dp} dummy points`];
+    if (dp >= 13) return R(`4${z}`, why);
+    if (dp >= 11) return R(`3${z}`, [...why, 'invitational raise']);
+    if (dp >= 6) return R(`2${z}`, [...why, 'weak raise, to play']);
+    return R('P', why);
+  }
+  if (o === 'C' && r === 'D' && z === 'H' && L.S >= 4 && h >= 6 && h <= 12) return R('1S', [`${L.S} spades: natural at the 1-level`]);
+  if (h >= 13) {
+    if (isMajor(r) && L[r] >= 6) return R(`4${r}`, [`${L[r]} ${NAME[r]}, ${h} HCP: game`]);
+    if (h >= 19 && e.balanced) return R('6N', [`${h} HCP, balanced: slam`]);
+    return R('3N', [`${h} HCP: game`]);
+  }
+  if (h >= 11) {
+    if (L[r] >= 6) return R(`3${r}`, [`${L[r]} ${NAME[r]}, ${h} HCP: invitational`]);
+    if (L[o] >= 4 && !isMajor(o)) return R(`3${o}`, [`${L[o]} ${NAME[o]}, ${h} HCP: invitational raise`]);
+    return R('2N', [`${h} HCP: invitational`]);
+  }
+  if (isMajor(r) && L[r] >= 6) return R(`2${r}`, [`${L[r]} ${NAME[r]}, weak: to play`]);
+  if (z === 'N') return R('P', [`${h} HCP opposite 12–14: no game`]);
+  if (L[z] >= 3 && !e.balanced && h <= 7) return R('P', [`${h} HCP`, `${L[z]} ${NAME[z]}: play here`]);
+  if (h >= 6) return R('1N', [`${h} HCP: natural, weak`]);
+  return R('P', [`${h} HCP: weak`]);
+}
+
+const CHECK = 'checkback:xyz';
+const NATURAL = 'checkback:none';
 function xyzSituation(o, r, z) {
   const calls = {};
-  const put = (call, meaning, shows, force) => { calls[call] = { meaning, shows: { ...shows, ...(force ? { force } : {}) }, notes: XYZ }; };
+  // opt: 'checkback:xyz' for XYZ's artificial calls, 'checkback:none' for natural meanings of the same calls,
+  // null (core) for the calls that mean the same either way. Keys are 'call' or 'call|opt'.
+  const put = (call, meaning, shows, force, opt = null) => {
+    calls[opt ? `${call}|${opt}` : call] = { meaning, shows: { ...shows, ...(force ? { force } : {}) }, notes: XYZ, opt };
+  };
   put('P', z === 'N' ? 'Weak, content with 1NT.' : 'Weak (about 0–7), content here.', z === 'N' ? {} : { hcp: [0, 7] });
   if (z !== 'N') put('1N', 'Natural, weak (6–10).', { hcp: [6, 10] });
   if (z === 'H' && o === 'C' && r === 'D') put('1S', '4+ spades, natural (the fourth suit at the 1-level).', { len: { S: [4, 13] } }, 'round');
-  put('2C', 'XYZ relay: opener must bid 2♦. Then pass (weak with diamonds) or an invitation.', {}, 'round');
-  put('2D', 'XYZ: artificial, game forcing.', { hcp: [13, 37] }, 'game');
+  put('2C', 'XYZ relay: opener must bid 2♦. Then pass (weak with diamonds) or an invitation.', {}, 'round', CHECK);
+  put('2D', 'XYZ: artificial, game forcing.', { hcp: [13, 37] }, 'game', CHECK);
   if (isMajor(r)) put(`2${r}`, `6+ ${NAME[r]}, weak: to play.`, { hcp: [0, 10], len: { [r]: [6, 13] } });
   if (z === 'N' && r === 'S' && o !== 'H') put('2H', '5 spades + 4 hearts, weak: to play.', { hcp: [0, 10], len: { S: [5, 13], H: [4, 13] } });
   if (z !== 'N') put(`2${z}`, `4 ${NAME[z]}, weak raise: to play.`, { hcp: [6, 9], len: { [z]: [4, 13] } });
-  put('2N', 'Puppet: opener must bid 3♣ (to play in clubs, or 3♦ next).', {});
-  put(`3${r}`, `Good 6+ ${NAME[r]}, game forcing.`, { hcp: [13, 37], len: { [r]: [6, 13] } }, 'game');
+  put('2N', 'Puppet: opener must bid 3♣ (to play in clubs, or 3♦ next).', {}, null, CHECK);
+  put(`3${r}`, `Good 6+ ${NAME[r]}, game forcing.`, { hcp: [13, 37], len: { [r]: [6, 13] } }, 'game', CHECK);
+  // No checkback: natural invitations.
+  put('2N', 'Natural: 11–12, invitational.', { hcp: [11, 12] }, null, NATURAL);
+  put(`3${r}`, `6+ ${NAME[r]}, 11–12: invitational.`, { hcp: [11, 12], len: { [r]: [6, 13] } }, null, NATURAL);
+  if (z !== 'N') put(`3${z}`, `4 ${NAME[z]}, 11–12: invitational raise.`, { hcp: [11, 12], len: { [z]: [4, 13] } }, null, NATURAL);
+  if (!isMajor(o)) put(`3${o}`, `4+ ${NAME[o]}, 11–12: invitational raise.`, { hcp: [11, 12], len: { [o]: [4, 13] } }, null, NATURAL);
+  if (isMajor(r)) put(`4${r}`, `6+ ${NAME[r]}, game: to play.`, { len: { [r]: [6, 13] } }, null, NATURAL);
   put('3N', 'To play.', { hcp: [13, 37] });
   put('6N', 'Slam: 19+ balanced.', { hcp: [19, 37], balanced: true });
   if (z !== 'N') put(`4${z}`, `4 ${NAME[z]}, game: to play.`, { len: { [z]: [4, 13] } });
-  return { after: [`1${o}`, `1${r}`, `1${z}`], calls, decide: (e) => afterXYZ(e, o, r, z) };
+  return { after: [`1${o}`, `1${r}`, `1${z}`], calls, decide: (e, sys) => afterXYZ(e, o, r, z, sys) };
+}
+
+// Opener after responder's natural invitation (no checkback): accept with 14 (13 with a fit and shape).
+function naturalInviteSituations(o, r, z) {
+  const pre = [`1${o}`, `1${r}`, `1${z}`];
+  const row = (meaning, shows = {}) => ({ meaning, shows, notes: XYZ, opt: NATURAL });
+  const out = [{
+    opt: NATURAL,
+    after: [...pre, '2N'],
+    calls: { P: row('Minimum: decline.', { hcp: [12, 13] }), '3N': row('14+: accept.', { hcp: [14, 21] }) },
+    decide: (e) => (e.hcp >= 14 ? R('3N', [`${e.hcp} HCP: accept`]) : R('P', [`${e.hcp} HCP: decline`])),
+  }];
+  const fitGame = (s, need) => ({
+    opt: NATURAL,
+    after: [...pre, `3${s}`],
+    calls: {
+      P: row('Minimum: decline.'),
+      ...(isMajor(s) ? { [`4${s}`]: row(`Accepts: game in ${NAME[s]}.`, { hcp: [13, 21] }) } : {}),
+      '3N': row('Accepts: 3NT.', { hcp: [14, 21] }),
+    },
+    decide: (e) => {
+      if (e.hcp < 13 || (e.hcp === 13 && e.len[s] < need + 1)) return R('P', [`${e.hcp} HCP: decline`]);
+      if (isMajor(s) && e.len[s] >= need) return R(`4${s}`, [`${e.len[s]} ${NAME[s]}, ${e.hcp} HCP: accept`]);
+      return e.hcp >= 14 ? R('3N', [`${e.hcp} HCP: accept in notrump`]) : R('P', [`${e.hcp} HCP: decline`]);
+    },
+  });
+  out.push(fitGame(r, 2));
+  if (z !== 'N') out.push(fitGame(z, 4));
+  if (!isMajor(o)) out.push(fitGame(o, 5));
+  return out;
 }
 
 // ---------- Fourth suit forcing: 1o–1r–2z, z lower than o (not a reverse) ----------
@@ -108,7 +186,9 @@ function fsfSituation(o, r, z) {
     [`3${z}`]: { meaning: `4+ ${NAME[z]}, invitational (10–12).`, shows: { hcp: [10, 12], len: { [z]: [4, 13] } }, notes: FSF },
     [`3${r}`]: { meaning: `6+ ${NAME[r]}, invitational (10–12).`, shows: { hcp: [10, 12], len: { [r]: [6, 13] } }, notes: FSF },
     '3N': { meaning: `To play: 13+ with ${NAME[w]} stopped.`, shows: { hcp: [13, 37] }, notes: FSF },
-    [fourthCall(z, w)]: { meaning: `Fourth suit forcing: artificial, game forcing. Says nothing about ${NAME[w]}.`, shows: { hcp: [13, 37], force: 'game' }, notes: FSF },
+    [fourthCall(z, w)]: { meaning: `Fourth suit forcing: artificial, game forcing. Says nothing about ${NAME[w]}.`, shows: { hcp: [13, 37], force: 'game' }, notes: FSF, opt: 'fourth-suit:gf' },
+    // Pool question 'fourth-suit', answer 'round': the same bid, forcing one round only.
+    [`${fourthCall(z, w)}|fourth-suit:round`]: { meaning: `Fourth suit: artificial, forcing one round (11+). Says nothing about ${NAME[w]}.`, shows: { hcp: [11, 37], force: 'round' }, notes: FSF, opt: 'fourth-suit:round' },
   };
   if (isMajor(o)) calls[`4${o}`] = { meaning: `3+ ${NAME[o]}, game: to play.`, shows: { len: { [o]: [3, 13] } }, notes: FSF };
   if (isMajor(r)) calls[`4${r}`] = { meaning: `Good 6+ ${NAME[r]}, game: to play.`, shows: { len: { [r]: [6, 13] } }, notes: FSF };
@@ -222,25 +302,33 @@ function forcingNTSituation(M, rb) {
 const SITUATIONS = [
   ...[['C', 'D', 'H'], ['C', 'D', 'S'], ['C', 'D', 'N'], ['C', 'H', 'S'], ['C', 'H', 'N'], ['C', 'S', 'N'], ['D', 'H', 'S'], ['D', 'H', 'N'], ['D', 'S', 'N'], ['H', 'S', 'N']]
     .map(([o, r, z]) => xyzSituation(o, r, z)),
+  ...[['C', 'D', 'H'], ['C', 'D', 'S'], ['C', 'D', 'N'], ['C', 'H', 'S'], ['C', 'H', 'N'], ['C', 'S', 'N'], ['D', 'H', 'S'], ['D', 'H', 'N'], ['D', 'S', 'N'], ['H', 'S', 'N']]
+    .flatMap(([o, r, z]) => naturalInviteSituations(o, r, z)),
   ...[['D', 'H', 'C'], ['D', 'S', 'C'], ['H', 'S', 'C'], ['H', 'S', 'D']].map(([o, r, z]) => fsfSituation(o, r, z)),
   ...[['C', 'H', 'D'], ['C', 'S', 'D'], ['C', 'S', 'H'], ['D', 'S', 'H']].map(([o, r, z]) => reverseSituation(o, r, z)),
   ...['2C', '2D', '2H', '2S', '2N', '3S'].map((rb) => forcingNTSituation('S', rb)),
   ...['2C', '2D', '2H', '2S', '2N', '3H'].map((rb) => forcingNTSituation('H', rb)),
 ];
 
-const entries = SITUATIONS.flatMap((sit) => Object.entries(sit.calls).map(([call, c]) => ({
-  after: sit.after,
-  ...(sit.ctx ? { ctx: sit.ctx } : {}),
-  call,
-  meaning: c.meaning,
-  shows: c.shows,
-  notes: c.notes,
-  priority: 10,
-  pick: (e) => sit.decide(e).call === call,
-  why: (e) => sit.decide(e).why,
-  plan: (e) => sit.decide(e).plan ?? null,
-  close: (e) => sit.decide(e).close ?? null,
-})));
+// Decisions get the card's answers (st.sys); keys are 'call' or 'call|opt'; a meaning may carry `opt`
+// (null = core: the same on every card).
+const entries = SITUATIONS.flatMap((sit) => Object.entries(sit.calls).map(([key, c]) => {
+  const call = key.split('|')[0];
+  return {
+    after: sit.after,
+    ...(sit.ctx ? { ctx: sit.ctx } : {}),
+    ...(c.opt !== undefined ? { opt: c.opt } : {}),
+    call,
+    meaning: c.meaning,
+    shows: c.shows,
+    notes: c.notes,
+    priority: 10,
+    pick: (e, st) => sit.decide(e, st?.sys).call === call,
+    why: (e, st) => sit.decide(e, st?.sys).why,
+    plan: (e, st) => sit.decide(e, st?.sys).plan ?? null,
+    close: (e, st) => sit.decide(e, st?.sys).close ?? null,
+  };
+}));
 
 export default entries;
 export { SITUATIONS };

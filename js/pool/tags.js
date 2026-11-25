@@ -9,6 +9,7 @@
 //   3. the notes section of the rule (for sections that hold one convention only).
 // `tools/tags.mjs` prints the result for review; tests/pool-tags.test.js freezes the counts.
 import { option, splitOpt } from './catalog.js';
+import { optActive, HOUSE_CARD } from './card.js';
 
 const RANK = { C: 0, D: 1, H: 2, S: 3, N: 4 };
 const SETS = { M: ['H', 'S'], m: ['C', 'D'], x: ['C', 'D', 'H', 'S'], O: ['H', 'S'], n: ['C', 'D'] };
@@ -22,12 +23,8 @@ export const SECTIONS = {
   'passed-hand-jump-shifts': 'passed-jump:fit',
   'inverted-minor-raises-tier-1': 'minor-raise:inverted',
   'smolen-tier-2': 'smolen:on',
-  'xyz-tier-1': 'checkback:xyz',
-  'fourth-suit-forcing-tier-1': 'fourth-suit:gf',
   'dont-against-their-1nt-tier-1': 'nt-defence:dont',
   'lebensohl-tier-2': 'nt-interference:lebensohl',
-  'support-doubles-and-redoubles-tier-2': 'support-doubles:on',
-  'support-doubles-after-their-overcall': 'support-doubles:on',
   'responsive-doubles': 'responsive:on',
   'leaping-michaels': 'weak-two-defence:leaping',
   'lead-directing-doubles': 'slam-doubles:lead',
@@ -58,7 +55,13 @@ export const ROOTS = [
   ['weak-two-ask:ogust', (e) => /^Ogust/.test(e.meaning)],
   ['minor-2nt:invite', (e) => e.notes === 'responding-to-1-1-tier-0' && first(e) === '1m' && (e.call === '2N' || e.call === '3N')],
   ['keycard:rkcb-1430', (e) => e.tail && e.notes === SLAM && (e.after[0] === '4N' || (e.after.length === 0 && e.call === '4N'))],
+  // The support double and redouble themselves (opener's natural rebids next to them are core).
+  ['support-doubles:on', (e) => /^Support (re)?double/.test(e.meaning)],
+  ['fourth-suit:gf', (e) => /^Fourth suit forcing/.test(e.meaning)],
 ];
+// Roots whose option does not pass to the calls after them: opener's answers to the fourth suit are the same
+// whether it is game forcing or forcing one round.
+const NO_INHERIT = new Set(['fourth-suit:gf', 'fourth-suit:round']);
 
 // Is token t covered by root token r (every strain t may stand for is one r may stand for)?
 function covers(r, t) {
@@ -88,9 +91,16 @@ export function tagAll(entries) {
   const roots = [];
   const why = new Map();
   for (const e of entries) {
+    // A rule written with its own option is a root for the calls after it (unless that option does not pass on).
+    if (e.opt) {
+      // Only the house card's own options: another option's rules never tag a house rule.
+      if (!NO_INHERIT.has(e.opt) && !e.opt.startsWith('base:') && e.call !== 'P' && optActive(HOUSE_CARD, e.opt)) roots.push([e.opt, e]);
+      continue;
+    }
     if (e.opt !== undefined) continue;
     const hit = ROOTS.find(([, test]) => test(e));
-    if (hit) roots.push([hit[0], e]);
+    if (hit && !NO_INHERIT.has(hit[0])) roots.push([hit[0], e]);
+    else if (hit) e.opt = hit[0];
   }
   // Section roots too: a call (not a pass) of a one-option section passes its tag on to later rules elsewhere.
   for (const e of entries) {

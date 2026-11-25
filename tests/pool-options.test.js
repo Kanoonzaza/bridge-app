@@ -141,3 +141,30 @@ test('natural defence to their 1NT: double is penalty, a long suit overcalls', (
   assert.match(meaningWith(HOUSE, ['1N', 'X'], { dealer: 'E' }).meaning, /^DONT/);
   assert.equal(bidWith(nat, 'KQJ854.83.A62.94', ['1N'], { dealer: 'E' }).call, '2S');
 });
+
+test('no checkback: an invitational hand bids 2NT naturally, and opener accepts with 14', () => {
+  const nat = card('2/1', { checkback: 'none' });
+  const calls = ['1D', 'P', '1S', 'P', '1N', 'P'];
+  const h = 'KJ84.Q93.K4.Q942';
+  assert.equal(bidWith(HOUSE, h, calls).call, '2C', 'XYZ relay');
+  assert.equal(bidWith(nat, h, calls).call, '2N');
+  assert.match(meaningWith(nat, [...calls, '2N']).meaning, /^Natural: 11–12/);
+  assert.match(meaningWith(HOUSE, [...calls, '2N']).meaning, /^Puppet/);
+  assert.equal(bidWith(nat, 'A3.K84.AQ852.J73', [...calls, '2N', 'P'], { dealer: 'S' }).call, '3N');
+});
+
+test('fourth suit forcing one round: the same bid, worded as forcing one round', () => {
+  const r = card('2/1', { 'fourth-suit': 'round' });
+  const calls = ['1D', 'P', '1S', 'P', '2C', 'P', '2H'];
+  assert.match(meaningWith(r, calls).meaning, /forcing one round/);
+  assert.match(meaningWith(HOUSE, calls).meaning, /game forcing/);
+});
+
+test('support doubles off: three-card support passes with a minimum; a double shows 16+', () => {
+  const off = card('2/1', { 'support-doubles': 'off' });
+  const calls = ['1D', 'P', '1S', '2C'];
+  assert.equal(bidWith(HOUSE, 'Q84.K3.AQ842.J73', calls, { dealer: 'S' }).call, 'X', 'support double');
+  assert.equal(bidWith(off, 'Q84.K3.AQ842.J73', calls, { dealer: 'S' }).call, 'P');
+  assert.match(meaningWith(off, [...calls, 'X'], { dealer: 'S' }).meaning, /extra values \(16\+\)/);
+  assert.equal(bidWith(off, 'K4.AQ3.AKJ84.Q73', calls, { dealer: 'S' }).call, '2N', 'balanced 18–19 with a club stopper: 2NT, as on the house card');
+});

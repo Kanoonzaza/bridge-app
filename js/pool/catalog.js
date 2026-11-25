@@ -78,12 +78,12 @@ export const SLOTS = [
   ] },
 
   { id: 'checkback', group: 'rebids', title: 'Responder\'s ask after opener\'s 1NT rebid', options: [
-    soon('none', 'Natural', 'New suits to play · 2NT invitational'),
+    o('none', 'Natural', '2NT and 3-level bids invite (11–12) · game bids to play · weak bids to play'),
     soon('nmf', 'New Minor Forcing', 'The unbid minor = artificial, 11+, forcing'),
     o('xyz', 'XYZ', '2♣ = relay to 2♦ · 2♦ = artificial game force', { notes: 'xyz-tier-1' }),
   ] },
   { id: 'fourth-suit', group: 'rebids', title: 'Fourth suit', options: [
-    soon('round', 'Forcing one round', '11+'),
+    o('round', 'Forcing one round', '11+'),
     o('gf', 'Game forcing', 'Artificial, forcing to game', { notes: 'fourth-suit-forcing-tier-1' }),
   ] },
 
@@ -100,7 +100,7 @@ export const SLOTS = [
     soon('landy', 'Landy', '2♣ = majors · other suits natural'),
   ] },
   { id: 'support-doubles', group: 'competitive', title: 'Support doubles and redoubles', options: [
-    soon('off', 'Off', 'Raises show 4 trumps · double = extra values'),
+    o('off', 'Off', 'Raises show 4 trumps · double (redouble) = 16+, no clear bid'),
     o('on', 'Support doubles', 'X / XX = exactly 3-card support for responder\'s major', { notes: 'support-doubles-and-redoubles-tier-2' }),
   ] },
   { id: 'responsive', group: 'competitive', title: 'Responsive doubles', options: [

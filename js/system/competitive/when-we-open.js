@@ -516,10 +516,13 @@ export function answerOpenersDouble(e, o, ov, after1NT) {
 }
 
 // ---------- Opener's free rebid after our response and their bid (proposed): support first, then natural ----------
-export function openerFreeRebid(e, o, r, theirs, last) {
+// sys: the card's answers. Without support doubles (pool question 'support-doubles', answer 'off') three-card
+// support is not shown, and a double (redouble after their double) shows extra values: 16+, no clear bid.
+export function openerFreeRebid(e, o, r, theirs, last, sys = null) {
   const L = e.len;
   const h = e.hcp;
-  if (L[r] === 3) return R(last === 'X' ? 'XX' : 'X', [`exactly 3 ${nm(r)}`, `support ${last === 'X' ? 'redouble' : 'double'}`]);
+  const support = plays(sys, 'support-doubles', 'on');
+  if (L[r] === 3 && support) return R(last === 'X' ? 'XX' : 'X', [`exactly 3 ${nm(r)}`, `support ${last === 'X' ? 'redouble' : 'double'}`]);
   const ref = last === 'X' ? `1${r}` : last;
   if (L[r] >= 4) {
     const c = cheapest(ref, r);
@@ -540,7 +543,8 @@ export function openerFreeRebid(e, o, r, theirs, last) {
     const cue = theirs.map((s) => `${cheapest(ref, s)}${s}`).find((c) => lvOf(c) <= 3);
     if (cue) return R(cue, [`${h} HCP, no clear bid: cue-bid their suit (forcing)`]);
   }
-  return R('P', [`no ${nm(r)} support: pass for now`]);
+  if (!support && h >= 16) return R(last === 'X' ? 'XX' : 'X', [`${h} HCP, no clear bid: ${last === 'X' ? 'redouble' : 'double'} to show the extra values`]);
+  return R('P', [L[r] === 3 ? `3 ${nm(r)} but a minimum: pass for now` : `no ${nm(r)} support: pass for now`]);
 }
 
 // Their notes subsections (each marked Proposed).
@@ -607,6 +611,7 @@ for (const o of SUITS4) {
 const freeDefs = (k, o, r, theirs, last, notes) => {
   const ref = last === 'X' ? `1${r}` : last;
   def(k, last === 'X' ? 'XX' : 'X', `Support ${last === 'X' ? 'redouble' : 'double'}: exactly 3 ${nm(r)}.`, { len: { [r]: [3, 3] } }, notes);
+  def(k, last === 'X' ? 'XX' : 'X', `${last === 'X' ? 'Redouble' : 'Double'}: extra values (16+), no clear bid.`, { hcp: [16, 37] }, notes, { opt: 'support-doubles:off' });
   const c = cheapest(ref, r);
   def(k, `${c}${r}`, `4+ ${nm(r)}: raise.`, { len: { [r]: [4, 13] } }, notes);
   if (c + 1 <= 3) def(k, `${c + 1}${r}`, `4+ ${nm(r)}, 16–18: jump raise.`, { hcp: [16, 18], len: { [r]: [4, 13] } }, notes);
@@ -637,7 +642,9 @@ for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']
     const k = [`1${o}`, `1${r}`, `(${ov})`];
     const theirs = ov === 'X' ? [] : [ov[1]];
     freeDefs(k, o, r, theirs, ov, SUPPORT);
-    advise(k, (e) => openerFreeRebid(e, o, r, theirs, ov), [{ dealer: 'S', calls: [`1${o}`, 'P', `1${r}`, ov] }]);
+    const decide = (e, st) => openerFreeRebid(e, o, r, theirs, ov, st?.sys);
+    advise(k, decide, [{ dealer: 'S', calls: [`1${o}`, 'P', `1${r}`, ov] }]);
+    advise(k, decide, [], 'support-doubles:off');
   }
   // 1o–(1y)–1r–(their bid through 2r): support doubles stay on.
   for (const y of SUITS4.filter((t) => t !== o && t !== r && RANK[t] < RANK[r] && cheapest(`1${o}`, t) === 1)) {
@@ -650,7 +657,9 @@ for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']
       const k = [`1${o}`, `(1${y})`, `1${r}`, `(${last})`];
       const theirs = [...new Set([y, ...(last === 'X' || last === '1N' ? [] : [last[1]])])];
       freeDefs(k, o, r, theirs, last, SUPPORT_LATE);
-      advise(k, (e) => openerFreeRebid(e, o, r, theirs, last), [{ dealer: 'S', calls: [`1${o}`, `1${y}`, `1${r}`, last] }]);
+      const decide = (e, st) => openerFreeRebid(e, o, r, theirs, last, st?.sys);
+      advise(k, decide, [{ dealer: 'S', calls: [`1${o}`, `1${y}`, `1${r}`, last] }]);
+      advise(k, decide, [], 'support-doubles:off');
     }
   }
 }

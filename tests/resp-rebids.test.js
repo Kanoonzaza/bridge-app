@@ -49,14 +49,15 @@ test('decoder meanings for responder second bids', () => {
 
 test('responder second-bid sweep', () => {
   const rng = mulberry32(31);
-  for (const sit of SITUATIONS) {
+  // The house card's situations (a situation with `opt` belongs to another option of the convention pool).
+  for (const sit of SITUATIONS.filter((x) => !x.opt)) {
     const auction = auctionFor(sit.after);
     assert.equal(auction.calls.filter((c) => c !== 'P').join(' '), sit.after.join(' '));
     for (let i = 0; i < 400; i++) {
       const hand = randomHand(rng);
       const r = advise(hand, auction);
       assert.ok(!r.notCovered, `${sit.after}: not covered for ${JSON.stringify(hand)}`);
-      assert.ok(r.call in sit.calls, `${sit.after}: ${r.call} missing from the call table`);
+      assert.ok(Object.keys(sit.calls).some((k) => k.split('|')[0] === r.call), `${sit.after}: ${r.call} missing from the call table`);
       assert.equal(matchingEntries(hand, auction).length, 1, `${sit.after}: several entries matched`);
     }
   }
