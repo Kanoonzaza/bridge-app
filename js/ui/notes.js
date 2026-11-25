@@ -40,17 +40,17 @@ export function notesView(root, store) {
     root.replaceChildren(el('div', { class: 'stack' },
       el('a', { class: 'panel doc-link', href: CARD, 'data-key': 'open-card', onclick: openOwnCard },
         el('div', { class: 'eyebrow' }, 'Convention card'),
-        el('div', { class: 'doc-title' }, own ? (c.name || 'Your card') : 'Our system on one page'),
-        el('p', { class: 'muted' }, own ? 'The card in use, from the Card tab.' : 'Openings, responses, conventions and competitive agreements at a glance.')),
+        el('div', { class: 'doc-title' }, own ? (c.name || 'Your convention card') : 'Our system on one page'),
+        el('p', { class: 'muted' }, own ? 'The convention card in use, from the Card tab.' : 'Openings, responses, conventions and competitive agreements at a glance.')),
       el('a', { class: 'panel doc-link', href: NOTES, 'data-key': 'open-notes' },
         el('div', { class: 'eyebrow' }, 'System notes'),
         el('div', { class: 'doc-title' }, 'Every agreement, explained'),
-        el('p', { class: 'muted' }, own ? 'What each bid means, why, and worked examples, for the conventions on your card.' : 'What each bid means, why, and worked examples. The Advisor and Decoder link here.')),
+        el('p', { class: 'muted' }, own ? 'What each bid means, why, and worked examples, for the conventions on your convention card.' : 'What each bid means, why, and worked examples. The Advisor and Decoder link here.')),
       el('a', { class: 'panel doc-link', href: BASICS, 'data-key': 'open-basics' },
         el('div', { class: 'eyebrow' }, 'Bridge fundamentals'),
         el('div', { class: 'doc-title' }, 'What every player uses'),
         el('p', { class: 'muted' }, 'Points, losers, total tricks, game and slam targets, planning the play, leads and signals.')),
-      el('div', {}, el('div', { class: 'label' }, own ? `Contents of the system notes, for ${c.name || 'your card'}` : 'Contents of the system notes'), list)));
+      el('div', {}, el('div', { class: 'label' }, own ? `Contents of the system notes, for ${c.name || 'your convention card'}` : 'Contents of the system notes'), list)));
   }
 
   render();

@@ -400,7 +400,7 @@ export function tableView(root, store) {
   // ---------- Convention cards at the table ----------
   // Each side plays a card (js/table/model.js: board.cards). Robots copy the card of the players' side.
   const SIDE_NAME = { NS: 'North–South', EW: 'East–West' };
-  const cardLabel = (c) => (c === HOUSE_CARD ? 'House card (2/1)' : `${c.name || 'Untitled card'} (${c.base === 'sayc' ? 'SAYC' : '2/1'})`);
+  const cardLabel = (c) => (c === HOUSE_CARD ? 'House convention card (2/1)' : `${c.name || 'Untitled convention card'} (${c.base === 'sayc' ? 'SAYC' : '2/1'})`);
   const robotsOnly = (t, side) => !SEATS.some((x) => sideOf(x) === side && t.seats[x].kind === 'human');
 
   // Sitting down (or starting a table) brings the card in use on this phone, when my side has none yet.
@@ -414,8 +414,8 @@ export function tableView(root, store) {
 
   function changeCard(t, packed) {
     const started = Boolean(t.board.calls);
-    act((cur) => cur && setCard(cur, ui.sync.uid, packed), 'The card could not be changed. Try again.');
-    if (started) toast('Your card changes from the next board.');
+    act((cur) => cur && setCard(cur, ui.sync.uid, packed), 'The convention card could not be changed. Try again.');
+    if (started) toast('Your convention card changes from the next board.');
   }
 
   // One side: its card, how it differs from the house card, and (for my side) a choice of the cards on this phone.
@@ -426,17 +426,17 @@ export function tableView(root, store) {
     const current = JSON.stringify(t.cards?.[side] ?? null);
     const value = String(list.findIndex((c) => JSON.stringify(pack(c)) === current));
     return el('div', { class: 'side-card' },
-      el('div', { class: 'label' }, `${SIDE_NAME[side]}${robots ? ' · robots, playing the same card as the players' : ''}${mine ? ' · your side' : ''}`),
+      el('div', { class: 'label' }, `${SIDE_NAME[side]}${robots ? ' · robots, playing the same convention card as the players' : ''}${mine ? ' · your side' : ''}`),
       el('div', { class: 'seat-name' }, cardLabel(card)),
-      el('p', { class: 'muted' }, diff.length ? `Differs from the house card: ${diff.map((d) => d.optionTitle).join(', ')}.` : 'Plays the house card\'s system.'),
-      unready(card).length ? el('p', { class: 'muted' }, 'Some of this card is not in the robots\' rules yet: they bid those parts as on the house card.') : null,
+      el('p', { class: 'muted' }, diff.length ? `Differs from the house convention card: ${diff.map((d) => d.optionTitle).join(', ')}.` : 'Same system as the house convention card.'),
+      unready(card).length ? el('p', { class: 'muted' }, 'Some of this convention card is not in the robots\' rules yet: they bid those parts as on the house convention card.') : null,
       mine ? el('label', { class: 'card-pick' },
-        el('span', { class: 'label' }, 'Our card'),
+        el('span', { class: 'label' }, 'Our convention card'),
         el('select', { class: 'field', 'data-key': 'pick-card', onchange: (e) => changeCard(t, e.target.value === '-1' ? null : pack(list[Number(e.target.value)])) },
-          el('option', { value: '-1', selected: value === '-1' }, 'House card (2/1)'),
+          el('option', { value: '-1', selected: value === '-1' }, 'House convention card (2/1)'),
           ...list.map((c, i) => el('option', { value: String(i), selected: value === String(i) }, cardLabel(c))))) : null,
-      mine && cardPending(t, side) ? el('p', { class: 'close' }, 'Your new card starts with the next board.') : null,
-      mine && !list.length ? el('p', { class: 'muted' }, 'Make your own card in the Card tab.') : null);
+      mine && cardPending(t, side) ? el('p', { class: 'close' }, 'Your new convention card starts with the next board.') : null,
+      mine && !list.length ? el('p', { class: 'muted' }, 'Make your own convention card in the Card tab.') : null);
   }
 
   // "Systems": which card each side plays this board. Shown when either side plays something other than the house
@@ -446,8 +446,8 @@ export function tableView(root, store) {
     const mySide = me ? sideOf(me) : null;
     const anyOwn = t.board.cards || (me && loadCards(store).list.length);
     if (!anyOwn) return null;
-    const short = (side) => (cards[side] === HOUSE_CARD ? 'house card' : cards[side].name || 'untitled card');
-    return section('cards', `Systems: N–S ${short('NS')} · E–W ${short('EW')}`,
+    const short = (side) => (cards[side] === HOUSE_CARD ? 'house' : cards[side].name || 'untitled');
+    return section('cards', `Convention cards: N–S ${short('NS')} · E–W ${short('EW')}`,
       ...['NS', 'EW'].map((side) => sideCard(t, side, cards[side], side === mySide)));
   }
 
@@ -1098,7 +1098,7 @@ export function tableView(root, store) {
         el('div', { class: 'big' }, kText(k)),
         k ? el('p', { 'data-key': 'result' }, el('b', {}, 'Result: '), resultText(b, (s) => relative(me, s))) : null,
         el('p', { class: 'muted' }, `The Advisor would reach: ${kText(sysK)} (${sys.calls.map(callLabel).join(' ')}).`),
-        b.cards ? el('p', { class: 'muted', 'data-key': 'played-cards' }, `Bid by the cards: N–S ${cardLabel(sideCards(b.cards).NS)}, E–W ${cardLabel(sideCards(b.cards).EW)}.`) : null,
+        b.cards ? el('p', { class: 'muted', 'data-key': 'played-cards' }, `Bid by the convention cards: N–S ${cardLabel(sideCards(b.cards).NS)}, E–W ${cardLabel(sideCards(b.cards).EW)}.`) : null,
         past ? null : el('div', { class: 'row-buttons' },
           el('button', { type: 'button', class: 'pill on', 'data-key': 'next-board', onclick: () => act((cur) => cur && nextBoard(cur, rand)) }, 'Next board'),
           el('button', { type: 'button', class: 'pill', 'data-key': 'rebid', onclick: () => act((cur) => cur && rebid(cur)) }, 'Bid it again'))),

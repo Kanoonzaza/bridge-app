@@ -44,7 +44,7 @@ var h=location.hash.slice(1);if(h&&ids[decodeURIComponent(h)])return;
 window.addEventListener('hashchange',function(){var x=decodeURIComponent(location.hash.slice(1));if(!ids[x])return;for(var j=0;j<hidden.length;j++)hidden[j].hidden=false;var t=document.getElementById(x);if(t)t.scrollIntoView()});
 for(var i=0;i<hidden.length;i++)hidden[i].hidden=true;
 var links=document.querySelectorAll('.contents a[href^="#"]');for(i=0;i<links.length;i++)if(ids[links[i].getAttribute('href').slice(1)])links[i].parentNode.hidden=true;
-var note=document.createElement('p');note.className='lede';note.textContent='Showing the notes for your card: '+(c.name||'Untitled card')+'. ';
+var note=document.createElement('p');note.className='lede';note.textContent='Showing the notes for your convention card: '+(c.name||'Untitled convention card')+'. ';
 var all=document.createElement('a');all.href='?all';all.textContent='Show everything';note.appendChild(all);
 var h1=art.querySelector('h1');if(h1)h1.parentNode.insertBefore(note,h1.nextSibling)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run()}catch(e){}})();</script>`;

@@ -26,7 +26,7 @@ test('rows show the card\'s answers, discuss marks, readiness and free text', ()
 
 test('the text copy names the card and every answer', () => {
   const t = cardText({ ...HOUSE_CARD, discuss: ['keycard'] });
-  assert.match(t, /^House card \(2\/1 Game Forcing\)/);
+  assert.match(t, /^House convention card \(2\/1 Game Forcing\)/);
   assert.match(t, /Drury/);
   assert.match(t, /4NT: RKCB 1430 \[to discuss\]/);
   assert.match(cardText(normalizeCard({ base: 'sayc' })), /Standard American/);

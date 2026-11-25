@@ -52,12 +52,12 @@ export function cardView(root, store) {
     const confirming = ui.confirm === which;
     return el('div', { class: `panel card-item${inUse ? ' in-use' : ''}` },
       el('div', { class: 'card-item-head' },
-        el('div', { class: 'doc-title' }, card.name || 'Untitled card'),
+        el('div', { class: 'doc-title' }, card.name || 'Untitled convention card'),
         inUse ? el('span', { class: 'chip' }, 'In use') : null),
       el('p', { class: 'muted' }, own ? summary(card) : '2/1 Game Forcing · the system in the notes'),
       confirming
         ? el('div', { class: 'row-buttons', role: 'group', 'aria-label': 'Confirm delete' },
-          el('span', {}, `Delete “${card.name || 'Untitled card'}”?`),
+          el('span', {}, `Delete “${card.name || 'Untitled convention card'}”?`),
           el('button', { type: 'button', class: 'pill danger', 'data-key': `del-yes-${which}`, onclick: () => { removeCard(store, which); ui.confirm = null; render(); } }, 'Delete'),
           el('button', { type: 'button', class: 'pill', 'data-key': `del-no-${which}`, onclick: () => { ui.confirm = null; render(); } }, 'Keep'))
         : el('div', { class: 'row-buttons' },
@@ -73,10 +73,10 @@ export function cardView(root, store) {
     return el('div', { class: 'stack' },
       el('div', {},
         el('div', { class: 'eyebrow' }, 'Convention cards'),
-        el('p', { class: 'muted intro' }, 'Write down what you play with a partner: pick a system, then choose an answer to each question. The card in use is the one your partnership plays.')),
+        el('p', { class: 'muted intro' }, 'Write down what you play with a partner: pick a system, then choose an answer to each question. The convention card in use is the one your partnership plays.')),
       el('div', { class: 'row-buttons' },
-        el('button', { type: 'button', class: 'pill on', 'data-key': 'new-card', disabled: full, onclick: () => go('edit', null, normalizeCard({ base: 'sayc' })) }, 'New card'),
-        full ? el('span', { class: 'muted' }, `${MAX_CARDS} cards is the most a phone keeps: delete one first.`) : null),
+        el('button', { type: 'button', class: 'pill on', 'data-key': 'new-card', disabled: full, onclick: () => go('edit', null, normalizeCard({ base: 'sayc' })) }, 'New convention card'),
+        full ? el('span', { class: 'muted' }, `${MAX_CARDS} convention cards is the most a phone keeps: delete one first.`) : null),
       ...all.map((c, i) => item(c, i, active === i)),
       item(HOUSE_CARD, HOUSE, active === null));
   }
@@ -111,14 +111,14 @@ export function cardView(root, store) {
     // The draft as it is now: typing in the fields updates ui.draft without a re-render.
     const save = () => {
       const i = saveCard(store, ui.draft, isNew ? null : ui.which);
-      if (i === null) { ui.msg = `This phone already keeps ${MAX_CARDS} cards: delete one first.`; render(); return; }
+      if (i === null) { ui.msg = `This phone already keeps ${MAX_CARDS} convention cards: delete one first.`; render(); return; }
       setActive(store, i);
       go('view', i);
     };
     return el('div', { class: 'stack' },
       el('div', {},
-        el('div', { class: 'eyebrow' }, isNew ? 'New card' : 'Edit card'),
-        el('label', { class: 'label', for: 'card-name' }, 'Card name'),
+        el('div', { class: 'eyebrow' }, isNew ? 'New convention card' : 'Edit convention card'),
+        el('label', { class: 'label', for: 'card-name' }, 'Convention card name'),
         el('input', { id: 'card-name', 'data-key': 'card-name', class: 'field', value: d.name, maxlength: NAME_MAX, placeholder: 'For example: Noon & Pim', autocomplete: 'off',
           oninput: (e) => { ui.draft = { ...ui.draft, name: e.target.value }; remember(); } })),
       ui.msg ? el('p', { class: 'notice', role: 'alert' }, ui.msg) : null,
@@ -131,7 +131,7 @@ export function cardView(root, store) {
           g === 'base'
             ? baseRow()
             : slots.map(slotRow),
-          panel.lines.length && g !== 'base' ? el('p', { class: 'muted core-line' }, `Also on every card: ${panel.lines.join(' · ')}`) : null,
+          panel.lines.length && g !== 'base' ? el('p', { class: 'muted core-line' }, `Also on every convention card: ${panel.lines.join(' · ')}`) : null,
           el('label', { class: 'label', for: `card-text-${g}` }, 'Anything else you agreed here'),
           el('textarea', { id: `card-text-${g}`, 'data-key': `card-text-${g}`, class: 'field', rows: 2, maxlength: TEXT_MAX,
             oninput: (e) => { ui.draft = { ...ui.draft, text: { ...ui.draft.text, [g]: e.target.value } }; remember(); } }, d.text[g] ?? ''));
@@ -158,10 +158,10 @@ export function cardView(root, store) {
     const missing = unready(card);
     return el('div', { class: 'stack card-page' },
       el('div', { class: 'row-buttons card-actions' },
-        el('button', { type: 'button', class: 'pill', 'data-key': 'card-back', onclick: () => go('list') }, '← All cards')),
+        el('button', { type: 'button', class: 'pill', 'data-key': 'card-back', onclick: () => go('list') }, '← All convention cards')),
       el('header', {},
         el('div', { class: 'eyebrow' }, 'Convention card'),
-        el('h2', { class: 'card-name' }, card.name || 'Untitled card'),
+        el('h2', { class: 'card-name' }, card.name || 'Untitled convention card'),
         el('p', { class: 'muted' }, BASE_NAME[card.base], inUse ? el('span', { class: 'chip' }, 'In use') : null)),
       missing.length ? el('p', { class: 'close' }, robotsNote(card, missing)) : null,
       ...cardPanels(card).map((p) => el('section', { class: 'panel card-panel', 'aria-label': p.title },
@@ -177,11 +177,11 @@ export function cardView(root, store) {
         ])),
         p.text ? el('p', { class: 'card-text' }, el('b', {}, 'Also agreed: '), p.text) : null)),
       el('div', { class: 'row-buttons card-actions' },
-        inUse ? null : el('button', { type: 'button', class: 'pill on', 'data-key': 'card-use', onclick: () => { setActive(store, own ? ui.which : null); render(); } }, 'Use this card'),
+        inUse ? null : el('button', { type: 'button', class: 'pill on', 'data-key': 'card-use', onclick: () => { setActive(store, own ? ui.which : null); render(); } }, 'Use this convention card'),
         own ? el('button', { type: 'button', class: 'pill', 'data-key': 'card-edit', onclick: () => go('edit', ui.which, card) }, 'Edit') : null,
         el('button', { type: 'button', class: 'pill', 'data-key': 'card-print', onclick: printCard }, 'Print')),
       el('div', { class: 'card-actions' }, copyButton('Copy as text', () => cardText(card), 'card-copy', 'Copied. Paste it wherever you keep your notes.', 'Convention card')),
-      own ? null : el('p', { class: 'card-actions' }, el('a', { href: 'guide/convention-card.html' }, 'The full house card, with every agreement explained →')));
+      own ? null : el('p', { class: 'card-actions' }, el('a', { href: 'guide/convention-card.html' }, 'The full house convention card, with every agreement explained →')));
   }
 
   // Opened from the Notes tab: show the card in use.
@@ -203,8 +203,8 @@ function printCard() {
 // Which parts of the card the app cannot bid yet (they are bid as on the house card).
 function robotsNote(card, missing) {
   if (missing.some((m) => m.slot === 'base')) {
-    return `The robots do not know ${BASE_NAME[card.base]} yet: until they do, they bid this card as our 2/1 house card. The card itself shows what you play.`;
+    return `The robots do not know ${BASE_NAME[card.base]} yet: until they do, they bid this convention card as our 2/1 house convention card. The convention card itself shows what you play.`;
   }
   const names = missing.map((m) => option(m.slot, m.option).title);
-  return `${names.length === 1 ? 'One choice is' : `${names.length} choices are`} not in the robots' rules yet (${names.join(', ')}): they bid ${names.length === 1 ? 'it' : 'those'} as on the house card. The card itself shows what you play.`;
+  return `${names.length === 1 ? 'One choice is' : `${names.length} choices are`} not in the robots' rules yet (${names.join(', ')}): they bid ${names.length === 1 ? 'it' : 'those'} as on the house convention card. The convention card itself shows what you play.`;
 }

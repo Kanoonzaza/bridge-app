@@ -51,9 +51,9 @@ export function resultText(b, name = (s) => COMPASS[s]) {
 
 // A card in one line: its name, its system, and what differs from the house card.
 function cardLine(c) {
-  if (c === HOUSE_CARD) return 'house card (2/1 Game Forcing)';
+  if (c === HOUSE_CARD) return 'house convention card (2/1 Game Forcing)';
   const d = differences(c).filter((x) => x.slot !== 'base').map((x) => x.optionTitle);
-  return `${c.name || 'untitled card'} (${c.base === 'sayc' ? 'Standard American' : '2/1 Game Forcing'}${d.length ? `; ${d.join(', ')}` : ''})`;
+  return `${c.name || 'untitled convention card'} (${c.base === 'sayc' ? 'Standard American' : '2/1 Game Forcing'}${d.length ? `; ${d.join(', ')}` : ''})`;
 }
 
 export function boardReport(t, me, dd = null) {

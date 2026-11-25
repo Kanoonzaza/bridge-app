@@ -41,7 +41,7 @@ export const PRESETS = {
   },
 };
 
-export const HOUSE_CARD = Object.freeze({ v: 1, name: 'House card', base: '2/1', picks: {}, discuss: [], text: {} });
+export const HOUSE_CARD = Object.freeze({ v: 1, name: 'House convention card', base: '2/1', picks: {}, discuss: [], text: {} });
 
 const str = (x, max) => (typeof x === 'string' ? x.trim().slice(0, max) : '');
 
