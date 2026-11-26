@@ -781,6 +781,39 @@ Later, not planned here: weak 1NT, Acol, Precision (see spec, section 3.3).
 
 ---
 
+### Bigger matches (2026-11-26)
+
+The phase 4 options that differed on few boards, again over 3,000 boards (seed 21, double dummy, IMPs per board for the option's side against the house card):
+
+| Option | Boards that differ | IMPs per board | Won / lost |
+|---|---|---|---|
+| passed-jump:none | 0 | 0.000 | 0 / 0 |
+| splinters:off | 17 | +0.007 (± 0.005) | 2 / 0 |
+| weak-two-defence:natural | 1 | +0.002 | 1 / 0 |
+| slam-doubles:penalty | 7 | 0.000 | 0 / 0 |
+| responsive:off | 24 | +0.026 (± 0.012) | 11 / 6 |
+| texas:off | 13 | −0.004 (± 0.004) | 0 / 1 |
+| smolen:off | 2 | 0.000 | 1 / 0 |
+| nt-interference:natural | 39 | −0.020 (± 0.015) | 10 / 21 |
+| minor-raise:standard | 52 | +0.008 (± 0.009) | 9 / 13 |
+| jump-shift:strong | 44 | −0.026 (± 0.013) | 11 / 24 |
+| weak-two-ask:feature | 8 | 0.000 | 0 / 0 |
+| keycard:blackwood | 10 | +0.009 (± 0.006) | 2 / 0 |
+| support-doubles:off | 33 | 0.000 (± 0.010) | 7 / 16 |
+
+Every option stays within ±0.03 IMPs per board of the house card. Several conventions still almost never change the result double dummy (fit jumps, Smolen, the feature ask, slam and lead doubles): on these deals they are about meaning, not score. Two lean negative and are worth a look later: strong jump shifts (later rounds fall to judgment) and natural bidding over their 1NT interference.
+
+### Phase 7: as built (2026-11-26)
+
+All six alternatives are written and every answer of the pool now has rules; `playable()` is the identity for every real card.
+- **RKCB 0314** (`js/system/options/keycard.js`): its own tail rules (ask, replies, continuation, king ask, interference); the engine words the asks inside particular auctions as RKCB 0314.
+- **Bergen raises** (`js/system/options/major-raises.js`): unpassed, 4+ trumps: 3♣ = 7–9, 3♦ = 10–12, 3M = 0–6; jump shifts to 3♣/3♦ are not played; opener bids game over 3♣ with 15+, over 3♦ with 14+. Its meanings carry a two-key context so they win over the SAYC limit raise and the strong jump shift on the same calls.
+- **Four-suit transfers** (`js/system/opening/notrump.js`): 2♠ = clubs, 2NT = diamonds (weak, to play); the balanced invitation goes through Stayman. 1NT–2NT (the natural invitation) and its answers are now tagged `nt-2s:puppet`.
+- **New Minor Forcing** (`js/system/rebids/responder.js`): after 1m–1M–1NT the unbid minor asks for 3-card support or 4 hearts; opener's answer and responder's next bid are written; every other call is the natural one.
+- **Landy and Cappelletti** (`js/system/options/nt-defence-more.js`): with the advances, their double of the artificial bid, and the overcaller's next call.
+- Zero leaks for each over 2,000–4,000 deals; a test hand each (`tests/pool-options.test.js`); notes subsections in "Other answers on a convention card".
+- Found on the way: the house card has no rule for opener after XYZ's game-forcing jump in responder's suit (1♣–1♦–1♠–3♦); general judgment answers it. Left as it is.
+
 ## Risks and how the plan answers them
 
 | Risk | Answer |
