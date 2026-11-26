@@ -812,6 +812,7 @@ All six alternatives are written and every answer of the pool now has rules; `pl
 - **New Minor Forcing** (`js/system/rebids/responder.js`): after 1m–1M–1NT the unbid minor asks for 3-card support or 4 hearts; opener's answer and responder's next bid are written; every other call is the natural one.
 - **Landy and Cappelletti** (`js/system/options/nt-defence-more.js`): with the advances, their double of the artificial bid, and the overcaller's next call.
 - Zero leaks for each over 2,000–4,000 deals; a test hand each (`tests/pool-options.test.js`); notes subsections in "Other answers on a convention card".
+- Matches against the house card (1,500 boards, seed 13, IMPs per board for the option's side): RKCB 0314 1 differing board, 0.000 · Bergen 22, −0.005 (± 0.015) · four-suit transfers 9, +0.003 · New Minor Forcing 55, +0.001 (± 0.020) · Landy 66, −0.001 (± 0.026) · Cappelletti 68, −0.037 (± 0.032). All within noise; Cappelletti leans negative (its one-suited 2♣ gives the opponents room).
 - Found on the way: the house card has no rule for opener after XYZ's game-forcing jump in responder's suit (1♣–1♦–1♠–3♦); general judgment answers it. Left as it is.
 
 ## Risks and how the plan answers them
