@@ -1,8 +1,9 @@
 // Convention cards shared between partners by code (Plan 13, phase 6). Stored at cards/{code}:
-//   { card: { v, name, base, picks, discuss, text, updated }, members: { uid: true } (at most two), created }
-// Who may write what (database.rules.json, the same rules the memory store below enforces):
-//   create  the whole record, only when the code is free
-//   join    members/{my uid}, only while there are fewer than two members
+//   { card: { v, name, base, picks, discuss, text, updated }, members: { a: creator uid, b?: partner uid }, created }
+// Two fixed member slots, so the database rules can limit a card to two partners without counting.
+// Who may write what (database.rules.cards.json, the same rules the memory store below enforces):
+//   create  the whole record with members.a = my uid, only when the code is free
+//   join    members/b = my uid, only while it is empty (and I am not the creator)
 //   save    card, only by a member
 // Every transport offers: uid · load(code) · watch(code, onShared) · create(code, card) · join(code) · save(code, card)
 // load/watch give a normalized shared record or null; create/join/save resolve to true, or false when refused.
@@ -17,7 +18,8 @@ export function normalizeShared(raw) {
   const c = raw.card;
   const discuss = Array.isArray(c.discuss) ? c.discuss : c.discuss && typeof c.discuss === 'object' ? Object.values(c.discuss) : [];
   const card = normalizeCard({ ...c, discuss });
-  const members = Object.keys(raw.members && typeof raw.members === 'object' ? raw.members : {}).filter((k) => raw.members[k] === true).slice(0, MAX_MEMBERS);
+  const m = raw.members && typeof raw.members === 'object' ? raw.members : {};
+  const members = [m.a, m.b].filter((u) => typeof u === 'string' && u);
   return { card: { ...card, updated: Number(c.updated) || 0 }, members, created: Number(raw.created) || 0 };
 }
 
@@ -45,13 +47,13 @@ export async function firebaseCards(config, now = () => Date.now()) {
     },
     async create(code, card) {
       try {
-        const res = await db.runTransaction(at(code), (cur) => (cur ? undefined : { card: storedCard(card, now()), members: { [uid]: true }, created: now() }), { applyLocally: false });
+        const res = await db.runTransaction(at(code), (cur) => (cur ? undefined : { card: storedCard(card, now()), members: { a: uid }, created: now() }), { applyLocally: false });
         return res.committed;
       } catch {
         return false;
       }
     },
-    join: (code) => tryWrite(() => db.set(at(code, `/members/${uid}`), true)),
+    join: (code) => tryWrite(() => db.set(at(code, '/members/b'), uid)),
     save: (code, card) => tryWrite(() => db.set(at(code, '/card'), storedCard(card, now()))),
   };
 }
@@ -79,17 +81,16 @@ function ruledStore(read, write, uid, now, written = () => {}) {
       return () => listeners.get(code).delete(onShared);
     },
     async create(code, card) {
-      return change(code, (cur) => (cur ? undefined : { card: storedCard(card, now()), members: { [uid]: true }, created: now() }));
+      return change(code, (cur) => (cur ? undefined : { card: storedCard(card, now()), members: { a: uid }, created: now() }));
     },
     async join(code) {
       return change(code, (cur) => {
-        const members = Object.keys(cur?.members ?? {});
-        if (!cur || members.includes(uid) || members.length >= MAX_MEMBERS) return undefined;
-        return { ...cur, members: { ...cur.members, [uid]: true } };
+        if (!cur || cur.members?.b || cur.members?.a === uid) return undefined;
+        return { ...cur, members: { ...cur.members, b: uid } };
       });
     },
     async save(code, card) {
-      return change(code, (cur) => (cur && cur.members?.[uid] ? { ...cur, card: storedCard(card, now()) } : undefined));
+      return change(code, (cur) => (cur && (cur.members?.a === uid || cur.members?.b === uid) ? { ...cur, card: storedCard(card, now()) } : undefined));
     },
   };
 }

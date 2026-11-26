@@ -43,8 +43,9 @@ test('a watching partner sees the other\'s edit', async () => {
 test('what the database returns is normalized', () => {
   assert.equal(normalizeShared(null), null);
   assert.equal(normalizeShared({ members: { a: true } }), null);
-  const s = normalizeShared({ card: { base: '2/1', name: 'X', discuss: { 0: 'keycard' }, updated: '7' }, members: { a: true, b: true, c: true, d: 'no' } });
+  const s = normalizeShared({ card: { base: '2/1', name: 'X', discuss: { 0: 'keycard' }, updated: '7' }, members: { a: 'uid1', b: 'uid2', c: 'uid3' } });
   assert.deepEqual(s.card.discuss, ['keycard']);
   assert.equal(s.card.updated, 7);
-  assert.deepEqual(s.members, ['a', 'b']);
+  assert.deepEqual(s.members, ['uid1', 'uid2'], 'two slots, nothing else');
+  assert.deepEqual(normalizeShared({ card: { base: 'sayc' }, members: { a: 'uid1' } }).members, ['uid1']);
 });

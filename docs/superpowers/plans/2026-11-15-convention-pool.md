@@ -732,7 +732,7 @@ Stored value: the card of section 3.2 of the spec, plus `members: { uid: true }`
 
 ```json
 { "rules": {
-  "tables": { "…": "as today; copy the live rules here first" },
+  "tables": { "…": "as today; copy the live rules here first" },  // superseded: see database.rules.cards.json (no numChildren in RTDB rules; two member slots a/b)
   "cards": { "$code": {
     ".read": "auth != null",
     ".write": "auth != null && (!data.exists() || data.child('members').child(auth.uid).exists() || (!data.child('members').child(auth.uid).exists() && data.child('members').numChildren() < 2 && newData.child('members').numChildren() === data.child('members').numChildren() + 1 && newData.child('base').val() === data.child('base').val()))",
