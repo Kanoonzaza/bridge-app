@@ -69,3 +69,51 @@ const entries = [
 
 void NAME;
 export default entries;
+
+// ---------- RKCB 0314 (pool question 'keycard', answer 'rkcb-0314'): 1430 with the two lowest replies swapped ----------
+//   5♣ = 0 or 3 key cards · 5♦ = 1 or 4 · 5♥ = 2 without the trump queen · 5♠ = 2 with it. Interference as for 1430.
+const O314 = 'keycard:rkcb-0314';
+const keyCards = (e, T) => SUITS.filter((s) => e.hand[s].includes('A')).length + (e.hand[T].includes('K') ? 1 : 0);
+export function rkcb0314Reply(e, T) {
+  const k = keyCards(e, T);
+  const q = e.hand[T].includes('Q');
+  if (k === 0 || k === 3) return R('5C', [`${k} key cards`]);
+  if (k === 1 || k === 4) return R('5D', [`${k} key card${k === 1 ? '' : 's'}`]);
+  return R(q ? '5S' : '5H', ['2 key cards', `${q ? 'with' : 'without'} the ${NAME[T].slice(0, -1)} queen`]);
+}
+const SHOWS_0314 = { '5C': [0, 3], '5D': [1, 4], '5H': [2, 2], '5S': [2, 2] };
+export function rkcb0314Continue(e, T, reply) {
+  const own = keyCards(e, T);
+  const [lo, hi] = SHOWS_0314[reply];
+  const partner = own === 0 && hi + own <= 5 ? hi : lo;
+  const missing = 5 - own - partner;
+  const why = [`you hold ${own}, partner shows ${partner}: ${missing === 0 ? 'none' : missing} missing`];
+  if (missing >= 2) {
+    if (reply === `5${T}`) return R('P', [...why, 'two key cards missing: stop']);
+    return R(RANK5[T] > RANK5[reply[1]] ? `5${T}` : `6${T}`, [...why, RANK5[T] > RANK5[reply[1]] ? 'two key cards missing: sign off' : 'too high to stop in five']);
+  }
+  return R(`6${T}`, [...why, 'small slam']);
+}
+const agreedAfter = (key) => agreedSuit(key.slice(0, -1)) !== null;
+entries.push(
+  { tail: true, after: [], call: '4N', notes: SLAM, opt: O314, when: agreed, meaning: 'RKCB 0314: asks for key cards (the four aces and the trump king) in the agreed suit.', shows: {} },
+  ...SUITS.flatMap((T) => [['5C', '0 or 3 key cards.'], ['5D', '1 or 4 key cards.'], ['5H', '2 key cards, without the trump queen.'], ['5S', '2 key cards, with the trump queen.']]
+    .map(([call, meaning]) => ({
+      tail: true, after: ['4N'], call, variant: T, notes: SLAM, opt: O314, meaning, shows: {}, priority: 10,
+      when: (key) => agreedSuit(key) === T,
+      pick: (e) => rkcb0314Reply(e, T).call === call,
+      why: (e) => rkcb0314Reply(e, T).why,
+    }))),
+  ...SUITS.flatMap((T) => [['P', 'Sign-off: two key cards are missing.'], [`5${T}`, 'Sign-off: two key cards are missing.'], [`6${T}`, 'Small slam.']]
+    .map(([call, meaning]) => ({
+      tail: true, after: ['4N', '5x'], call, variant: T, notes: SLAM, opt: O314, meaning, shows: {}, priority: 10,
+      when: agreedIs(T, 1),
+      pick: (e, st) => rkcb0314Continue(e, T, st.key.at(-1)).call === call,
+      why: (e, st) => rkcb0314Continue(e, T, st.key.at(-1)).why,
+    }))),
+  { tail: true, after: ['4N', '5x'], call: '5N', notes: SLAM, opt: O314, when: agreedAfter, meaning: 'King ask: promises all key cards and the trump queen. Replies 6♣ = 0, 6♦ = 1, 6♥ = 2, 6♠ = 3 kings.', shows: {} },
+  { tail: true, after: ['4N', '(X)'], call: 'XX', notes: SLAM, opt: O314, when: agreedAfter, meaning: 'RKCB after their double: 0 or 3 key cards.', shows: {} },
+  { tail: true, after: ['4N', '(X)'], call: 'P', notes: SLAM, opt: O314, when: agreedAfter, meaning: 'RKCB after their double: 1 or 4 key cards.', shows: {} },
+  { tail: true, after: ['4N', '(5x)'], call: 'X', notes: SLAM, opt: O314, when: agreedAfter, meaning: 'RKCB after their bid: 0 or 3 key cards.', shows: {} },
+  { tail: true, after: ['4N', '(5x)'], call: 'P', notes: SLAM, opt: O314, when: agreedAfter, meaning: 'RKCB after their bid: 1 or 4 key cards.', shows: {} },
+);

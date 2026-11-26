@@ -17,6 +17,7 @@ const fourthCall = (z, w) => `${RANK[w] > RANK[z] ? 2 : 3}${w}`;
 // ---------- XYZ: 1o–1r–1z (z a suit or NT) ----------
 // Pool question 'checkback': with 'xyz' (the house card) afterXYZ decides; with 'none', afterNatural.
 export function afterXYZ(e, o, r, z, sys = null) {
+  if (plays(sys, 'checkback', 'nmf') && nmfApplies(o, r, z)) return afterNMFChance(e, o, r, z);
   if (!plays(sys, 'checkback', 'xyz')) return afterNatural(e, o, r, z);
   const h = e.hcp;
   const L = e.len;
@@ -89,15 +90,40 @@ export function afterNatural(e, o, r, z) {
   return R('P', [`${h} HCP: weak`]);
 }
 
+// New Minor Forcing (pool question 'checkback', answer 'nmf'): after 1m–1M–1NT, the unbid minor is artificial,
+// 11+, forcing, and asks for 3-card support or (after 1♠) 4 hearts. Everything else is natural, as with 'none'.
+const nmfApplies = (o, r, z) => z === 'N' && !isMajor(o) && isMajor(r);
+const newMinor = (o) => (o === 'C' ? 'D' : 'C');
+export function afterNMFChance(e, o, r, z) {
+  const L = e.len;
+  if (e.hcp >= 11 && (L[r] === 5 || (r === 'S' && L.H >= 4))) {
+    return R(`2${newMinor(o)}`, [`${e.hcp} HCP`, `new minor forcing: look for ${L[r] === 5 ? `3-card ${NAME[r]} support` : '4 hearts'}`],
+      { plan: 'Then choose the game (or invite) from opener\'s answer.' });
+  }
+  return afterNatural(e, o, r, z);
+}
+export function nmfReply(e, r) {
+  const max = e.hcp >= 14;
+  if (e.len[r] >= 3) return R(`${max ? 3 : 2}${r}`, [`3 ${NAME[r]}`, max ? 'maximum' : 'minimum']);
+  if (r === 'S' && e.len.H >= 4) return R('2H', ['4 hearts, no 3-card spade support']);
+  return R(max ? '3N' : '2N', [`no fit, ${max ? 'maximum' : 'minimum'}`]);
+}
+
 const CHECK = 'checkback:xyz';
 const NATURAL = 'checkback:none';
+const NMF = 'checkback:nmf';
 function xyzSituation(o, r, z) {
   const calls = {};
   // opt: 'checkback:xyz' for XYZ's artificial calls, 'checkback:none' for natural meanings of the same calls,
   // null (core) for the calls that mean the same either way. Keys are 'call' or 'call|opt'.
   const put = (call, meaning, shows, force, opt = null) => {
     calls[opt ? `${call}|${opt}` : call] = { meaning, shows: { ...shows, ...(force ? { force } : {}) }, notes: XYZ, opt };
+    // New Minor Forcing plays every natural meaning too.
+    if (opt === NATURAL) calls[`${call}|${NMF}`] = { meaning, shows: { ...shows, ...(force ? { force } : {}) }, notes: XYZ, opt: NMF };
   };
+  if (nmfApplies(o, r, z)) {
+    calls[`2${newMinor(o)}|${NMF}`] = { meaning: `New minor forcing: artificial, 11+. Asks for 3-card ${NAME[r]} support${r === 'S' ? ' or 4 hearts' : ''}.`, shows: { hcp: [11, 37], force: 'round' }, notes: XYZ, opt: NMF };
+  }
   put('P', z === 'N' ? 'Weak, content with 1NT.' : 'Weak (about 0–7), content here.', z === 'N' ? {} : { hcp: [0, 7] });
   if (z !== 'N') put('1N', 'Natural, weak (6–10).', { hcp: [6, 10] });
   if (z === 'H' && o === 'C' && r === 'D') put('1S', '4+ spades, natural (the fourth suit at the 1-level).', { len: { S: [4, 13] } }, 'round');
@@ -121,17 +147,17 @@ function xyzSituation(o, r, z) {
 }
 
 // Opener after responder's natural invitation (no checkback): accept with 14 (13 with a fit and shape).
-function naturalInviteSituations(o, r, z) {
+function naturalInviteSituations(o, r, z, OPTION = NATURAL) {
   const pre = [`1${o}`, `1${r}`, `1${z}`];
-  const row = (meaning, shows = {}) => ({ meaning, shows, notes: XYZ, opt: NATURAL });
+  const row = (meaning, shows = {}) => ({ meaning, shows, notes: XYZ, opt: OPTION });
   const out = [{
-    opt: NATURAL,
+    opt: OPTION,
     after: [...pre, '2N'],
     calls: { P: row('Minimum: decline.', { hcp: [12, 13] }), '3N': row('14+: accept.', { hcp: [14, 21] }) },
     decide: (e) => (e.hcp >= 14 ? R('3N', [`${e.hcp} HCP: accept`]) : R('P', [`${e.hcp} HCP: decline`])),
   }];
   const fitGame = (s, need) => ({
-    opt: NATURAL,
+    opt: OPTION,
     after: [...pre, `3${s}`],
     calls: {
       P: row('Minimum: decline.'),
@@ -148,6 +174,41 @@ function naturalInviteSituations(o, r, z) {
   if (z !== 'N') out.push(fitGame(z, 4));
   if (!isMajor(o)) out.push(fitGame(o, 5));
   return out;
+}
+
+// Opener's answer to New Minor Forcing.
+function nmfReplySituations(o, r, z) {
+  if (!nmfApplies(o, r, z)) return [];
+  const row = (meaning, shows = {}) => ({ meaning, shows, notes: XYZ, opt: NMF });
+  const calls = {
+    [`2${r}`]: row(`3 ${NAME[r]}, minimum (12–13).`, { len: { [r]: [3, 3] }, hcp: [12, 13] }),
+    [`3${r}`]: row(`3 ${NAME[r]}, maximum (14).`, { len: { [r]: [3, 3] }, hcp: [14, 14] }),
+    '2N': row('No fit, minimum.', { hcp: [12, 13] }),
+    '3N': row('No fit, maximum.', { hcp: [14, 14] }),
+    ...(r === 'S' ? { '2H': row('4 hearts, no 3-card spade support.', { len: { H: [4, 4] } }) } : {}),
+  };
+  const pre = [`1${o}`, `1${r}`, '1N', `2${newMinor(o)}`];
+  // Responder after the answer: game with 13+ (a fit: the major), invite with 11–12.
+  const after = (reply) => {
+    const fit = reply[1] === r || (reply === '2H' && r === 'S');
+    const t = reply === '2H' ? 'H' : r;
+    const max = reply[0] === '3';
+    const decide = (e) => {
+      if (reply === '3N') return R('P', ['opener chose 3NT']);
+      if (reply === '2H') {
+        if (e.len.H >= 4) return e.hcp >= 13 ? R('4H', ['4-4 heart fit: game']) : R('3H', ['4-4 heart fit: invite']);
+        return e.hcp >= 13 ? R('3N', [`${e.hcp} HCP: game`]) : R('2N', [`${e.hcp} HCP: invite`]);
+      }
+      if (fit) return e.hcp >= 13 || (max && e.hcp >= 11) ? R(`4${t}`, [`a fit, ${e.hcp} HCP: game`]) : R(`3${t}`, [`a fit, ${e.hcp} HCP: invite`]);
+      return e.hcp >= 13 || (max && e.hcp >= 11) ? R('3N', [`${e.hcp} HCP: game`]) : R('P', [`${e.hcp} HCP opposite a minimum: stop`]);
+    };
+    const calls = reply === '3N' ? { P: row('To play.') }
+      : reply === '2H' ? { '2N': row('Invitational, no heart fit.'), '3N': row('Game, no heart fit.'), '3H': row('4 hearts, invitational.'), '4H': row('4 hearts, game.') }
+        : fit ? (max ? { [`4${t}`]: row('Game.') } : { [`3${t}`]: row('Invitational.'), [`4${t}`]: row('Game.') })
+          : { P: row('Minimum: no game.'), '3N': row('Game.') };
+    return { opt: NMF, after: [...pre, reply], calls, decide };
+  };
+  return [{ opt: NMF, after: pre, calls, decide: (e) => nmfReply(e, r) }, ...Object.keys(calls).map(after)];
 }
 
 // ---------- Fourth suit forcing: 1o–1r–2z, z lower than o (not a reverse) ----------
@@ -303,7 +364,7 @@ const SITUATIONS = [
   ...[['C', 'D', 'H'], ['C', 'D', 'S'], ['C', 'D', 'N'], ['C', 'H', 'S'], ['C', 'H', 'N'], ['C', 'S', 'N'], ['D', 'H', 'S'], ['D', 'H', 'N'], ['D', 'S', 'N'], ['H', 'S', 'N']]
     .map(([o, r, z]) => xyzSituation(o, r, z)),
   ...[['C', 'D', 'H'], ['C', 'D', 'S'], ['C', 'D', 'N'], ['C', 'H', 'S'], ['C', 'H', 'N'], ['C', 'S', 'N'], ['D', 'H', 'S'], ['D', 'H', 'N'], ['D', 'S', 'N'], ['H', 'S', 'N']]
-    .flatMap(([o, r, z]) => naturalInviteSituations(o, r, z)),
+    .flatMap(([o, r, z]) => [...naturalInviteSituations(o, r, z), ...naturalInviteSituations(o, r, z, NMF), ...nmfReplySituations(o, r, z)]),
   ...[['D', 'H', 'C'], ['D', 'S', 'C'], ['H', 'S', 'C'], ['H', 'S', 'D']].map(([o, r, z]) => fsfSituation(o, r, z)),
   ...[['C', 'H', 'D'], ['C', 'S', 'D'], ['C', 'S', 'H'], ['D', 'S', 'H']].map(([o, r, z]) => reverseSituation(o, r, z)),
   ...['2C', '2D', '2H', '2S', '2N', '3S'].map((rb) => forcingNTSituation('S', rb)),

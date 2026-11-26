@@ -17,7 +17,7 @@ test('rows show the card\'s answers, discuss marks, readiness and free text', ()
   const panels = cardPanels(c);
   const row = (slot) => panels.flatMap((p) => p.rows).find((r) => r.slot === slot);
   assert.equal(row('nt-defence').optionTitle, 'Landy');
-  assert.equal(row('nt-defence').ready, false);
+  assert.equal(row('nt-defence').ready, true, 'every answer has rules since phase 7');
   assert.equal(row('passed-2c').optionTitle, 'Drury');
   assert.equal(row('keycard').discuss, true);
   assert.equal(panels.find((p) => p.group === 'slam').text, 'Exclusion when we agree.');

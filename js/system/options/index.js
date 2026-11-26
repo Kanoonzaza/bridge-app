@@ -5,9 +5,11 @@
 // so importing them is enough.
 import './nt-interference.js';
 import './nt-defence.js';
+import './nt-defence-more.js';
 import responses from './responses.js';
 import keycard from './keycard.js';
 import sayc from './sayc.js';
+import majorRaises from './major-raises.js';
 
-const options = [...responses, ...keycard, ...sayc];
+const options = [...responses, ...keycard, ...sayc, ...majorRaises];
 export default options;

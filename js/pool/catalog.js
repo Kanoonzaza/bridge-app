@@ -43,7 +43,7 @@ export const SLOTS = [
   ] },
   { id: 'major-raise', group: 'majors', title: 'Jump raise of 1♥ / 1♠', options: [
     o('limit', 'Limit raise', '3♥ / 3♠ = 10–12, invitational', { notes: 'raising-partners-major-tier-0' }),
-    soon('bergen', 'Bergen raises', '3♣ = 7–9, 4 trumps · 3♦ = 10–12, 4 trumps · 3M = preemptive'),
+    o('bergen', 'Bergen raises', '3♣ = 7–9, 4 trumps · 3♦ = 10–12, 4 trumps · 3M = preemptive', { notes: 'bergen-raises' }),
   ] },
 
   { id: 'minor-raise', group: 'minors', title: 'Raises of 1♣ / 1♦', options: [
@@ -65,7 +65,7 @@ export const SLOTS = [
   ] },
   { id: 'nt-2s', group: 'notrump', title: '2♠ over 1NT', options: [
     o('puppet', 'Puppet to 3♣', 'Weak with a long minor, or both minors with slam interest', { notes: '1nt-opening-and-responses-tier-0' }),
-    soon('four-suit', 'Four-suit transfers', '2♠ = clubs · 2NT = diamonds'),
+    o('four-suit', 'Four-suit transfers', '2♠ = clubs · 2NT = diamonds', { notes: 'four-suit-transfers' }),
   ] },
   { id: 'nt-interference', group: 'notrump', title: 'They bid over our 1NT', options: [
     o('natural', 'Natural', '2-level suit = to play · 3-level suit = game forcing · 2NT = invitational · cue-bid = Stayman · double = penalty', { notes: 'natural-over-their-interference' }),
@@ -79,7 +79,7 @@ export const SLOTS = [
 
   { id: 'checkback', group: 'rebids', title: 'Responder\'s ask after opener\'s 1NT rebid', options: [
     o('none', 'Natural', '2NT and 3-level bids invite (11–12) · game bids to play · weak bids to play', { notes: 'no-checkback' }),
-    soon('nmf', 'New Minor Forcing', 'The unbid minor = artificial, 11+, forcing'),
+    o('nmf', 'New Minor Forcing', 'The unbid minor = artificial, 11+, forcing', { notes: 'new-minor-forcing' }),
     o('xyz', 'XYZ', '2♣ = relay to 2♦ · 2♦ = artificial game force', { notes: 'xyz-tier-1' }),
   ] },
   { id: 'fourth-suit', group: 'rebids', title: 'Fourth suit', options: [
@@ -90,14 +90,14 @@ export const SLOTS = [
   { id: 'keycard', group: 'slam', title: '4NT', options: [
     o('blackwood', 'Blackwood', '5♣ = 0 or 4 aces · 5♦ = 1 · 5♥ = 2 · 5♠ = 3 · over interference DOPI', { notes: 'blackwood' }),
     o('rkcb-1430', 'RKCB 1430', '5♣ = 1 or 4 · 5♦ = 0 or 3 · 5♥ = 2 without the queen · 5♠ = 2 with', { notes: 'rkcb-1430-and-slam-tools-tier-1' }),
-    soon('rkcb-0314', 'RKCB 0314', '5♣ = 0 or 3 · 5♦ = 1 or 4 · 5♥ / 5♠ as 1430'),
+    o('rkcb-0314', 'RKCB 0314', '5♣ = 0 or 3 · 5♦ = 1 or 4 · 5♥ / 5♠ as 1430', { notes: 'rkcb-0314' }),
   ] },
 
   { id: 'nt-defence', group: 'competitive', title: 'Defence to their 1NT', options: [
     o('natural', 'Natural', 'Double = penalty, 15+ · 2-level suits natural, 6+ cards, 8–14 · 2NT = both minors', { notes: 'natural-defence-to-their-1nt' }),
     o('dont', 'DONT', 'X = one suit · 2♣ / 2♦ = that suit and a higher one · 2♥ = majors · 2♠ = spades', { notes: 'dont-against-their-1nt-tier-1' }),
-    soon('cappelletti', 'Cappelletti', '2♣ = one suit · 2♦ = majors · 2♥ / 2♠ = that major and a minor'),
-    soon('landy', 'Landy', '2♣ = majors · other suits natural'),
+    o('cappelletti', 'Cappelletti', '2♣ = one suit · 2♦ = majors · 2♥ / 2♠ = that major and a minor', { notes: 'cappelletti' }),
+    o('landy', 'Landy', '2♣ = majors · other suits natural', { notes: 'landy' }),
   ] },
   { id: 'support-doubles', group: 'competitive', title: 'Support doubles and redoubles', options: [
     o('off', 'Off', 'Raises show 4 trumps · double (redouble) = 16+, no clear bid', { notes: 'no-support-doubles' }),

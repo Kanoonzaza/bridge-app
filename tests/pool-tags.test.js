@@ -11,13 +11,13 @@ const COUNTS = {
   // change: a 1,500-board match against the previous commit differed on no board.
   'base:2/1': 220, // 2026-11-26: the 190 rules after 1M–1NT with no passed-hand condition are core (they serve the passed hand too)
   'checkback:xyz': 374,
-  core: 5196,
+  core: 5193, // 2026-11-26: 1NT–2NT (natural invitation) and its two answers belong to 'nt-2s:puppet' (2NT is a transfer with four-suit transfers)
   'fourth-suit:gf': 4,
   'jump-shift:weak': 51,
   'keycard:rkcb-1430': 34,
   'minor-2nt:invite': 10,
   'minor-raise:inverted': 45,
-  'nt-2s:puppet': 10,
+  'nt-2s:puppet': 13,
   'nt-defence:dont': 82,
   'nt-interference:lebensohl': 153,
   'passed-2c:drury': 11,

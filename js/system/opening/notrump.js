@@ -42,13 +42,17 @@ export function respond1NT(e, sys = null) {
   if ((S >= 4 || H >= 4) && h >= 8) return R('2C', [`a 4-card major, ${h} HCP`, 'Stayman: look for a 4-4 fit']);
   const minor = ['C', 'D'].find((m) => e.len[m] >= 6);
   if (minor && e.len[minor] === 6 && top3(e, minor) >= 2 && h >= 6 && h <= 9) return R(`3${minor}`, [`good 6-card ${NAME[minor]}`, 'invites 3NT']);
+  // Four-suit transfers (pool question 'nt-2s'): 2♠ = clubs, 2NT = diamonds; the 2NT invitation goes through Stayman.
+  const fourSuit = plays(sys, 'nt-2s', 'four-suit');
+  if (minor && h <= 7 && fourSuit) return R(minor === 'C' ? '2S' : '2N', [`${e.len[minor]} ${NAME[minor]}, weak`, 'transfer, then pass'], { plan: 'Opener completes the transfer: pass.' });
   if (minor && h <= 7) return R('2S', [`${e.len[minor]} ${NAME[minor]}, weak`], { plan: minor === 'C' ? 'Opener bids 3♣: pass.' : 'Opener bids 3♣: bid 3♦ to play.' });
   if (h >= 14 && ((C >= 5 && D >= 4) || (D >= 5 && C >= 4))) return R('3S', ['both minors', `${h} HCP: slam interest`], { plan: 'Opener shows a minor fit (4♣/4♦) or bids 3NT without one.' });
-  if (minor && h >= 14 && h <= 19) return R('2S', [`${e.len[minor]} ${NAME[minor]}`, `${h} HCP: slam try in the minor`], { plan: `After 3♣, bid 4${SYMBOL[minor]} (slam try).` });
+  if (minor && h >= 14 && h <= 19 && !fourSuit) return R('2S', [`${e.len[minor]} ${NAME[minor]}`, `${h} HCP: slam try in the minor`], { plan: `After 3♣, bid 4${SYMBOL[minor]} (slam try).` });
   if (h >= 20) return R('4C', [`${h} HCP: slam values`, 'Gerber: ask for aces']);
   if (h >= 18) return R('6N', [`${h} HCP opposite 15–17: small slam`]);
   if (h >= 16) return R('4N', [`${h} HCP: invite 6NT`]);
   if (h >= 10) return R('3N', [`${h} HCP: game`]);
+  if (h >= 8 && fourSuit) return R('2C', [`${h} HCP: invite`, 'Stayman first: 2NT next (2NT itself is a transfer)'], { plan: 'Over any reply, bid 2NT to invite.' });
   if (h >= 8) return R('2N', [`${h} HCP: invite`]);
   return R('P', [`${h} HCP opposite 15–17: no game`]);
 }
@@ -64,7 +68,9 @@ const ONE_NT = callTable([
   ['2H', 'Transfer: 5+ spades.', { len: { S: [5, 13] } }],
   ['2S', 'Minor puppet: opener must bid 3♣. Weak with a long minor, or (then 4♣/4♦) a slam try in that minor.', {}],
   ['3S', 'Both minors (5-4 or longer), slam interest. (Proposed.)', { len: { C: [4, 13], D: [4, 13] } }],
-  ['2N', '8–9 balanced, invitational.', { hcp: [8, 9] }],
+  ['2N', '8–9 balanced, invitational.', { hcp: [8, 9] }, NT, 'nt-2s:puppet'],
+  ['2S', 'Transfer to clubs: 6+ clubs, weak (to play).', { len: { C: [6, 13] } }, NT, 'nt-2s:four-suit'],
+  ['2N', 'Transfer to diamonds: 6+ diamonds, weak (to play).', { len: { D: [6, 13] } }, NT, 'nt-2s:four-suit'],
   ['3C', 'Good 6-card clubs, invites 3NT.', { len: { C: [6, 6] } }],
   ['3D', 'Good 6-card diamonds, invites 3NT.', { len: { D: [6, 6] } }],
   ['3N', '10–15, to play.', { hcp: [10, 15] }],
@@ -238,6 +244,11 @@ add(['1N', '2C'], staymanTable(2), stayman(2));
 add(['1N', '2D'], transferTable('H', 2, true), transferReply('H', 2, true));
 add(['1N', '2H'], transferTable('S', 2, true), transferReply('S', 2, true));
 add(['1N', '2S'], callTable([['3C', 'Forced.', {}]]), () => R('3C', ['the puppet forces 3♣']));
+// Four-suit transfers: opener completes; responder passes.
+add(['1N', '2S'], callTable([['3C', 'Completes the transfer to clubs.', {}]]), () => R('3C', ['complete the transfer']), { opt: 'nt-2s:four-suit' });
+add(['1N', '2N'], callTable([['3D', 'Completes the transfer to diamonds.', {}]]), () => R('3D', ['complete the transfer']), { opt: 'nt-2s:four-suit' });
+add(['1N', '2S', '3C'], callTable([['P', 'Clubs: to play.', {}]]), () => R('P', ['to play in clubs']), { opt: 'nt-2s:four-suit' });
+add(['1N', '2N', '3D'], callTable([['P', 'Diamonds: to play.', {}]]), () => R('P', ['to play in diamonds']), { opt: 'nt-2s:four-suit' });
 add(['1N', '2N'], callTable([['P', '15: decline.', { hcp: [15, 15] }], ['3N', '16–17: accept.', { hcp: [16, 17] }]]),
   (e) => (e.hcp >= 16 ? R('3N', [`${e.hcp} HCP: accept`]) : R('P', [`${e.hcp} HCP: decline`])));
 for (const m of ['C', 'D']) {

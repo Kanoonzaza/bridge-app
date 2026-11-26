@@ -23,7 +23,7 @@ export function majorToShow(e) {
 
 // Balanced, no 4-card major. With 1m–2NT forcing (pool question 'minor-2nt'): 2NT = 13–15, 3NT = 16–18, and
 // 11–12 raises the minor when it can, else 1NT.
-function notrump(e, m, sys) {
+function notrump(e, m, sys, passed = false) {
   if (e.hcp <= 10) return '1N';
   if (plays(sys, 'minor-2nt', 'invite')) return e.hcp <= 12 ? '2N' : '3N';
   if (e.hcp <= 12) {
@@ -31,7 +31,7 @@ function notrump(e, m, sys) {
     if (!plays(sys, 'minor-raise', 'inverted') && e.len[m] >= 5) return `3${m}`;
     // SAYC: show the other minor (1♦ over 1♣, or 2♣ over 1♦, which is 10+ there) rather than an overstated 1NT.
     if (plays(sys, 'base', 'sayc') && m === 'C' && e.len.D >= 3) return '1D';
-    if (plays(sys, 'base', 'sayc') && m === 'D' && e.len.C >= 3) return '2C';
+    if (plays(sys, 'base', 'sayc') && m === 'D' && e.len.C >= 3 && !passed) return '2C';
     return '1N';
   }
   return e.hcp <= 15 ? '2N' : '3N';
@@ -62,7 +62,7 @@ export function respondToMinor(e, m, passed, sys = null) {
     if (e.hcp >= 6 && e.hcp <= 10 && !(e.balanced && e.len[m] < 5 && e.hcp >= 8 && m === 'C')) return `2${m}`;
     if (e.hcp >= 11 && e.hcp <= 12 && e.len[m] >= 5) return `3${m}`;
   }
-  if (!majors.length && e.balanced && e.hcp >= 6 && e.hcp <= (plays(sys, 'minor-2nt', 'invite') ? 15 : 18) && (e.len[m] < 5 || e.hcp < 10)) return notrump(e, m, sys);
+  if (!majors.length && e.balanced && e.hcp >= 6 && e.hcp <= (plays(sys, 'minor-2nt', 'invite') ? 15 : 18) && (e.len[m] < 5 || e.hcp < 10)) return notrump(e, m, sys, passed);
   if (e.hcp >= 5 && e.hcp <= 9 && e.len[m] >= 5 && !e.balanced && plays(sys, 'minor-raise', 'inverted')) return `3${m}`;
   if (e.hcp >= 2 && e.hcp <= 5 && plays(sys, 'jump-shift', 'weak')) {
     const s = SUITS.find((t) => t !== m && e.len[t] >= 6);
@@ -77,7 +77,7 @@ export function respondToMinor(e, m, passed, sys = null) {
     if (e.len.D >= 4 && e.hcp >= 10 && (passed || e.hcp < 12 || e.len.D >= e.len.C) && plays(sys, 'minor-raise', 'inverted')) return '2D';
     if (!passed && e.hcp >= gf && e.len.C >= 4) return '2C';
   }
-  return notrump(e, m, sys);
+  return notrump(e, m, sys, passed);
 }
 
 const M_OF = (st) => st.key[0][1];

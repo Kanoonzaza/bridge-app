@@ -168,3 +168,50 @@ test('support doubles off: three-card support passes with a minimum; a double sh
   assert.match(meaningWith(off, [...calls, 'X'], { dealer: 'S' }).meaning, /extra values \(16\+\)/);
   assert.equal(bidWith(off, 'K4.AQ3.AKJ84.Q73', calls, { dealer: 'S' }).call, '2N', 'balanced 18–19 with a club stopper: 2NT, as on the house card');
 });
+
+test('RKCB 0314: 5♣ shows 0 or 3 key cards', () => {
+  const k = card('2/1', { keycard: 'rkcb-0314' });
+  const calls = ['1S', 'P', '2N', 'P', '3S', 'P', '4N', 'P'];
+  const hand = 'KQJ84.A2.K73.A52';
+  assert.equal(bidWith(HOUSE, hand, calls).call, '5D', '1430: 3 key cards');
+  assert.equal(bidWith(k, hand, calls).call, '5C', '0314: 3 key cards');
+  assert.equal(meaningWith(k, [...calls, '5C']).meaning, '0 or 3 key cards.');
+  assert.match(meaningWith(k, ['1S', 'P', '2N', 'P', '3S', 'P', '4N']).meaning, /RKCB 0314/);
+});
+
+test('Bergen raises: 3♣ = 7–9 and 3♦ = 10–12 with four trumps', () => {
+  const b = card('2/1', { 'major-raise': 'bergen' });
+  assert.equal(bidWith(b, 'K872.432.Q97.K84', ['1S', 'P']).call, '3C');
+  assert.equal(bidWith(b, 'K872.432.A97.K84', ['1S', 'P']).call, '3D');
+  assert.match(meaningWith(b, ['1S', 'P', '3C']).meaning, /^Bergen: 4\+ spades, 7–9/);
+  assert.match(meaningWith(HOUSE, ['1S', 'P', '3C']).meaning, /^Weak jump shift/);
+  assert.equal(bidWith(b, 'AQJ95.K4.KJ5.A73', ['1S', 'P', '3D', 'P'], { dealer: 'S' }).call, '4S');
+});
+
+test('four-suit transfers: 2♠ shows clubs, 2NT diamonds; the 2NT invite goes through Stayman', () => {
+  const f = card('2/1', { 'nt-2s': 'four-suit' });
+  assert.equal(bidWith(f, '84.73.T942.QJ9843'.split('.').slice(0, 4).join('.'), ['1N', 'P']).call, '2S');
+  assert.equal(bidWith(f, '84.73.QJ9843.942', ['1N', 'P']).call, '2N');
+  assert.match(meaningWith(f, ['1N', 'P', '2N']).meaning, /^Transfer to diamonds/);
+  assert.equal(bidWith(f, 'K84.Q73.K942.J84', ['1N', 'P']).call, '2C', 'balanced 9: Stayman, then 2NT');
+  assert.equal(bidWith(f, '84.73.QJ9843.942', ['1N', 'P', '2N', 'P', '3D', 'P']).call, 'P');
+});
+
+test('New Minor Forcing: 1♣–1♠–1NT–2♦ with five spades and 12', () => {
+  const n = card('2/1', { checkback: 'nmf' });
+  const calls = ['1C', 'P', '1S', 'P', '1N', 'P'];
+  assert.equal(bidWith(n, 'KQ984.A73.Q4.J84', calls).call, '2D');
+  assert.match(meaningWith(n, [...calls, '2D']).meaning, /^New minor forcing/);
+  assert.equal(bidWith(n, 'J73.K84.Q4.AQJ84', [...calls, '2D', 'P'], { dealer: 'S' }).call, '2S', '3 spades, minimum');
+});
+
+test('Landy: 2♣ shows both majors; Cappelletti: 2♦ both majors, 2♣ one long suit', () => {
+  const l = card('2/1', { 'nt-defence': 'landy' });
+  const c = card('2/1', { 'nt-defence': 'cappelletti' });
+  const majors = 'KJ984.QJ73.4.K84';
+  assert.equal(bidWith(l, majors, ['1N'], { dealer: 'E' }).call, '2C');
+  assert.equal(bidWith(c, majors, ['1N'], { dealer: 'E' }).call, '2D');
+  assert.match(meaningWith(l, ['1N', '2C'], { dealer: 'E' }).meaning, /^Landy: both majors/);
+  assert.equal(bidWith(c, '84.7.KQJ9842.K84', ['1N'], { dealer: 'E' }).call, '2C');
+  assert.equal(bidWith(c, '84.7.KQJ9842.K84', ['1N', '2C', 'P', '2D', 'P'], { dealer: 'E' }).call, 'P', 'my suit is diamonds');
+});

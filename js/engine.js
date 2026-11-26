@@ -70,7 +70,7 @@ export function onCard(text, sys) {
   const k = sys?.get?.('keycard');
   if (!text || !k || k === 'rkcb-1430') return text;
   if (k === 'blackwood') return text.replace(/\bRKCB( 1430)?\b/g, 'Blackwood').replace(/\bkey cards\b/g, 'aces');
-  return text.replace(/\bRKCB 1430\b/g, 'RKCB 0314');
+  return text.replace(/\bRKCB( 1430)?\b/g, 'RKCB 0314');
 }
 
 export function fill(text, env) {

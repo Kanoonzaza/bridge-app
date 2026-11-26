@@ -88,10 +88,17 @@ test('playable: answers without rules are bid as on the house card', async () =>
   const sayc = normalizeCard({ base: 'sayc' });
   assert.deepEqual(unready(sayc), [], 'every SAYC answer has rules');
   assert.equal(playable(sayc), sayc);
-  const landy = pick(sayc, 'nt-defence', 'landy');
-  assert.deepEqual(unready(landy).map((u) => u.option), ['landy']);
-  assert.equal(playable(landy).picks['nt-defence'] ?? 'natural', 'dont', 'Landy (no rules yet) is bid as on the house card');
-  assert.equal(playable(pick(normalizeCard({ base: '2/1' }), 'nt-defence', 'landy')).picks['nt-defence'], undefined, 'Landy (no rules yet) is bid as DONT');
+  // Since phase 7 every answer of the pool has rules: an option without rules is simulated here.
+  const { option } = await import('../js/pool/catalog.js');
+  const landyOpt = option('nt-defence', 'landy');
+  landyOpt.ready = false;
+  try {
+    const landy = pick(sayc, 'nt-defence', 'landy');
+    assert.deepEqual(unready(landy).map((u) => u.option), ['landy']);
+    assert.equal(playable(landy).picks['nt-defence'] ?? 'natural', 'dont', 'an answer without rules is bid as on the house card');
+  } finally {
+    landyOpt.ready = true;
+  }
   assert.equal(playable(HOUSE_CARD), HOUSE_CARD);
   assert.equal(optActive(sayc, 'base:sayc'), true);
   assert.equal(optActive(sayc, 'passed-2c:drury'), false);

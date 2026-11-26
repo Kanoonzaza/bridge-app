@@ -39,11 +39,13 @@ const SPLINTER = { H: ['3S', '4C', '4D'], S: ['4C', '4D'] };
 const WJS = { H: { S: '2S', C: '3C', D: '3D' }, S: { C: '3C', D: '3D', H: '3H' } };
 const hasShortness = (e, M) => SUITS.some((s) => s !== M && e.len[s] <= 1);
 
-function weakJump(e, M) {
+// table: the jump calls available (with Bergen raises, 3♣ and 3♦ are raises, not jump shifts).
+function weakJump(e, M, table = WJS[M]) {
   if (e.hcp < 2 || e.hcp > 5) return null;
-  const s = SUITS.find((t) => t !== M && e.len[t] >= 6);
-  return s ? WJS[M][s] : null;
+  const s = SUITS.find((t) => t !== M && e.len[t] >= 6 && table[t]);
+  return s ? table[s] : null;
 }
+const withoutBergen = (table) => Object.fromEntries(Object.entries(table).filter(([, c]) => c !== '3C' && c !== '3D'));
 
 // The whole decision for responder's first bid after partner's 1♥/1♠ (opponents passing).
 // Passed hand, 4+ trumps and a good 5-card side suit: the jump shift is fit-showing (proposed agreement).
@@ -69,7 +71,7 @@ export function respondToMajor(e, M, passed, sys = null) {
   const tr = e.len[M];
   const dp = dummyPoints(e, M);
   if (!passed && plays(sys, 'jump-shift', 'strong')) {
-    const js = strongJump(e, M, WJS[M]);
+    const js = strongJump(e, M, plays(sys, 'major-raise', 'bergen') ? withoutBergen(WJS[M]) : WJS[M]);
     if (js) return js;
   }
   const drury = plays(sys, 'passed-2c', 'drury');
@@ -84,6 +86,12 @@ export function respondToMajor(e, M, passed, sys = null) {
       if (e.hcp >= 10 && dp >= 13) return '2N';
     }
     if (tr >= 5 && hasShortness(e, M) && e.hcp <= 9 && dp >= 6) return `4${M}`;
+    // Bergen raises (pool question 'major-raise'), unpassed: 3♣ = 7–9, 3♦ = 10–12, 3M = preemptive (0–6).
+    if (!passed && plays(sys, 'major-raise', 'bergen')) {
+      if (dp >= 10 && e.hcp >= 7) return '3D';
+      if (dp >= 7 && e.hcp >= 5) return '3C';
+      if (e.hcp <= 6) return `3${M}`;
+    }
     if (passed && dp >= 10 && e.hcp >= 7) return drury ? '2C' : `3${M}`;
     if (dp >= 10 && e.hcp >= 7) return `3${M}`;
   }
@@ -101,7 +109,7 @@ export function respondToMajor(e, M, passed, sys = null) {
     const s = [...(M === 'S' ? ['H', 'D'] : ['D']), ...(drury ? [] : ['C'])].filter((t) => e.len[t] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
     if (s) return `2${s}`;
   }
-  const wj = passed || !plays(sys, 'jump-shift', 'weak') ? null : weakJump(e, M);
+  const wj = passed || !plays(sys, 'jump-shift', 'weak') ? null : weakJump(e, M, plays(sys, 'major-raise', 'bergen') ? withoutBergen(WJS[M]) : WJS[M]);
   if (wj) return wj;
   if (e.hcp >= 6) return '1N';
   return 'P';
