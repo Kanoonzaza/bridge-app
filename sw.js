@@ -1,4 +1,4 @@
-const CACHE = 'bc-83faeeb7';
+const CACHE = 'bc-6114f7a7';
 const FILES = [
   './',
   'index.html',
@@ -27,6 +27,7 @@ const FILES = [
   'js/pool/tags.js',
   'js/pool/system.js',
   'js/pool/answers.js',
+  'js/pool/sync.js',
   'js/pool/cards-store.js',
   'js/pool/view.js',
   'js/system/index.js',

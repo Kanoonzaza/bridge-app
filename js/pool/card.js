@@ -70,6 +70,8 @@ export function normalizeCard(raw) {
     discuss,
     text,
     ...(typeof r.code === 'string' && CODE.test(r.code) ? { code: r.code } : {}),
+    // A shared card (phase 6): when it was last changed, to keep the newest copy.
+    ...(Number.isFinite(r.updated) && r.updated > 0 ? { updated: r.updated } : {}),
   };
 }
 

@@ -54,3 +54,12 @@ export function differences(card) {
   return SLOTS.filter((s) => !s.text && r[s.id] !== PRESETS['2/1'][s.id])
     .map((s) => ({ slot: s.id, title: s.title, optionTitle: option(s.id, r[s.id]).title }));
 }
+
+// A card in one line, for a partner or the other pair: its system, then the answers that differ from that
+// system's own standard, each with its question ("Standard American (SAYC); 4NT: RKCB 1430").
+export function describeCard(card) {
+  const system = card.base === 'sayc' ? 'Standard American (SAYC)' : '2/1 Game Forcing';
+  const changes = SLOTS.filter((s) => !s.text && s.id !== 'base' && card.picks?.[s.id] && card.picks[s.id] !== PRESETS[card.base][s.id])
+    .map((s) => `${s.title}: ${option(s.id, card.picks[s.id]).title}`);
+  return changes.length ? `${system}; ${changes.join('; ')}` : system;
+}

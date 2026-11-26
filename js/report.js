@@ -7,7 +7,7 @@ import { auctionOf, handOf, packHand, playOf, seatsAtBidding } from './table/mod
 import { score } from './table/play.js';
 import { reviewRows, robotDepartures, systemAuction, contract } from './table/review.js';
 import { HOUSE_CARD, sideCards } from './pool/card.js';
-import { differences } from './pool/view.js';
+import { describeCard } from './pool/view.js';
 import { parLine, tableRows } from './table/ddtext.js';
 import { confidence } from './confidence.js';
 
@@ -52,8 +52,7 @@ export function resultText(b, name = (s) => COMPASS[s]) {
 // A card in one line: its name, its system, and what differs from the house card.
 function cardLine(c) {
   if (c === HOUSE_CARD) return 'house convention card (2/1 Game Forcing)';
-  const d = differences(c).filter((x) => x.slot !== 'base').map((x) => x.optionTitle);
-  return `${c.name || 'untitled convention card'} (${c.base === 'sayc' ? 'Standard American' : '2/1 Game Forcing'}${d.length ? `; ${d.join(', ')}` : ''})`;
+  return `${c.name || 'untitled convention card'} (${describeCard(c)})`;
 }
 
 export function boardReport(t, me, dd = null) {

@@ -754,6 +754,14 @@ Tests with `memoryCards`: create, join, edit by each member, stranger cannot joi
 ### Task 6.3: Ship. S
 The owner pastes the rules in the console **before** the push. Stamp, commit, push. Check with two phones.
 
+### Phase 6: as built (2026-11-26)
+
+- **Storage in parts, so the rules can protect it.** `cards/{code}` = `{ card, members: { uid: true }, created }`. Creating writes the whole record (only when the code is free); joining writes `members/{own uid}` (only while there are fewer than two); saving writes `card` (members only). `database.rules.cards.json` holds these rules: the owner adds its `cards` block next to `tables` in the Firebase console (README). The memory and browser-tab stores enforce the same rules, and `tests/pool-share.test.js` checks them.
+- One Firebase app per page, shared by tables and cards (`firebaseApp` in `js/table/sync.js`).
+- **Card tab.** View: "Share with your partner" makes a code and sends the link (system share sheet, or copied); a shared card shows its code. List: "I have a code"; a `?card=CODE` link opens the same screen. A shared card can be joined as the partner (two at most), used again by a member, or copied as one's own. Saving a shared card also saves the shared copy; on opening the tab, a newer shared copy replaces the one on the phone. Offline, saving keeps the phone's copy and says the shared copy was not updated.
+- **Changed from the plan:** an offline save is kept on the phone (the plan refused it); the next save with a connection updates the shared copy.
+- `describeCard` describes a card as its system plus the changes from that system's standard, each with its question; used in the join preview, the Table's Convention cards panel and Copy this board.
+
 ---
 
 ## Phase 7. Alternatives

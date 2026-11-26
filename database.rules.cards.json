@@ -1,0 +1,23 @@
+{
+  "rules": {
+    "cards": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && !data.exists() && newData.child('members').child(auth.uid).val() === true && newData.child('members').numChildren() === 1",
+        ".validate": "$code.matches(/^[A-HJ-NP-Z2-9]{6}$/) && newData.hasChildren(['card', 'members'])",
+        "card": {
+          ".write": "auth != null && data.parent().child('members').child(auth.uid).val() === true",
+          ".validate": "newData.hasChildren(['base', 'updated']) && (newData.child('base').val() === 'sayc' || newData.child('base').val() === '2/1') && newData.child('updated').isNumber()",
+          "name": { ".validate": "newData.isString() && newData.val().length <= 40" }
+        },
+        "members": {
+          "$uid": {
+            ".write": "auth != null && $uid === auth.uid && !data.exists() && data.parent().numChildren() < 2",
+            ".validate": "newData.val() === true"
+          }
+        },
+        "created": { ".validate": "newData.isNumber()" }
+      }
+    }
+  }
+}

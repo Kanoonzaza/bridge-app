@@ -25,7 +25,7 @@ import { boardReport } from '../report.js';
 import { bookOfBoard } from '../pool/system.js';
 import { HOUSE_CARD, pack, sideCards, unready } from '../pool/card.js';
 import { loadCards, activeCard } from '../pool/cards-store.js';
-import { differences } from '../pool/view.js';
+import { describeCard } from '../pool/view.js';
 
 const COMPASS = { N: 'North', E: 'East', S: 'South', W: 'West' };
 const VUL_TEXT = { none: 'None vulnerable', NS: 'N-S vulnerable', EW: 'E-W vulnerable', both: 'Both vulnerable' };
@@ -420,7 +420,6 @@ export function tableView(root, store) {
 
   // One side: its card, how it differs from the house card, and (for my side) a choice of the cards on this phone.
   function sideCard(t, side, card, mine) {
-    const diff = differences(card);
     const robots = robotsOnly(t, side);
     const list = mine ? loadCards(store).list : [];
     const current = JSON.stringify(t.cards?.[side] ?? null);
@@ -428,7 +427,7 @@ export function tableView(root, store) {
     return el('div', { class: 'side-card' },
       el('div', { class: 'label' }, `${SIDE_NAME[side]}${robots ? ' · robots, playing the same convention card as the players' : ''}${mine ? ' · your side' : ''}`),
       el('div', { class: 'seat-name' }, cardLabel(card)),
-      el('p', { class: 'muted' }, diff.length ? `Differs from the house convention card: ${diff.map((d) => d.optionTitle).join(', ')}.` : 'Same system as the house convention card.'),
+      el('p', { class: 'muted' }, card === HOUSE_CARD ? 'Our own system: 2/1 Game Forcing, as in the notes.' : `${describeCard(card)}.`),
       unready(card).length ? el('p', { class: 'muted' }, 'Some of this convention card is not in the robots\' rules yet: they bid those parts as on the house convention card.') : null,
       mine ? el('label', { class: 'card-pick' },
         el('span', { class: 'label' }, 'Our convention card'),

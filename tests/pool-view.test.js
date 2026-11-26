@@ -40,3 +40,10 @@ test('differences from the house card', () => {
   assert.equal(sayc[0].optionTitle, 'Standard American (SAYC)');
   assert.ok(sayc.length > 10);
 });
+
+test('describeCard: the system, then the changes from its own standard, with their questions', async () => {
+  const { describeCard } = await import('../js/pool/view.js');
+  assert.equal(describeCard(normalizeCard({ base: 'sayc' })), 'Standard American (SAYC)');
+  assert.equal(describeCard(pick(normalizeCard({ base: 'sayc' }), 'keycard', 'rkcb-1430')), 'Standard American (SAYC); 4NT: RKCB 1430');
+  assert.equal(describeCard(pick(normalizeCard({ base: '2/1' }), 'splinters', 'off')), '2/1 Game Forcing; Splinter raises: Off');
+});
