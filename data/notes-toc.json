@@ -83,6 +83,13 @@
   "part": "Part 3 · Responding to a 1-level suit opening"
  },
  {
+  "id": "standard-american-sayc",
+  "opt": "base:sayc",
+  "title": "Standard American (SAYC)",
+  "tier": "",
+  "part": "Part 3 · Responding to a 1-level suit opening"
+ },
+ {
   "id": "openers-rebids-tier-0",
   "title": "Opener's rebids",
   "tier": "Tier 0",

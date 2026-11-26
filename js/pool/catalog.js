@@ -21,7 +21,7 @@ const soon = (id, title, line, extra = {}) => o(id, title, line, { ...extra, rea
 
 export const SLOTS = [
   { id: 'base', group: 'base', title: 'Base system', options: [
-    soon('sayc', 'Standard American (SAYC)', '2-over-1 = 10+, forcing one round · 1NT response 6–10, not forcing'),
+    o('sayc', 'Standard American (SAYC)', '2-over-1 = 10+, forcing one round · 1NT response 6–10, not forcing', { notes: 'standard-american-sayc' }),
     o('2/1', '2/1 Game Forcing', '2-over-1 = game forcing, 12+ · 1NT response forcing, 6–12', { notes: '21-game-forcing-tier-0' }),
   ] },
 

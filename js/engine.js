@@ -134,6 +134,17 @@ function systemsOn(situation) {
   };
 }
 
+// The situation as the card reads it. On a SAYC card the 1NT response to 1♥/1♠ is not forcing (6–10), so the
+// auction after it reads as after a passed hand's 1NT, whose rules are already written (pool question 'base').
+export function asCard(situation, entries) {
+  if (sysOf(entries).base !== 'sayc') return situation;
+  const k = situation.key;
+  if (k.length >= 2 && /^1[HS]$/.test(k[0]) && k[1] === '1N' && situation.ctx.opened === 'us' && !situation.ctx.responderPassed) {
+    return { ...situation, ctx: { ...situation.ctx, responderPassed: true } };
+  }
+  return situation;
+}
+
 export function candidates(situation, entries = ALL, onlyPickable = false) {
   const own = candidatesFor(situation, entries, onlyPickable);
   const alias = systemsOn(situation);
@@ -165,7 +176,8 @@ function candidatesFor(situation, entries, onlyPickable) {
 export function explain(auction, book = ALL, { general = false } = {}) {
   const rows = [];
   auction.calls.forEach((call, i) => {
-    const c = candidates(situationAt(auction, i), forSeat(book, seatAt(auction, i))).find((x) => x.call === call);
+    const list = forSeat(book, seatAt(auction, i));
+    const c = candidates(asCard(situationAt(auction, i), list), list).find((x) => x.call === call);
     const row = {
       i,
       seat: seatAt(auction, i),
@@ -219,7 +231,7 @@ export function describeShown(acc) {
 export function nextOptions(auction, book = ALL) {
   if (isComplete(auction)) return [];
   const entries = forSeat(book, seatAt(auction, auction.calls.length));
-  const byCall = new Map(candidates(situationAt(auction, auction.calls.length), entries).map((c) => [c.call, c]));
+  const byCall = new Map(candidates(asCard(situationAt(auction, auction.calls.length), entries), entries).map((c) => [c.call, c]));
   return legalCalls(auction)
     .filter((call) => byCall.has(call))
     .map((call) => {
@@ -254,8 +266,9 @@ export function generalOptions(auction, book = ALL) {
 }
 
 function prepare(hand, auction, book) {
-  const s = situationAt(auction, auction.calls.length);
-  const entries = forSeat(book, s.actor);
+  const raw = situationAt(auction, auction.calls.length);
+  const entries = forSeat(book, raw.actor);
+  const s = asCard(raw, entries);
   const legal = new Set(legalCalls(auction));
   const rows = explain(auction, book);
   // sys: the card's answers, for decision functions that mix conventions (st.sys.is('passed-2c', 'drury')).
@@ -298,7 +311,7 @@ export function leaks(hand, auction, book = ALL) {
   if (entries === ALL || list.some((c) => c.entry.pick(e, { ...base, bind: c.env }))) return [];
   const inside = new Set(entries);
   const legal = new Set(legalCalls(auction));
-  return candidates(situationAt(auction, auction.calls.length), EVERY, true)
+  return candidates(base, EVERY, true)
     .filter((c) => !inside.has(c.entry) && legal.has(c.call) && c.entry.pick(e, { ...base, bind: c.env }))
     .map((c) => ({ call: c.call, opt: c.entry.opt }));
 }

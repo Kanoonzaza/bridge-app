@@ -73,6 +73,8 @@ export function respondToMajor(e, M, passed, sys = null) {
     if (js) return js;
   }
   const drury = plays(sys, 'passed-2c', 'drury');
+  // SAYC (pool question 'base'): a 2-over-1 is 10+, forcing one round; the limit raise allows 3 trumps (10–11).
+  const sayc = plays(sys, 'base', 'sayc');
   if (passed && plays(sys, 'passed-jump', 'fit') && fitJump(e, M)) return fitJump(e, M);
   if (tr >= 4) {
     if (!passed) {
@@ -86,10 +88,15 @@ export function respondToMajor(e, M, passed, sys = null) {
     if (dp >= 10 && e.hcp >= 7) return `3${M}`;
   }
   if (tr === 3 && passed && dp >= 10 && e.hcp >= 7) return drury ? '2C' : `3${M}`;
+  if (tr === 3 && !passed && sayc && dp >= 10 && dp <= 11 && e.hcp >= 7) return `3${M}`;
   if (tr >= 3 && e.hcp >= 4 && dp >= 6 && (dp <= 9 || e.hcp < 7)) return `2${M}`;
   if (M === 'H' && e.len.S >= 4 && e.hcp >= 6) return '1S';
   if (!passed && tr === 2 && e.balanced && e.hcp >= 15 && e.hcp <= 17) return '3N';
-  if (!passed && gameForce(e, tr >= 3)) return `2${twoOverOneSuit(e, M)}`;
+  if (!passed && sayc && e.hcp >= 10) {
+    const s = twoOverOneSuit(e, M);
+    if (e.len[s] >= (s === 'H' ? 5 : 4) || e.hcp >= 12) return `2${s}`;
+  }
+  if (!passed && !sayc && gameForce(e, tr >= 3)) return `2${twoOverOneSuit(e, M)}`;
   if (passed && e.hcp >= 10) {
     const s = [...(M === 'S' ? ['H', 'D'] : ['D']), ...(drury ? [] : ['C'])].filter((t) => e.len[t] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
     if (s) return `2${s}`;

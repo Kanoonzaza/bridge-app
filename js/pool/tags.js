@@ -73,7 +73,9 @@ function covers(r, t) {
   const rs = strains(a[1]);
   return strains(b[1]).every((s) => rs.includes(s));
 }
-const ctxFits = (root, e) => !(unpassed(root) && passed(e)) && !(passed(root) && unpassed(e));
+const ctxFits = (root, e) => !(unpassed(root) && passed(e)) && !(passed(root) && unpassed(e))
+  // After 1M–1NT, a rule with no passed-hand condition also serves the passed hand's non-forcing 1NT: core, not 2/1.
+  && !(forcingNT(root) && !e.ctx);
 function descends(root, e) {
   if (e.tail || root.tail) return false;
   const seq = [...root.after, root.call];

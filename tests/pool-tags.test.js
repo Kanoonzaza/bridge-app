@@ -9,9 +9,9 @@ const COUNTS = {
   // 2026-11-25: only the conventional calls of XYZ, fourth suit and support doubles are tagged now (and what follows
   // XYZ's artificial calls and the support double); their natural calls are core. The house card's rules did not
   // change: a 1,500-board match against the previous commit differed on no board.
-  'base:2/1': 410,
+  'base:2/1': 220, // 2026-11-26: the 190 rules after 1M–1NT with no passed-hand condition are core (they serve the passed hand too)
   'checkback:xyz': 374,
-  core: 5006,
+  core: 5196,
   'fourth-suit:gf': 4,
   'jump-shift:weak': 51,
   'keycard:rkcb-1430': 34,

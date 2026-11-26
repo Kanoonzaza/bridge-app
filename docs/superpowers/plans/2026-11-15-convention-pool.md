@@ -706,6 +706,15 @@ A notes part "Standard American (SAYC)" with `data-opt="base:sayc"`: two-over-on
 
 Set `base` option `sayc` to `ready: true`. Stamp, commit, push.
 
+### Phase 5: as built (2026-11-26)
+
+- **Source.** The ACBL booklet pages could not be opened from the build machine (network policy); the rules follow the 2006 booklet text as quoted in search results and forums: 1M–1NT 6–10 not forcing; 2-over-1 10+ (2♥ over 1♠ 5+), forcing one round, responder bids again; limit raise 10–11 dummy points with 3+ trumps (owner's decision: follow the booklet); 1m–2NT 13–15 forcing, 3NT 16–18; standard minor raises. Where sources disagree (1NT response 6–9 or 6–10) the plan's 6–10 is used.
+- **1M–1NT reuses the passed-hand rules.** The engine reads a SAYC card's 1M–1NT as a passed hand's non-forcing 1NT (`asCard` in `js/engine.js`), so opener's rebids, responder's rebids and the competitive follow-ups already written for the passed hand serve SAYC. The 190 rules after 1M–1NT with no passed-hand condition were re-tagged core (they always served the passed hand too); a 600-board match showed the house card unchanged.
+- **Written for SAYC** (`js/system/options/sayc.js`): the 1NT, 2-over-1 and 3-card limit raise meanings; opener's rebid after a 2-over-1; responder's second bid (12+ bids game, 10–11 invites or stops). Later rounds fall to general judgment. `respondToMajor` / `respondToMinor` ask `plays(sys, 'base', 'sayc')`.
+- **11–12 balanced, no major, over 1♣/1♦ (2NT forcing):** SAYC bids the other minor (1♦, or 2♣ over 1♦) instead of an overstated 1NT.
+- **Checks.** 8 booklet tests (`tests/pool-sayc.test.js`); zero leaks on 3,000 deals; self-check 2.6% of deals with an inconsistency (house card 2.5%); SAYC against the house card over 1,000 boards: −0.003 IMPs per board (± 0.074), differing on 23% of boards. The safety net now runs the SAYC preset and each single change from it.
+- **Notes.** "Standard American (SAYC)" in Part 3, marked `base:sayc`.
+
 ---
 
 ## Phase 6. Sharing a card by code

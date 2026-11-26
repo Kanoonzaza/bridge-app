@@ -29,6 +29,9 @@ function notrump(e, m, sys) {
   if (e.hcp <= 12) {
     if (plays(sys, 'minor-raise', 'inverted') && e.len[m] >= (m === 'C' ? 5 : 4)) return `2${m}`;
     if (!plays(sys, 'minor-raise', 'inverted') && e.len[m] >= 5) return `3${m}`;
+    // SAYC: show the other minor (1♦ over 1♣, or 2♣ over 1♦, which is 10+ there) rather than an overstated 1NT.
+    if (plays(sys, 'base', 'sayc') && m === 'C' && e.len.D >= 3) return '1D';
+    if (plays(sys, 'base', 'sayc') && m === 'D' && e.len.C >= 3) return '2C';
     return '1N';
   }
   return e.hcp <= 15 ? '2N' : '3N';
@@ -47,7 +50,9 @@ export function respondToMinor(e, m, passed, sys = null) {
     const s = splinterSuit(e, m);
     if (s === 'H' || s === 'S') return `3${s}`;
   }
-  if (!passed && e.hcp >= 12 && majors.length) {
+  // SAYC (pool question 'base'): 2♣ over 1♦ is 10+, forcing one round; on the house card it is a 2/1 game force.
+  const gf = plays(sys, 'base', 'sayc') ? 10 : 12;
+  if (!passed && e.hcp >= gf && majors.length) {
     if (m === 'C' && e.len.D >= 5 && e.len.D > maxMajor) return '1D';
     if (m === 'D' && e.len.C >= 5 && e.len.C > maxMajor) return '2C';
   }
@@ -70,7 +75,7 @@ export function respondToMinor(e, m, passed, sys = null) {
   } else {
     if (passed && e.hcp >= 10 && e.len.C >= 5 && e.len.C > e.len.D) return '2C';
     if (e.len.D >= 4 && e.hcp >= 10 && (passed || e.hcp < 12 || e.len.D >= e.len.C) && plays(sys, 'minor-raise', 'inverted')) return '2D';
-    if (!passed && e.hcp >= 12 && e.len.C >= 4) return '2C';
+    if (!passed && e.hcp >= gf && e.len.C >= 4) return '2C';
   }
   return notrump(e, m, sys);
 }

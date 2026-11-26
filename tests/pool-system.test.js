@@ -57,5 +57,6 @@ test('answers without rules are bid as on the house card', () => {
   assert.equal(systemFor(pick(normalizeCard({ base: '2/1' }), 'nt-defence', 'landy')), ALL, 'Landy has no rules yet');
   const sayc = systemFor(normalizeCard({ base: 'sayc' }));
   assert.equal(sayc.some((e) => e.opt === 'splinters:on'), false, 'SAYC answers with rules are played');
-  assert.equal(sayc.some((e) => e.opt === 'base:2/1'), true, 'the SAYC base itself is not written yet: bid as 2/1');
+  assert.equal(sayc.some((e) => e.opt === 'base:2/1'), false, 'SAYC is written: no 2/1 rules');
+  assert.equal(sayc.some((e) => e.opt === 'base:sayc'), true);
 });

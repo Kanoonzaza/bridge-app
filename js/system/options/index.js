@@ -7,6 +7,7 @@ import './nt-interference.js';
 import './nt-defence.js';
 import responses from './responses.js';
 import keycard from './keycard.js';
+import sayc from './sayc.js';
 
-const options = [...responses, ...keycard];
+const options = [...responses, ...keycard, ...sayc];
 export default options;
