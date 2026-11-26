@@ -6,7 +6,7 @@ import { FIREBASE, NOTES_URL } from '../config.js';
 import { firebaseSync, localSync } from '../table/sync.js';
 import {
   CODE, parseCode, seatsAtBidding, say, restoreChat, chatKey, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
-  setOpponents, sit, leave, setSeatKind, PROTO, prank, hostOf, kick, allowBack, moveSeat, takeOver, giveBack, keepRobot, choicePending, autoDeclare, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
+  setOpponents, sit, leave, setSeatKind, askSeat, answerSeat, cancelSeat, seatRequests, PROTO, prank, hostOf, kick, allowBack, moveSeat, takeOver, giveBack, keepRobot, choicePending, autoDeclare, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
 } from '../table/model.js';
 import { legalCards, controller, splitPlay, playState } from '../table/play.js';
@@ -397,6 +397,7 @@ export function tableView(root, store) {
     const moving = isHost && ui.moving && t.seats[ui.moving]?.kind === 'human' ? ui.moving : null;
     if (ui.moving && !moving) ui.moving = null;
     const removed = t.kicked?.[ui.sync.uid];
+    const asked = seatRequests(t).find((r) => r.uid === ui.sync.uid);
     return el('div', {},
       removed ? el('p', { class: 'notice', role: 'status' }, 'The host removed you from this table. You can watch, but not sit, unless the host lets you back.') : null,
       el('div', { class: 'seats' }, ...['N', 'W', 'E', 'S'].map((s) => {
@@ -408,6 +409,9 @@ export function tableView(root, store) {
           actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `robot-${s}`, onclick: () => act((cur) => cur && setSeatKind(cur, s, 'robot')) }, 'Robot'));
         } else if (st.kind === 'robot' && me && sideOf(s) === sideOf(me)) {
           actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `free-${s}`, onclick: () => act((cur) => cur && setSeatKind(cur, s, 'open')) }, 'Free seat'));
+        } else if (st.kind === 'robot' && !me && !removed) {
+          if (asked?.seat === s) actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `ask-cancel-${s}`, onclick: () => act((cur) => cur && cancelSeat(cur, ui.sync.uid)) }, 'Cancel request'));
+          else actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `ask-${s}`, onclick: () => act((cur) => cur && askSeat(cur, s, ui.sync.uid, saved.name.trim() || 'Player'), 'That seat is not free for a request now.') }, 'Ask to sit here'));
         }
         if (isHost) {
           if (moving && s !== moving && ['open', 'human'].includes(st.kind)) {
@@ -428,6 +432,26 @@ export function tableView(root, store) {
       isHost && t.kicked ? el('div', { class: 'stack' }, ...Object.entries(t.kicked).map(([uid, name]) =>
         el('div', { class: 'row-buttons' }, el('span', { class: 'muted' }, `${name} was removed`),
           el('button', { type: 'button', class: 'pill', 'data-key': `allow-${uid}`, onclick: () => act((cur) => cur && allowBack(cur, ui.sync.uid, uid)) }, 'Allow back')))) : null);
+  }
+
+  // Asking for a robot's seat: the asker waits (and can withdraw); the robot's partner (or the host) allows or denies.
+  function seatRequestNote(t) {
+    const me = ui.sync.uid;
+    const notes = seatRequests(t).flatMap((r) => {
+      if (r.uid === me) {
+        return [el('div', { class: 'panel row-buttons', 'data-key': 'seat-request', role: 'status' },
+          el('span', {}, `You asked to sit ${COMPASS[r.seat]} in place of the robot. Waiting for ${humanName(t, r.answerer)}…`),
+          el('button', { type: 'button', class: 'pill', 'data-key': 'seat-cancel', onclick: () => act((cur) => cur && cancelSeat(cur, me)) }, 'Cancel request'))];
+      }
+      if (r.answerer !== me) return [];
+      const seat = mySeat(t, me);
+      const where = seat ? `${COMPASS[r.seat]} (${relative(seat, r.seat).toLowerCase()})` : COMPASS[r.seat];
+      return [el('div', { class: 'panel row-buttons', 'data-key': `seat-request-${r.uid}`, role: 'alertdialog', 'aria-label': 'Seat request' },
+        el('span', {}, `${r.name || 'A player'} asks to sit ${where} in place of the robot.`),
+        el('button', { type: 'button', class: 'pill on', 'data-key': `seat-allow-${r.uid}`, onclick: () => act((cur) => cur && answerSeat(cur, me, r.uid, true), 'That seat can be taken from the next board (the robot is dummy in the contract you are playing).') }, 'Allow'),
+        el('button', { type: 'button', class: 'pill', 'data-key': `seat-deny-${r.uid}`, onclick: () => act((cur) => cur && answerSeat(cur, me, r.uid, false)) }, 'Deny'))];
+    });
+    return notes.length ? el('div', { class: 'stack' }, ...notes) : null;
   }
 
   // ---------- The table, drawn like a card table: partner on top, opponents left and right, me at the bottom ----------
@@ -1180,11 +1204,12 @@ export function tableView(root, store) {
           el('button', { type: 'button', class: 'pill', 'data-key': 'leave', onclick: exit }, 'Leave'))),
       el('div', { class: 'board-line' }, el('b', {}, `Board ${b.n}`), ` · Dealer ${relative(me, b.dealer)} · ${VUL_TEXT[b.vul]}`)],
       declarerChoice(t),
+      seatRequestNote(t),
       b.swap ? el('p', { class: 'muted', 'data-key': 'swap-note' }, `Your partner (a robot) was the declarer, so you moved to ${COMPASS[b.swap[2]]} and play the contract; the robot sits ${COMPASS[b.swap[0]]} as dummy.`) : null,
       prev ? el('div', { class: 'row-buttons' }, el('button', { type: 'button', class: 'pill', 'data-key': 'previous-board', onclick: () => { ui.prev = prev.n; render(); } }, `← Earlier boards (${Math.min(b.n - 1, Object.keys(t.history).length)})`)) : null,
       (ph === 'over' && playViewer(t, me, true)) || felt(t, me),
       requestNote(t, 'claim'),
-      ph === 'over' || hold ? null : me && now === me ? null : el('p', { class: 'muted status-line', role: 'status' }, me ? waiting : 'You are watching. Pick an empty seat below to play.'),
+      ph === 'over' || hold ? null : me && now === me ? null : el('p', { class: 'muted status-line', role: 'status' }, me ? waiting : someoneMissing || !SEATS.some((s) => t.seats[s].kind === 'robot') ? 'You are watching. Pick an empty seat below to play.' : 'You are watching. Ask to sit in a robot\'s seat below to play.'),
       hold ? el('div', { class: 'panel row-buttons', 'data-key': 'last-trick-hold' },
         el('span', {}, 'The last trick. The result comes up in a moment.'),
         el('button', { type: 'button', class: 'pill', 'data-key': 'show-result', onclick: () => { clearTimeout(ui.holdTimer); ui.heldDone = ui.holdKey; render(); } }, 'Show the result now'))

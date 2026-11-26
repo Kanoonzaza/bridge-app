@@ -5,7 +5,7 @@ import { cardCount } from '../js/cards.js';
 import {
   newCode, CODE, dealHands, unpackHand, packHand, newTable, normalize, sit, leave, setOpponents, setSeatKind,
   call, turn, isDone, playRobot, robotCall, nextBoard, rebid, boardDealer, boardVul, mySeat, auctionOf, undo, lastOwnCall,
-  PROTO, prank, takeOver, giveBack, keepRobot, choicePending, hostOf, kick, allowBack, moveSeat, autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  PROTO, prank, takeOver, giveBack, keepRobot, choicePending, hostOf, kick, allowBack, moveSeat, autoDeclare, unswap, seatsAtBidding, parseCode, say, restoreChat, chatKey, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, phase, playOf, playCard, skipPlay, actor, undoCard, lastOwnCard, requestUndo, answerUndo, cancelUndo, pendingUndo, askSeat, answerSeat, cancelSeat, seatRequests, seatAnswerer,
 } from '../js/table/model.js';
 import { score, legalCards, trickWinner } from '../js/table/play.js';
 import { reviewRows, systemAuction, contract } from '../js/table/review.js';
@@ -61,6 +61,49 @@ test('seats: partner joins, the other pair can join when opponents are players',
   const r = setOpponents(t, 'robot');
   assert.equal(r.seats.N.uid, 'pard', 'the opponents setting never touches North-South');
   assert.equal(r.seats.E.kind, 'robot');
+});
+
+test('seat requests: a watcher asks for a robot\'s seat and the robot\'s partner allows or denies it', () => {
+  // I sit South with a robot partner and robot opponents; my partner arrives to watch.
+  const t = setSeatKind(fresh('robot'), 'N', 'robot');
+  assert.equal(askSeat(t, 'S', 'pard', 'Ploy'), undefined, 'only a robot\'s seat can be asked for');
+  assert.equal(askSeat(t, 'N', 'me', 'Kan'), undefined, 'a seated player moves instead of asking');
+  const asked = askSeat(t, 'N', 'pard', 'Ploy');
+  assert.equal(asked.seats.N.kind, 'robot', 'the robot stays until the request is allowed');
+  assert.deepEqual(seatRequests(asked), [{ uid: 'pard', seat: 'N', name: 'Ploy', answerer: 'me' }]);
+  assert.deepEqual(seatRequests(normalize(JSON.parse(JSON.stringify(asked)))), seatRequests(asked), 'the request survives the database');
+  assert.equal(answerSeat(asked, 'pard', 'pard', true), undefined, 'the asker cannot allow their own request');
+  const ok = answerSeat(asked, 'me', 'pard', true);
+  assert.deepEqual(ok.seats.N, { kind: 'human', uid: 'pard', name: 'Ploy' });
+  assert.equal(ok.seatReq, undefined);
+  const no = answerSeat(asked, 'me', 'pard', false);
+  assert.equal(no.seats.N.kind, 'robot');
+  assert.equal(no.seatReq, undefined);
+  assert.equal(cancelSeat(asked, 'pard').seatReq, undefined, 'the asker can withdraw');
+  assert.equal(leave(asked, 'pard').seatReq, undefined, 'leaving the table withdraws it too');
+  // A robot opponent's seat: its partner is a robot as well, so the host answers.
+  assert.equal(seatAnswerer(t, 'E'), 'me');
+  assert.equal(answerSeat(askSeat(t, 'E', 'opp', 'A'), 'me', 'opp', true).seats.E.uid, 'opp');
+  // A removed player cannot ask; with nobody at the table to ask, the seat is taken at once.
+  assert.equal(askSeat(kick(sit(t, 'W', 'opp', 'A'), 'me', 'W'), 'N', 'opp', 'A'), undefined);
+  assert.equal(askSeat(robotsNS(t), 'N', 'pard', 'Ploy').seats.N.uid, 'pard');
+  // A request for a seat that is no longer a robot's is dropped.
+  assert.deepEqual(seatRequests(setSeatKind(asked, 'N', 'open')), []);
+});
+
+test('seat requests wait while the robot is dummy in a contract its partner took over', () => {
+  // Find a board where the robot partner (North) declares, and take it over: the robot moves to South as dummy.
+  let t = setSeatKind(fresh('robot'), 'N', 'robot');
+  for (let i = 0; i < 40; i++) {
+    let b = t;
+    while (phase(b) === 'bidding') b = turn(b) === 'S' ? call(b, 'S', 'P', 'me') : playRobot(b, advise);
+    if (phase(b) === 'play' && takeOver(b, 'me')) { t = takeOver(b, 'me'); break; }
+    t = nextBoard(phase(b) === 'play' ? skipPlay(b) : b, rand);
+  }
+  assert.ok(t.board.swap, 'found a board the robot partner declares');
+  const asked = askSeat(t, 'S', 'pard', 'Ploy');
+  assert.equal(answerSeat(asked, 'me', 'pard', true), undefined, 'not while the robot is dummy');
+  assert.equal(answerSeat(asked, 'me', 'pard', false).seatReq, undefined, 'denying still works');
 });
 
 test('host: the creator removes or moves players; nobody else can', () => {

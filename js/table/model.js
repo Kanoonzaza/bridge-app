@@ -77,7 +77,7 @@ export function normalize(raw) {
   const history = {};
   for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true, ...(Number.isInteger(h.claim) ? { claim: h.claim } : {}), ...(validSwap(h.swap) ? { swap: h.swap } : {}) };
   // Fields this version does not know (added by a newer version) pass through, so rewriting the table never drops them.
-  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq', 'host', 'kicked', 'proto', 'fx']);
+  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq', 'host', 'kicked', 'proto', 'fx', 'seatReq']);
   const extra = Object.fromEntries(Object.entries(raw).filter(([k, v]) => !known.has(k) && v !== undefined && v !== null));
   return {
     ...extra,
@@ -91,6 +91,7 @@ export function normalize(raw) {
     ...(normalFx(raw.fx) ? { fx: normalFx(raw.fx) } : {}),
     ...(raw.host ? { host: String(raw.host) } : {}),
     ...(normalKicked(raw.kicked) ? { kicked: normalKicked(raw.kicked) } : {}),
+    ...(normalSeatReq(raw.seatReq) ? { seatReq: normalSeatReq(raw.seatReq) } : {}),
     chat: normalChat(raw.chat),
     ...(normalUndo(raw.undoReq) ? { undoReq: normalUndo(raw.undoReq) } : {}),
     ...(normalClaim(raw.claimReq) ? { claimReq: normalClaim(raw.claimReq) } : {}),
@@ -191,6 +192,14 @@ function normalFx(f) {
 function normalKicked(k) {
   if (!k || typeof k !== 'object') return null;
   const out = Object.fromEntries(Object.entries(k).filter(([uid]) => uid).map(([uid, name]) => [uid, String(name ?? '').slice(0, 24)]));
+  return Object.keys(out).length ? out : null;
+}
+
+// Requests to sit in a robot's seat (see askSeat): uid -> { seat, name }.
+function normalSeatReq(r) {
+  if (!r || typeof r !== 'object') return null;
+  const out = Object.fromEntries(Object.entries(r).filter(([uid, v]) => uid && v && SEATS.includes(v.seat))
+    .map(([uid, v]) => [uid, { seat: v.seat, name: String(v.name ?? '').slice(0, 24) }]));
   return Object.keys(out).length ? out : null;
 }
 
@@ -345,7 +354,53 @@ export function sit(t, seat, uid, name) {
   const seats = { ...t.seats };
   for (const s of SEATS) if (seats[s].kind === 'human' && seats[s].uid === uid) seats[s] = { kind: 'open' };
   seats[seat] = { kind: 'human', uid, name: String(name).slice(0, 24) };
-  return { ...t, seats };
+  return withoutSeatReq({ ...t, seats }, uid);
+}
+
+// ---------- Asking to sit in a robot's seat ----------
+// Someone watching (e.g. a partner who arrives after a robot took their place) asks for a robot's seat. The human
+// across the table from that seat (the robot's partner) answers; when nobody sits there, the host does. With nobody
+// at the table to ask, the seat is taken at once.
+const SEAT_REQ_MAX = 8;
+function withoutSeatReq(t, uid) {
+  if (!t.seatReq?.[uid]) return t;
+  const { [uid]: _gone, ...rest } = t.seatReq;
+  const { seatReq: _old, ...others } = t;
+  return Object.keys(rest).length ? { ...others, seatReq: rest } : others;
+}
+
+// The uid who answers a request for this seat, or null when nobody can.
+export function seatAnswerer(t, seat) {
+  const across = t.seats[partnerOf(seat)];
+  return across.kind === 'human' ? across.uid : hostOf(t);
+}
+
+// While a robot partner's contract is being played by its human partner (board.swap), the two seats stay as they are.
+const inSwap = (t, seat) => Boolean(t.board.swap) && t.board.swap.includes(seat);
+
+// The open requests whose seat still holds a robot: [{ uid, seat, name, answerer }].
+export function seatRequests(t) {
+  return Object.entries(t.seatReq ?? {}).filter(([uid, r]) => t.seats[r.seat].kind === 'robot' && !mySeat(t, uid) && !t.kicked?.[uid])
+    .map(([uid, r]) => ({ uid, seat: r.seat, name: r.name, answerer: seatAnswerer(t, r.seat) }));
+}
+
+export function askSeat(t, seat, uid, name) {
+  if (!SEATS.includes(seat) || !uid || t.kicked?.[uid] || mySeat(t, uid) || t.seats[seat].kind !== 'robot') return undefined;
+  if (!seatAnswerer(t, seat) && !inSwap(t, seat)) return sit(t, seat, uid, name);
+  const others = Object.fromEntries(Object.entries(t.seatReq ?? {}).filter(([k]) => k !== uid).slice(-(SEAT_REQ_MAX - 1)));
+  return { ...t, seatReq: { ...others, [uid]: { seat, name: String(name ?? '').slice(0, 24) } } };
+}
+
+export const cancelSeat = (t, uid) => (t.seatReq?.[uid] ? withoutSeatReq(t, uid) : undefined);
+
+// The answerer allows (the requester takes the robot's seat) or denies. Allowing waits while the seat is in a
+// swap (see autoDeclare), until the next board.
+export function answerSeat(t, by, uid, yes) {
+  const r = seatRequests(t).find((x) => x.uid === uid);
+  if (!r || !by || r.answerer !== by) return undefined;
+  if (!yes) return withoutSeatReq(t, uid);
+  if (inSwap(t, r.seat)) return undefined;
+  return sit(t, r.seat, uid, r.name || 'Player');
 }
 
 // The head of the table: whoever made it. If they are not seated (or the table is older than this), the first
@@ -389,7 +444,7 @@ export function prank(t, by, toSeat, kind) {
 
 export function leave(t, uid) {
   const seat = mySeat(t, uid);
-  if (!seat) return undefined;
+  if (!seat) return withoutSeatReq(t, uid) === t ? undefined : withoutSeatReq(t, uid);
   return { ...t, seats: { ...t.seats, [seat]: { kind: 'open' } } };
 }
 
