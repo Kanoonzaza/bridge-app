@@ -118,14 +118,16 @@ test('Gerber: also over a notrump rebid, with the king ask', () => {
 
 test('Plan 4 sweep: every situation answers every hand with a decodable call', () => {
   const rng = mulberry32(47);
-  for (const sit of [...NT, ...TWOS]) {
+  // The house card's situations (a situation with `opt` belongs to another option of the convention pool).
+  for (const sit of [...NT, ...TWOS].filter((x) => !x.opt)) {
     const auction = auctionFor(sit.after);
     assert.equal(auction.calls.filter((c) => c !== 'P').join(' '), sit.after.join(' '), `auction for ${sit.after}`);
     for (let i = 0; i < 300; i++) {
       const hand = randomHand(rng);
       const r = advise(hand, auction);
       assert.ok(!r.notCovered, `${sit.after}: not covered for ${JSON.stringify(hand)}`);
-      assert.ok(r.call in sit.calls, `${sit.after}: ${r.call} missing from the call table`);
+      // Keys are 'call' or 'call|option' (a meaning that belongs to one option of the convention pool).
+      assert.ok(Object.keys(sit.calls).some((k) => k.split('|')[0] === r.call), `${sit.after}: ${r.call} missing from the call table`);
       assert.equal(matchingEntries(hand, auction).length, 1, `${sit.after}: several entries matched`);
     }
   }

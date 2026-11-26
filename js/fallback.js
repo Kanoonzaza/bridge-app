@@ -15,6 +15,7 @@
 import { evaluate, pointsFor } from './cards.js';
 import { legalCalls, seatAt, situationAt, sideOf } from './auction.js';
 import { advise, explain, summarize } from './engine.js';
+import { sysOf, forSeat } from './pool/system.js';
 import { judge } from './judgment.js';
 
 const GAME = /^(3N|4[HS]|5[CDHS]|[67][CDHSN])$/;
@@ -64,7 +65,7 @@ function partnerPlacedGame({ s, e, auction }) {
 // ---------- 2 and 6. General judgment ----------
 function judged({ s, e, auction, entries }) {
   const rows = explain(auction, entries);
-  const j = judge(e, auction, rows, (seat) => summarize(rows, seat), s.key);
+  const j = judge(e, auction, rows, (seat) => summarize(rows, seat), s.key, sysOf(forSeat(entries, s.actor)));
   if (!j) return null;
   const t = j.call === 'P' ? null : tells(auction, j.call, entries);
   return { call: j.call, meaning: t?.meaning ?? 'Pass.', reasons: j.why, plan: null, close: null, notes: t?.notes ?? (s.ctx.competitive ? 'competitive-bidding-tier-0' : '21-game-forcing-tier-0'), fallback: 'judgment' };
@@ -166,6 +167,7 @@ function strongOverTheirOpening({ s, e, auction, entries }) {
   return null;
 }
 
+// entries: the book (one rule list, or { NS, EW }); passed on unchanged to every engine call.
 export function fallback(hand, auction, entries) {
   const s = situationAt(auction, auction.calls.length);
   const ctx = { s, e: evaluate(hand), hand, auction, entries };

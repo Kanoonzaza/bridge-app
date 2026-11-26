@@ -2,6 +2,7 @@ import { dummyPoints } from '../../cards.js';
 import {
   OURS, JORDAN, SUPPORT, DRURY, SUITS4, RANK, MAJORS, isMajor, nm, cheapest, above, lvOf, top3, stopper, stops, shortness, longestOf, hcpIn, R, entries, def, advise,
 } from './shared.js';
+import { plays } from '../../pool/answers.js';
 
 // We opened and they overcalled or doubled: negative doubles, responder's bids, opener's next move,
 // support doubles, Jordan 2NT. Notes: Part 5, "Competitive bidding: when we open and they compete".
@@ -105,7 +106,8 @@ for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']
 }
 
 // ---------- Decisions: responder after their overcall ----------
-export function afterTheirOvercall(e, o, ov) {
+// sys: the card's answers (js/pool/answers.js); none = the house card.
+export function afterTheirOvercall(e, o, ov, sys = null) {
   const y = ov[1];
   const lv = Number(ov[0]);
   const h = e.hcp;
@@ -144,7 +146,7 @@ export function afterTheirOvercall(e, o, ov) {
     if (h >= 11 && h <= 12 && above('2N', ov)) return R('2N', [`${h} HCP with a ${nm(y)} stopper: invitational`]);
     if (h >= 13) return R('3N', [`${h} HCP with a ${nm(y)} stopper`]);
   }
-  if (h >= 2 && h <= 5) {
+  if (h >= 2 && h <= 5 && plays(sys, 'jump-shift', 'weak')) {
     const s = SUITS4.find((t) => t !== o && t !== y && L[t] >= 6 && cheapest(ov, t) + 1 <= 3);
     if (s) return R(`${cheapest(ov, s) + 1}${s}`, [`${L[s]} ${nm(s)}, ${h} HCP: weak jump shift`]);
   }
@@ -154,14 +156,14 @@ export function afterTheirOvercall(e, o, ov) {
 }
 
 // ---------- Decisions: responder after their double (Jordan 2NT, redouble) ----------
-export function afterTheirDouble(e, o, passed) {
+export function afterTheirDouble(e, o, passed, sys = null) {
   const h = e.hcp;
   const L = e.len;
   const dp = isMajor(o) ? dummyPoints(e, o) : h;
   const four = isMajor(o) ? 4 : 5;
   if (L[o] >= four && dp >= 10) return R('2N', [`${L[o]} ${nm(o)}, ${dp} points`, 'Jordan 2NT: limit raise or better']);
   if (isMajor(o) && L[o] === 3 && dp >= 10) {
-    return passed ? R('2C', ['3-card limit raise as a passed hand: Drury']) : R('XX', ['10+ with 3-card support'], { plan: `Raise ${nm(o)} on your next turn (3-card limit raise).` });
+    return passed && plays(sys, 'passed-2c', 'drury') ? R('2C', ['3-card limit raise as a passed hand: Drury']) : R('XX', ['10+ with 3-card support'], { plan: `Raise ${nm(o)} on your next turn (3-card limit raise).` });
   }
   if (L[o] >= four && h <= 6 && shortness(e, o)) return R(`3${o}`, [`${L[o]} ${nm(o)}, weak: preemptive raise`]);
   if (L[o] >= four - 1 && dp >= 6) return R(`2${o}`, [`${L[o]} ${nm(o)}, ${dp} points: weak raise`]);
@@ -213,7 +215,7 @@ for (const o of SUITS4) {
       def(k, 'P', 'Pass: weak, or length in their suit (hoping opener reopens with a double).');
       if (above('2N', ov)) def(k, '2N', `Natural: 11–12 with a ${nm(y)} stopper, invitational.`, { hcp: [11, 12] });
       def(k, '3N', `To play: 13+ with a ${nm(y)} stopper.`, { hcp: [13, 37] });
-      advise(k, (e) => afterTheirOvercall(e, o, ov), [{ dealer: 'N', calls: [`1${o}`, ov] }, { dealer: 'S', calls: ['P', 'P', `1${o}`, ov] }]);
+      advise(k, (e, st) => afterTheirOvercall(e, o, ov, st?.sys), [{ dealer: 'N', calls: [`1${o}`, ov] }, { dealer: 'S', calls: ['P', 'P', `1${o}`, ov] }]);
       const n = [`1${o}`, `(${ov})`, 'X'];
       for (const s of SUITS4.filter((t) => t !== o && t !== y && !isMajor(t) && cheapest(ov, t) <= 3)) def(n, `${cheapest(ov, s)}${s}`, `4+ ${nm(s)}, natural.`, { len: { [s]: [4, 13] } });
       advise(n, (e) => afterNegativeDouble(e, o, ov), [{ dealer: 'S', calls: [`1${o}`, ov, 'X', 'P'] }]);
@@ -221,7 +223,7 @@ for (const o of SUITS4) {
   }
   const d = [`1${o}`, '(X)'];
   def(d, 'P', 'Pass: weak, nothing to show.');
-  advise(d, (e, st) => afterTheirDouble(e, o, st.ctx.responderPassed), [{ dealer: 'N', calls: [`1${o}`, 'X'] }, { dealer: 'S', calls: ['P', 'P', `1${o}`, 'X'] }]);
+  advise(d, (e, st) => afterTheirDouble(e, o, st.ctx.responderPassed, st.sys), [{ dealer: 'N', calls: [`1${o}`, 'X'] }, { dealer: 'S', calls: ['P', 'P', `1${o}`, 'X'] }]);
 }
 
 for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']]) {
@@ -514,10 +516,13 @@ export function answerOpenersDouble(e, o, ov, after1NT) {
 }
 
 // ---------- Opener's free rebid after our response and their bid (proposed): support first, then natural ----------
-export function openerFreeRebid(e, o, r, theirs, last) {
+// sys: the card's answers. Without support doubles (pool question 'support-doubles', answer 'off') three-card
+// support is not shown, and a double (redouble after their double) shows extra values: 16+, no clear bid.
+export function openerFreeRebid(e, o, r, theirs, last, sys = null) {
   const L = e.len;
   const h = e.hcp;
-  if (L[r] === 3) return R(last === 'X' ? 'XX' : 'X', [`exactly 3 ${nm(r)}`, `support ${last === 'X' ? 'redouble' : 'double'}`]);
+  const support = plays(sys, 'support-doubles', 'on');
+  if (L[r] === 3 && support) return R(last === 'X' ? 'XX' : 'X', [`exactly 3 ${nm(r)}`, `support ${last === 'X' ? 'redouble' : 'double'}`]);
   const ref = last === 'X' ? `1${r}` : last;
   if (L[r] >= 4) {
     const c = cheapest(ref, r);
@@ -538,7 +543,8 @@ export function openerFreeRebid(e, o, r, theirs, last) {
     const cue = theirs.map((s) => `${cheapest(ref, s)}${s}`).find((c) => lvOf(c) <= 3);
     if (cue) return R(cue, [`${h} HCP, no clear bid: cue-bid their suit (forcing)`]);
   }
-  return R('P', [`no ${nm(r)} support: pass for now`]);
+  if (!support && h >= 16) return R(last === 'X' ? 'XX' : 'X', [`${h} HCP, no clear bid: ${last === 'X' ? 'redouble' : 'double'} to show the extra values`]);
+  return R('P', [L[r] === 3 ? `3 ${nm(r)} but a minimum: pass for now` : `no ${nm(r)} support: pass for now`]);
 }
 
 // Their notes subsections (each marked Proposed).
@@ -605,6 +611,7 @@ for (const o of SUITS4) {
 const freeDefs = (k, o, r, theirs, last, notes) => {
   const ref = last === 'X' ? `1${r}` : last;
   def(k, last === 'X' ? 'XX' : 'X', `Support ${last === 'X' ? 'redouble' : 'double'}: exactly 3 ${nm(r)}.`, { len: { [r]: [3, 3] } }, notes);
+  def(k, last === 'X' ? 'XX' : 'X', `${last === 'X' ? 'Redouble' : 'Double'}: extra values (16+), no clear bid.`, { hcp: [16, 37] }, notes, { opt: 'support-doubles:off' });
   const c = cheapest(ref, r);
   def(k, `${c}${r}`, `4+ ${nm(r)}: raise.`, { len: { [r]: [4, 13] } }, notes);
   if (c + 1 <= 3) def(k, `${c + 1}${r}`, `4+ ${nm(r)}, 16–18: jump raise.`, { hcp: [16, 18], len: { [r]: [4, 13] } }, notes);
@@ -635,7 +642,9 @@ for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']
     const k = [`1${o}`, `1${r}`, `(${ov})`];
     const theirs = ov === 'X' ? [] : [ov[1]];
     freeDefs(k, o, r, theirs, ov, SUPPORT);
-    advise(k, (e) => openerFreeRebid(e, o, r, theirs, ov), [{ dealer: 'S', calls: [`1${o}`, 'P', `1${r}`, ov] }]);
+    const decide = (e, st) => openerFreeRebid(e, o, r, theirs, ov, st?.sys);
+    advise(k, decide, [{ dealer: 'S', calls: [`1${o}`, 'P', `1${r}`, ov] }]);
+    advise(k, decide, [], 'support-doubles:off');
   }
   // 1o–(1y)–1r–(their bid through 2r): support doubles stay on.
   for (const y of SUITS4.filter((t) => t !== o && t !== r && RANK[t] < RANK[r] && cheapest(`1${o}`, t) === 1)) {
@@ -648,7 +657,9 @@ for (const [o, r] of [['C', 'H'], ['C', 'S'], ['D', 'H'], ['D', 'S'], ['H', 'S']
       const k = [`1${o}`, `(1${y})`, `1${r}`, `(${last})`];
       const theirs = [...new Set([y, ...(last === 'X' || last === '1N' ? [] : [last[1]])])];
       freeDefs(k, o, r, theirs, last, SUPPORT_LATE);
-      advise(k, (e) => openerFreeRebid(e, o, r, theirs, last), [{ dealer: 'S', calls: [`1${o}`, `1${y}`, `1${r}`, last] }]);
+      const decide = (e, st) => openerFreeRebid(e, o, r, theirs, last, st?.sys);
+      advise(k, decide, [{ dealer: 'S', calls: [`1${o}`, `1${y}`, `1${r}`, last] }]);
+      advise(k, decide, [], 'support-doubles:off');
     }
   }
 }

@@ -6,6 +6,8 @@ import { SEATS } from './auction.js';
 import { auctionOf, handOf, packHand, playOf, seatsAtBidding } from './table/model.js';
 import { score } from './table/play.js';
 import { reviewRows, robotDepartures, systemAuction, contract } from './table/review.js';
+import { HOUSE_CARD, sideCards } from './pool/card.js';
+import { describeCard } from './pool/view.js';
 import { parLine, tableRows } from './table/ddtext.js';
 import { confidence } from './confidence.js';
 
@@ -47,6 +49,12 @@ export function resultText(b, name = (s) => COMPASS[s]) {
   return `${name(st.declarer)} took ${got} tricks in ${callLabel(k.bid)}${k.doubled ? (k.doubled === 'XX' ? ' redoubled' : ' doubled') : ''}: ${how}, ${sc > 0 ? '+' : ''}${sc} for ${side}.`;
 }
 
+// A card in one line: its name, its system, and what differs from the house card.
+function cardLine(c) {
+  if (c === HOUSE_CARD) return 'house convention card (2/1 Game Forcing)';
+  return `${c.name || 'untitled convention card'} (${describeCard(c)})`;
+}
+
 export function boardReport(t, me, dd = null) {
   const b = t.board;
   const a = auctionOf(b);
@@ -63,6 +71,7 @@ export function boardReport(t, me, dd = null) {
   return [
     'Bridge Coach: board for review',
     `Table ${t.code} · Board ${b.n} · Dealer ${COMPASS[b.dealer]} · ${VUL[b.vul]}`,
+    ...(b.cards ? [`Convention cards: N-S ${cardLine(sideCards(b.cards).NS)} · E-W ${cardLine(sideCards(b.cards).EW)}`] : []),
     '',
     ...SEATS.map((s) => `${who(s)}: ${formatHand(hands[s])}`),
     '',

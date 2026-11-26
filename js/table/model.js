@@ -4,6 +4,7 @@
 import { SUITS, RANKS } from '../cards.js';
 import { SEATS, legalCalls, isComplete, nextSeat, partnerOf, seatAt, sideOf } from '../auction.js';
 import { contract, playState, legalCards, controller, robotCard, splitPlay } from './play.js';
+import { pack, unpack, BASES } from '../pool/card.js';
 
 export const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE = /^[ABCDEFGHJKLMNPQRSTUVWXYZ2-9]{6}$/;
@@ -12,7 +13,7 @@ export const OPPONENTS = ['robot', 'pass', 'players'];
 const HISTORY = 100;
 // Stamped on the table by every write of this version of the app. An older version drops it when it rewrites the table,
 // which is how a newer phone notices that someone at the table needs to update.
-export const PROTO = 4;
+export const PROTO = 5;
 
 // Standard duplicate rotation: board 1 dealer North, none vulnerable.
 export const boardDealer = (n) => SEATS[(n - 1) % 4];
@@ -64,6 +65,19 @@ function board(n, rand) {
 const validSwap = (x) => typeof x === 'string' && /^[NESW]>[NESW]$/.test(x) && x[0] !== x[2];
 const splitCalls = (s) => (s ? String(s).split(' ').filter(Boolean) : []);
 
+// Convention cards (js/pool/card.js), packed. t.cards: the card each side wants; board.cards: the cards the board is
+// played with (kept with the board in history). A side left out plays the house card.
+const normPacked = (x) => (x && typeof x === 'object' && BASES.includes(x.b) ? pack(unpack(x)) : null);
+function normCards(x) {
+  const out = {};
+  for (const side of ['NS', 'EW']) {
+    const c = normPacked(x?.[side]);
+    if (c) out[side] = c;
+  }
+  return Object.keys(out).length ? out : null;
+}
+const withField = (k, v) => (v ? { [k]: v } : {});
+
 // Whatever the database returns (missing fields, arrays as objects) becomes a well-formed table, or null.
 export function normalize(raw) {
   if (!raw || typeof raw !== 'object' || !raw.board) return null;
@@ -75,9 +89,9 @@ export function normalize(raw) {
   const b = raw.board;
   const n = Number.isInteger(b.n) && b.n > 0 ? b.n : 1;
   const history = {};
-  for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true, ...(Number.isInteger(h.claim) ? { claim: h.claim } : {}), ...(validSwap(h.swap) ? { swap: h.swap } : {}) };
+  for (const [k, h] of Object.entries(raw.history ?? {})) if (h && typeof h === 'object') history[k] = { n: Number(k), dealer: h.dealer, vul: h.vul, hands: h.hands, calls: h.calls ?? '', play: h.play ?? '', skip: h.skip === true, ...(Number.isInteger(h.claim) ? { claim: h.claim } : {}), ...(validSwap(h.swap) ? { swap: h.swap } : {}), ...withField('cards', normCards(h.cards)) };
   // Fields this version does not know (added by a newer version) pass through, so rewriting the table never drops them.
-  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq', 'host', 'kicked', 'proto', 'fx']);
+  const known = new Set(['code', 'created', 'opponents', 'seats', 'board', 'history', 'chat', 'undoReq', 'claimReq', 'host', 'kicked', 'proto', 'fx', 'cards']);
   const extra = Object.fromEntries(Object.entries(raw).filter(([k, v]) => !known.has(k) && v !== undefined && v !== null));
   return {
     ...extra,
@@ -85,8 +99,9 @@ export function normalize(raw) {
     created: Number(raw.created ?? 0),
     opponents: OPPONENTS.includes(raw.opponents) ? raw.opponents : 'robot',
     seats,
-    board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true, ...(Number.isInteger(b.claim) ? { claim: b.claim } : {}), ...(validSwap(b.swap) ? { swap: b.swap } : {}), ...(typeof b.keep === 'string' ? { keep: b.keep } : {}) },
+    board: { n, dealer: SEATS.includes(b.dealer) ? b.dealer : boardDealer(n), vul: VUL.includes(b.vul) ? b.vul : boardVul(n), hands: b.hands ?? {}, calls: b.calls ?? '', play: b.play ?? '', skip: b.skip === true, ...(Number.isInteger(b.claim) ? { claim: b.claim } : {}), ...(validSwap(b.swap) ? { swap: b.swap } : {}), ...(typeof b.keep === 'string' ? { keep: b.keep } : {}), ...withField('cards', normCards(b.cards)) },
     history,
+    ...withField('cards', normCards(raw.cards)),
     ...(Number.isInteger(raw.proto) ? { proto: raw.proto } : {}),
     ...(normalFx(raw.fx) ? { fx: normalFx(raw.fx) } : {}),
     ...(raw.host ? { host: String(raw.host) } : {}),
@@ -326,6 +341,48 @@ export function answerUndo(t, uid, yes) {
 
 export const cancelUndo = (t, uid) => (pendingUndo(t)?.uid === uid ? withoutRequest(t) : undefined);
 
+// ---------- Convention cards ----------
+// Each side plays a card. A side with no human copies the card of the side that has one (robots bid the system the
+// players know); with no humans at all, both play the house card. The cards are fixed on the board when its first
+// call is made: a change after that starts with the next board.
+const hasHuman = (t, side) => SEATS.some((s) => sideOf(s) === side && t.seats[s].kind === 'human');
+export function playedCards(t) {
+  const want = t.cards ?? {};
+  const out = {};
+  for (const side of ['NS', 'EW']) {
+    const other = side === 'NS' ? 'EW' : 'NS';
+    const c = hasHuman(t, side) ? want[side] : hasHuman(t, other) ? want[other] : null;
+    if (c) out[side] = c;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+// While no call has been made, the board follows the table's cards (and who sits where).
+function withCards(t) {
+  if (!t || t.board.calls) return t;
+  const cards = playedCards(t);
+  const { cards: _old, ...b } = t.board;
+  return { ...t, board: { ...b, ...withField('cards', cards) } };
+}
+
+// A seated player chooses the card of their side (packed; null = the house card).
+export function setCard(t, uid, packed) {
+  const me = mySeat(t, uid);
+  if (!me) return undefined;
+  const side = sideOf(me);
+  const c = packed ? normPacked(packed) : null;
+  if (packed && !c) return undefined;
+  const { [side]: _old, ...rest } = t.cards ?? {};
+  const cards = c ? { ...rest, [side]: c } : rest;
+  const { cards: _gone, ...others } = t;
+  return withCards({ ...others, ...withField('cards', Object.keys(cards).length ? cards : null) });
+}
+
+// A change of card that waits for the next board: true when the side's card now differs from the board's.
+export function cardPending(t, side) {
+  return JSON.stringify(playedCards(t)?.[side] ?? null) !== JSON.stringify(t.board.cards?.[side] ?? null);
+}
+
 // The home pair (North-South: the table's creator and partner) chooses who sits East-West:
 // robots, always pass, or open for players (anyone already seated there stays).
 export function setOpponents(t, mode) {
@@ -335,7 +392,7 @@ export function setOpponents(t, mode) {
     if (mode === 'players') seats[s] = seats[s].kind === 'human' ? seats[s] : { kind: 'open' };
     else seats[s] = { kind: mode };
   }
-  return { ...t, opponents: mode, seats };
+  return withCards({ ...t, opponents: mode, seats });
 }
 
 export function sit(t, seat, uid, name) {
@@ -345,7 +402,7 @@ export function sit(t, seat, uid, name) {
   const seats = { ...t.seats };
   for (const s of SEATS) if (seats[s].kind === 'human' && seats[s].uid === uid) seats[s] = { kind: 'open' };
   seats[seat] = { kind: 'human', uid, name: String(name).slice(0, 24) };
-  return { ...t, seats };
+  return withCards({ ...t, seats });
 }
 
 // The head of the table: whoever made it. If they are not seated (or the table is older than this), the first
@@ -360,7 +417,7 @@ export function hostOf(t) {
 export function kick(t, by, seat) {
   const who = t.seats[seat];
   if (!by || by !== hostOf(t) || !SEATS.includes(seat) || who.kind !== 'human' || who.uid === by) return undefined;
-  return { ...t, seats: { ...t.seats, [seat]: { kind: 'open' } }, kicked: { ...(t.kicked ?? {}), [who.uid]: who.name || 'Player' } };
+  return withCards({ ...t, seats: { ...t.seats, [seat]: { kind: 'open' } }, kicked: { ...(t.kicked ?? {}), [who.uid]: who.name || 'Player' } });
 }
 
 export function allowBack(t, by, uid) {
@@ -376,7 +433,7 @@ export function moveSeat(t, by, from, to) {
   const a = t.seats[from];
   const b = t.seats[to];
   if (a.kind !== 'human' || !['open', 'human'].includes(b.kind)) return undefined;
-  return { ...t, seats: { ...t.seats, [to]: a, [from]: b } };
+  return withCards({ ...t, seats: { ...t.seats, [to]: a, [from]: b } });
 }
 
 // A seated player sends a surprise to another human at the table (the name they tapped). kind picks the gag.
@@ -390,13 +447,13 @@ export function prank(t, by, toSeat, kind) {
 export function leave(t, uid) {
   const seat = mySeat(t, uid);
   if (!seat) return undefined;
-  return { ...t, seats: { ...t.seats, [seat]: { kind: 'open' } } };
+  return withCards({ ...t, seats: { ...t.seats, [seat]: { kind: 'open' } } });
 }
 
 // A seat nobody has taken can be filled by a robot (e.g. partner is away), and freed again.
 export function setSeatKind(t, seat, kind) {
   if (!SEATS.includes(seat) || !['open', 'robot'].includes(kind) || t.seats[seat].kind === 'human') return undefined;
-  return { ...t, seats: { ...t.seats, [seat]: { kind } } };
+  return withCards({ ...t, seats: { ...t.seats, [seat]: { kind } } });
 }
 
 // ---------- Playing a robot partner's contract ----------
@@ -498,7 +555,7 @@ export function nextBoard(t, rand) {
   const history = { ...t.history, [t.board.n]: { ...t.board } };
   const keys = Object.keys(history).map(Number).sort((a, b) => a - b);
   for (const k of keys.slice(0, Math.max(0, keys.length - HISTORY))) delete history[k];
-  return { ...t, board: board(t.board.n + 1, rand), history };
+  return withCards({ ...t, board: board(t.board.n + 1, rand), history });
 }
 
 // Take back my last call and everything called after it (any player can do this, whoever has called since).
@@ -515,13 +572,13 @@ export function lastOwnCall(t, uid) {
 export function undo(t, uid) {
   const i = lastOwnCall(t, uid);
   if (i < 0) return undefined;
-  return unswap({ ...t, board: { ...t.board, calls: auctionOf(t.board).calls.slice(0, i).join(' ') } });
+  return withCards(unswap({ ...t, board: { ...t.board, calls: auctionOf(t.board).calls.slice(0, i).join(' ') } }));
 }
 
 // Restart the current board's bidding (same cards), e.g. after a mis-click.
 export function rebid(t) {
   const u = unswap(t);
-  return u.board.calls ? { ...withoutClaim(u), board: (({ claim, ...b }) => ({ ...b, calls: '', play: '', skip: false }))(u.board) } : undefined;
+  return u.board.calls ? withCards({ ...withoutClaim(u), board: (({ claim, ...b }) => ({ ...b, calls: '', play: '', skip: false }))(u.board) }) : undefined;
 }
 
 export const partnerSeat = partnerOf;

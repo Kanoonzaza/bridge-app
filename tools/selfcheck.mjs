@@ -1,11 +1,13 @@
 // Self-consistency: every call the Advisor makes must fit the meaning the app itself gives that call
 // (strength, suit lengths, balance, stoppers), and a forcing bid by partner must not be passed.
-// Usage: node tools/selfcheck.mjs [deals] [seed] [examples]
+// Usage: node tools/selfcheck.mjs [deals] [seed] [examples] [--card <card>]   (cards: see tools/card-arg.mjs)
 import { advise, explain } from '../js/engine.js';
 import { misfit } from '../js/table/review.js';
 import { SEATS, addCall, isComplete, nextSeat, partnerOf, isBid } from '../js/auction.js';
 import { deal } from './coverage.mjs';
 import { packHand } from '../js/table/model.js';
+import { cardFromArg, takeFlag } from './card-arg.mjs';
+import { rulesFor } from '../js/pool/system.js';
 
 function rng(seed) {
   let a = seed >>> 0;
@@ -21,7 +23,8 @@ function rng(seed) {
 const VUL = ['none', 'NS', 'EW', 'both'];
 
 // Bids n random deals with the Advisor at all four seats and lists every inconsistency.
-export function selfcheck(n = 2000, seed = 77) {
+// book: the rules every seat plays (default: the house card).
+export function selfcheck(n = 2000, seed = 77, book = undefined) {
   const r = rng(seed);
   const out = { deals: n, calls: 0, bids: 0, dealsWithIssue: 0, issues: [] };
   for (let i = 0; i < n; i++) {
@@ -30,11 +33,11 @@ export function selfcheck(n = 2000, seed = 77) {
     let issue = false;
     for (let g = 0; g < 60 && !isComplete(auc); g++) {
       const seat = nextSeat(auc);
-      const res = advise(hands[seat], auc);
+      const res = advise(hands[seat], auc, book);
       const c = res.notCovered ? 'P' : res.call;
       out.calls++;
       const next = addCall(auc, c);
-      const rows = explain(next, undefined, { general: true });
+      const rows = explain(next, book, { general: true });
       const row = rows.at(-1);
       const src = res.fallback ? `general:${res.fallback}` : 'rule';
       const where = auc.calls.join(' ') || '(opening)';
@@ -61,9 +64,11 @@ export function selfcheck(n = 2000, seed = 77) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const n = Number(process.argv[2] ?? 2000);
-  const res = selfcheck(n, Number(process.argv[3] ?? 77));
-  const shown = Number(process.argv[4] ?? 30);
+  const argv = process.argv.slice(2);
+  const card = takeFlag(argv, '--card');
+  const n = Number(argv[0] ?? 2000);
+  const res = selfcheck(n, Number(argv[1] ?? 77), card ? rulesFor(cardFromArg(card)) : undefined);
+  const shown = Number(argv[2] ?? 30);
   const by = (k) => Object.fromEntries([...res.issues.reduce((m, x) => m.set(x[k], (m.get(x[k]) ?? 0) + 1), new Map())]);
   console.log(`${res.deals} deals, ${res.calls} calls (${res.bids} bids)`);
   console.log(`deals with at least one inconsistency: ${res.dealsWithIssue} (${((100 * res.dealsWithIssue) / res.deals).toFixed(1)}%)`);

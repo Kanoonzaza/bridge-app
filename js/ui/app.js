@@ -4,14 +4,15 @@ import { advisorView } from './advisor.js';
 import { decoderView } from './decoder.js';
 import { tableView } from './table.js';
 import { notesView } from './notes.js';
+import { cardView } from './card.js';
 import { setupTheme } from './theme.js';
 import { registerUpdates } from './update.js';
 
 registerUpdates();
 setupTheme(document.getElementById('theme-btn'), store);
 
-const TABS = ['advisor', 'decoder', 'table', 'notes'];
-const views = { advisor: document.getElementById('advisor'), decoder: document.getElementById('decoder'), table: document.getElementById('table'), notes: document.getElementById('notes') };
+const TABS = ['advisor', 'decoder', 'table', 'notes', 'card'];
+const views = Object.fromEntries(TABS.map((t) => [t, document.getElementById(t)]));
 const buttons = [...document.querySelectorAll('[data-tab]')];
 
 function show(tab, { focus = false } = {}) {
@@ -35,8 +36,11 @@ for (const b of buttons) {
     show(TABS[(TABS.indexOf(b.dataset.tab) + step + TABS.length) % TABS.length], { focus: true });
   });
 }
-// An invitation link opens the Table tab.
-show(new URLSearchParams(location.search).has('table') ? 'table' : cleanTab(store.load('tab', {}), TABS));
+// An invitation link opens the Table tab (a card link, from phase 6 on, the Card tab).
+const params = new URLSearchParams(location.search);
+show(params.has('table') ? 'table' : params.has('card') ? 'card' : cleanTab(store.load('tab', {}), TABS));
+// Another view asks for a tab (the Notes tab opens the card in use).
+window.addEventListener('bc:tab', (e) => show(e.detail));
 
 // A bad saved state must never leave a blank screen: reset that view's storage and start from defaults.
 function start(key, root, view) {
@@ -56,3 +60,4 @@ start('advisor', views.advisor, advisorView);
 start('decoder', views.decoder, decoderView);
 start('table', views.table, tableView);
 start('notes', views.notes, notesView);
+start('card', views.card, cardView);

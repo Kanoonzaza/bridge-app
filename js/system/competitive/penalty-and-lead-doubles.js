@@ -1,6 +1,11 @@
 import {
   SUITS4, nm, goodSuit, R, entries, def, advise,
 } from './shared.js';
+import { plays } from '../../pool/answers.js';
+
+// Pool question 'slam-doubles' (js/pool/catalog.js): the doubles are tagged 'slam-doubles:lead' (js/pool/tags.js);
+// the passes are plain bridge on every card (opt: null). With 'penalty', the decisions do not make these doubles.
+const leading = (st) => plays(st?.sys, 'slam-doubles', 'lead');
 
 // Doubles that are not takeout: lead-directing doubles of their artificial bids, the maximal double,
 // and the Lightner double of their slam. Notes: "Competitive judgment" and "Defense".
@@ -11,8 +16,15 @@ for (const [nt, arts] of [['1N', ['2C', '2D', '2H']], ['2N', ['3C', '3D', '3H']]
   for (const a of arts) {
     const k = [`(${nt})`, 'P', `(${a})`];
     def(k, 'X', `Lead-directing: a good ${nm(a[1])} suit, please lead it.`, { len: { [a[1]]: [4, 13] } }, 'lead-directing-doubles');
-    def(k, 'P', 'Pass.', {}, 'lead-directing-doubles');
-    advise(k, (e) => (goodSuit(e, a[1]) ? R('X', [`good ${nm(a[1])}: ask partner to lead it`]) : R('P', ['no lead to suggest: pass'])), [{ dealer: 'W', calls: [nt, 'P', a] }]);
+    def(k, 'P', 'Pass.', {}, 'lead-directing-doubles', { opt: null });
+    advise(k, (e, st) => (leading(st) && goodSuit(e, a[1]) ? R('X', [`good ${nm(a[1])}: ask partner to lead it`]) : R('P', [leading(st) ? 'no lead to suggest: pass' : 'pass']))
+      , [{ dealer: 'W', calls: [nt, 'P', a] }]);
+    for (const en of entries) if (JSON.stringify(en.after) === JSON.stringify(k) && en.call === 'P' && en.opt === null) {
+      const decide = (e, st) => (leading(st) && goodSuit(e, a[1]) ? 'X' : 'P');
+      en.priority = 10;
+      en.pick = (e, st) => decide(e, st) === 'P';
+      en.why = (e, st) => [leading(st) ? 'no lead to suggest: pass' : 'pass'];
+    }
   }
 }
 // Lead-directing double of their RKCB reply.
@@ -33,7 +45,8 @@ for (const [o, them] of [['H', 'D'], ['S', 'H'], ['H', 'C'], ['S', 'C'], ['S', '
 }
 
 // ---------- Lightner double (proposed): their freely bid slam; asks for an unusual lead (usually to get a ruff) ----------
-export function lightner(e, x) {
+export function lightner(e, x, st = null) {
+  if (!leading(st)) return R('P', ['pass']);
   const voids = SUITS4.filter((s) => s !== x && e.len[s] === 0);
   const aces = SUITS4.filter((s) => e.hand[s].includes('A')).length;
   return voids.length && aces >= 1 ? R('X', [`void in ${nm(voids[0])} and an ace: ask for an unusual lead`]) : R('P', ['no Lightner double: pass']);
@@ -43,11 +56,11 @@ for (const lv of [6, 7]) {
     for (const after of [[`(${lv}${x})`], [`(${lv}${x})`, 'P']]) {
       for (const call of ['X', 'P']) {
         entries.push({
-          tail: true, after, call, variant: `${lv}${x}`, notes: 'lightner-double', shows: {}, priority: 10,
+          tail: true, after, call, variant: `${lv}${x}`, notes: 'lightner-double', shows: {}, priority: 10, ...(call === 'P' ? { opt: null } : {}),
           meaning: call === 'X' ? 'Lightner double: do not lead our suit; make an unusual lead (often dummy\'s first suit). (Proposed.)' : 'Pass.',
           when: (key) => key.some((t) => t.startsWith('(')) && !key.some((t) => !t.startsWith('(') && /^[67]/.test(t)),
-          pick: (e) => lightner(e, x).call === call,
-          why: (e) => lightner(e, x).why,
+          pick: (e, st) => lightner(e, x, st).call === call,
+          why: (e, st) => lightner(e, x, st).why,
         });
       }
     }

@@ -18,7 +18,15 @@ function suitsShown(r, min = 4) {
 
 const general = (meaning, notes, shows = null) => ({ meaning, notes, shows, general: true });
 
-export function describeCall(auction, i, rows) {
+// Replies to 4NT by the card's `keycard` answer (js/pool/catalog.js).
+const KEYCARD_REPLIES = {
+  'rkcb-1430': { name: 'RKCB', C: '1 or 4 key cards', D: '0 or 3 key cards', H: '2 key cards without the trump queen', S: '2 key cards with the trump queen' },
+  'rkcb-0314': { name: 'RKCB', C: '0 or 3 key cards', D: '1 or 4 key cards', H: '2 key cards without the trump queen', S: '2 key cards with the trump queen' },
+  blackwood: { name: 'Blackwood', C: '0 or 4 aces', D: '1 ace', H: '2 aces', S: '3 aces' },
+};
+
+// sys: the card's answers of the side that made the call (js/pool/system.js); null reads as the house card.
+export function describeCall(auction, i, rows, sys = null) {
   const call = auction.calls[i];
   if (call === 'P') return null;
   const me = seatAt(auction, i);
@@ -76,6 +84,9 @@ export function describeCall(auction, i, rows) {
       return general(`Takeout double: short in their suit, ${unbid.length ? `support for ${list(unbid)}` : 'support for the unbid suits'}, opening values or more.`, 'takeout-doubles', { hcp: [11, 37] });
     }
     // Partner overcalled, they bid on, and this is my first action: responsive.
+    if (!iActed && pardActed && !weOpened && sys && !sys.is('responsive', 'on')) {
+      return general('Penalty double: length and strength in their suit (no responsive doubles on this card).', 'penalty-or-takeout-the-general-rule');
+    }
     if (!iActed && pardActed && !weOpened) {
       return general(`Responsive double (takeout): values and ${unbid.length ? `cards in ${list(unbid)} (often 5 with a weaker hand)` : 'no clear bid'}, usually some support for partner too. Partner picks the contract.`, 'responsive-doubles');
     }
@@ -88,10 +99,10 @@ export function describeCall(auction, i, rows) {
   const jump = L > cheapest;
   const where = weOpened ? 'when-they-overcall-our-opening' : 'advancing-partners-overcall';
 
-  // Replies to a general 4NT (RKCB 1430).
+  // Replies to a general 4NT (RKCB 1430 on the house card).
   if (pardLast?.call === '4N' && /RKCB|Key Card|Blackwood/i.test(pardLast.meaning ?? '') && L === 5 && !theyActedLast) {
-    const REPLY = { C: '1 or 4 key cards', D: '0 or 3 key cards', H: '2 key cards without the trump queen', S: '2 key cards with the trump queen' };
-    if (REPLY[s]) return general(`RKCB reply: ${REPLY[s]}.`, 'roman-key-card-blackwood-4nt');
+    const REPLY = KEYCARD_REPLIES[sys?.get('keycard')] ?? KEYCARD_REPLIES['rkcb-1430'];
+    if (REPLY[s]) return general(`${REPLY.name} reply: ${REPLY[s]}.`, 'roman-key-card-blackwood-4nt');
   }
 
   if (s === 'N') {
