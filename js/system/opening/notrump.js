@@ -100,9 +100,10 @@ export function respond2NT(e, min, sys = null) {
   return R('P', [`${h} HCP: no game`]);
 }
 
-const twoNTTable = () => callTable([
+// min: the opener's minimum (20 after 2NT, 22 after 2♣–2♦–2NT); Stayman needs game values opposite it.
+const twoNTTable = (min = 20) => callTable([
   ['P', 'No game.', {}],
-  ['3C', 'Stayman.', {}],
+  ['3C', `Stayman: ${25 - min}+ HCP and a 4-card major (game values; no garbage Stayman).`, { hcp: [25 - min, 37] }],
   ['3D', 'Transfer: 5+ hearts.', { len: { H: [5, 13] } }],
   ['3H', 'Transfer: 5+ spades.', { len: { S: [5, 13] } }],
   ['3S', 'Both minors (5-4 or longer), slam interest.', {}],
@@ -284,7 +285,7 @@ add(['1N', '2S', '3C'], callTable([['P', 'Long clubs: to play.', {}], ['3D', 'Lo
 
 // 2NT and 2♣–2♦–2NT
 for (const [pre, min] of [[['2N'], 20], [['2C', '2D', '2N'], 22]]) {
-  add([...pre], twoNTTable(), (e, sys) => respond2NT(e, min, sys));
+  add([...pre], twoNTTable(min), (e, sys) => respond2NT(e, min, sys));
   add([...pre, '3C'], staymanTable(3), stayman(3));
   add([...pre, '3D'], transferTable('H', 3, false), transferReply('H', 3, false));
   add([...pre, '3H'], transferTable('S', 3, false), transferReply('S', 3, false));

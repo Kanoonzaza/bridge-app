@@ -11,7 +11,7 @@ const BASE_LINES = {
 // Played on every card (the core rules).
 const CORE_LINES = {
   majors: ['Jacoby 2NT: 4+ support, 12+, game forcing'],
-  notrump: ['Stayman · Jacoby transfers · Gerber directly over 1NT / 2NT'],
+  notrump: ['Stayman · Jacoby transfers · Gerber directly over 1NT / 2NT', 'Over 2NT: 3♣ Stayman with 5+ HCP and a 4-card major (3+ after 2♣–2♦–2NT)'],
   twos: ['Strong 2♣ (2♦ waiting) · weak twos, 5–10 · 3- and 4-level preempts'],
   competitive: ['Michaels cue-bid · Unusual 2NT · Jordan 2NT over their double · negative doubles'],
 };
