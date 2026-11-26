@@ -12,7 +12,7 @@ test('notes anchors match the sections and subsections of the system notes', () 
 
 test('the proposed agreements in the code are exactly the notes headings marked Proposed', async () => {
   const { PROPOSED } = await import('../js/proposed.js');
-  const marked = [...read('notes/system-notes.html').matchAll(/<h3 id="([^"]+)">[^<]*(?:<[^h][^>]*>[^<]*<\/[^>]+>[^<]*)*<span class="tier tp">Proposed<\/span><\/h3>/g)].map((m) => m[1]);
+  const marked = [...read('notes/system-notes.html').matchAll(/<h3 id="([^"]+)"(?: data-opt="[^"]+")?>[^<]*(?:<[^h][^>]*>[^<]*<\/[^>]+>[^<]*)*<span class="tier tp">Proposed<\/span><\/h3>/g)].map((m) => m[1]);
   assert.deepEqual([...PROPOSED].sort(), marked.sort());
 });
 
@@ -33,4 +33,14 @@ test('the in-app notes link to each other, not to claude.ai, and every app link 
   const ids = new Set([...read('guide/system-notes.html').matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
   for (const s of JSON.parse(read('data/notes-toc.json'))) assert.ok(ids.has(s.id), s.id);
   assert.match(read('js/config.js'), /NOTES_URL = 'guide\/system-notes\.html'/);
+});
+
+test('every data-opt mark in the notes names a real option', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { isTag } = await import('../js/pool/tags.js');
+  const src = readFileSync(new URL('../notes/system-notes.html', import.meta.url), 'utf8');
+  const marks = [...src.matchAll(/<h[23] id="[^"]+" data-opt="([^"]+)">/g)].map((m) => m[1]);
+  assert.ok(marks.length >= 20);
+  for (const m of marks) assert.ok(isTag(m) && m !== null, m);
+  assert.equal(marks.length, [...src.matchAll(/data-opt=/g)].length, 'data-opt only right after a heading id');
 });

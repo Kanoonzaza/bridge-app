@@ -3,6 +3,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PRESETS } from '../js/pool/card.js';
 
 const PAGES = {
   'system-notes.html': { other: 'convention-card.html', otherTitle: 'Convention card' },
@@ -24,6 +25,30 @@ body{margin:0}
 .appbar + *{margin-top:10px}
 </style>`;
 
+// System notes only: show the notes of the card in use (bc:cards). A heading marked data-opt="slot:option" (or
+// "base:2/1") is hidden with the text under it, up to the next heading of its level, when the card does not play
+// that option; a marked subsection of a hidden section is decided on its own. "?all" or a link to a hidden
+// section shows everything. Kept in plain ES5 so it runs before the page's own script on any browser.
+const FILTER = `<script>(function(){try{
+var P=${JSON.stringify(PRESETS)};
+var s=JSON.parse(localStorage.getItem('bc:cards')||'{}'),c=(s.list||[])[s.active];
+if(!c||location.search.indexOf('all')>=0)return;
+var base=P[c.base]?c.base:'sayc',k,picks={};for(k in P[base])picks[k]=P[base][k];for(k in (c.picks||{}))picks[k]=c.picks[k];
+function on(o){if(!o)return true;var i=o.indexOf(':'),a=o.slice(0,i),b=o.slice(i+1);return a==='base'?b===base:picks[a]===b}
+function run(){var art=document.querySelector('article');if(!art)return;var hidden=[],ids={},n,hide=false,sub=null,lvl;
+for(n=art.firstElementChild;n;n=n.nextElementSibling){var t=n.tagName;
+if(t==='H2'){hide=!on(n.getAttribute('data-opt'));sub=null}
+else if(t==='H3'){sub=n.hasAttribute('data-opt')?!on(n.getAttribute('data-opt')):null}
+lvl=sub===null?hide:sub;if(lvl){hidden.push(n);if(n.id)ids[n.id]=1}}
+var h=location.hash.slice(1);if(h&&ids[decodeURIComponent(h)])return;
+window.addEventListener('hashchange',function(){var x=decodeURIComponent(location.hash.slice(1));if(!ids[x])return;for(var j=0;j<hidden.length;j++)hidden[j].hidden=false;var t=document.getElementById(x);if(t)t.scrollIntoView()});
+for(var i=0;i<hidden.length;i++)hidden[i].hidden=true;
+var links=document.querySelectorAll('.contents a[href^="#"]');for(i=0;i<links.length;i++)if(ids[links[i].getAttribute('href').slice(1)])links[i].parentNode.hidden=true;
+var note=document.createElement('p');note.className='lede';note.textContent='Showing the notes for your convention card: '+(c.name||'Untitled convention card')+'. ';
+var all=document.createElement('a');all.href='?all';all.textContent='Show everything';note.appendChild(all);
+var h1=art.querySelector('h1');if(h1)h1.parentNode.insertBefore(note,h1.nextSibling)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run()}catch(e){}})();</script>`;
+
 export function buildPage(name, source) {
   let html = source;
   for (const [url, page] of Object.entries(LINKS)) html = html.split(url).join(page);
@@ -44,21 +69,23 @@ export function buildPage(name, source) {
     '<body>',
     `<nav class="appbar" aria-label="Bridge Coach"><a href="../">← Bridge Coach</a><a href="${other}">${otherTitle}</a></nav>`,
     html.slice(cut).trim(),
+    name === 'system-notes.html' ? FILTER : null,
     '</body>',
     '</html>',
     '',
-  ].join('\n');
+  ].filter((x) => x !== null).join('\n');
 }
 
-// The notes' top-level sections, for the Notes tab: [{ id, title, tier, part }].
+// The notes' top-level sections, for the Notes tab: [{ id, title, tier, part, opt? }].
 export function contents(source) {
   const out = [];
   let part = '';
-  for (const m of source.matchAll(/<p class="part" id="[^"]+">([^<]*)<\/p>|<h2 id="([^"]+)">([\s\S]*?)<\/h2>/g)) {
+  for (const m of source.matchAll(/<p class="part" id="[^"]+">([^<]*)<\/p>|<h2 id="([^"]+)"(?: data-opt="([^"]+)")?>([\s\S]*?)<\/h2>/g)) {
     if (m[1] !== undefined) { part = m[1].trim(); continue; }
-    const [, , id, inner] = m;
+    const [, , id, opt, inner] = m;
     out.push({
       id,
+      ...(opt ? { opt } : {}),
       title: inner.replace(/<span class="tier[^"]*">[^<]*<\/span>/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
       tier: (inner.match(/class="tier[^"]*">([^<]*)</) ?? [])[1] ?? '',
       part,

@@ -8,6 +8,7 @@ import {
   CODE, parseCode, seatsAtBidding, say, restoreChat, chatKey, newCode, newTable, auctionOf, handOf, mySeat, isDone, turn,
   setOpponents, sit, leave, setSeatKind, askSeat, answerSeat, cancelSeat, seatRequests, PROTO, prank, hostOf, kick, allowBack, moveSeat, takeOver, giveBack, keepRobot, choicePending, autoDeclare, call, playRobot, nextBoard, rebid, undo, lastOwnCall,
   phase, isOver, actor, playOf, playCard, skipPlay, undoCard, lastOwnCard, claimChance, pendingClaim, requestClaim, answerClaim, cancelClaim, requestUndo, answerUndo, cancelUndo, pendingUndo,
+  setCard, cardPending,
 } from '../table/model.js';
 import { legalCards, controller, splitPlay, playState } from '../table/play.js';
 import { sharedPool, poolChoose } from '../table/pool.js';
@@ -21,6 +22,10 @@ import { biddingBox } from './bidding-box.js';
 import { copyButton } from './copy.js';
 import { parLine, tableRows } from '../table/ddtext.js';
 import { boardReport } from '../report.js';
+import { bookOfBoard } from '../pool/system.js';
+import { HOUSE_CARD, pack, sideCards, unready } from '../pool/card.js';
+import { loadCards, activeCard } from '../pool/cards-store.js';
+import { describeCard } from '../pool/view.js';
 
 const COMPASS = { N: 'North', E: 'East', S: 'South', W: 'West' };
 const VUL_TEXT = { none: 'None vulnerable', NS: 'N-S vulnerable', EW: 'E-W vulnerable', both: 'Both vulnerable' };
@@ -204,7 +209,7 @@ export function tableView(root, store) {
     try {
       const pool = sharedPool();
       const b = t.board;
-      const rows = explain(auctionOf(b), undefined, { general: true });
+      const rows = explain(auctionOf(b), bookOfBoard(b), { general: true });
       const r = await poolChoose(pool, {
         hands: Object.fromEntries(SEATS.map((s) => [s, handOf(b, s)])),
         contract: playOf(b).contract,
@@ -224,7 +229,7 @@ export function tableView(root, store) {
     if (!s || t.seats[s].kind !== 'robot') return null;
     const a = auctionOf(t.board);
     const hand = handOf(t.board, s);
-    const sim = await simulatedAdvice(hand, a, advise(hand, a));
+    const sim = await simulatedAdvice(hand, a, advise(hand, a, bookOfBoard(t.board)), t.board.cards);
     return sim?.sim?.changed ? sim.call : null;
   }
 
@@ -246,7 +251,7 @@ export function tableView(root, store) {
       let failed = false;
       try {
         const chosen = phase(t) === 'play' ? await ddCard(t) : phase(t) === 'bidding' ? await ddBid(t) : null;
-        await ui.sync.change(t.code, (cur) => (cur && cur.board.n === t.board.n && cur.board.calls === t.board.calls && cur.board.play === t.board.play ? playRobot(cur, advise, chosen) : undefined));
+        await ui.sync.change(t.code, (cur) => (cur && cur.board.n === t.board.n && cur.board.calls === t.board.calls && cur.board.play === t.board.play ? playRobot(cur, (h, a) => advise(h, a, bookOfBoard(cur.board)), chosen) : undefined));
       } catch {
         failed = true;
       }
@@ -265,7 +270,7 @@ export function tableView(root, store) {
       await connect();
       for (let tries = 0; tries < 5; tries++) {
         const code = newCode(rand);
-        const t = await ui.sync.change(code, (cur) => (cur ? undefined : newTable({ code, uid: ui.sync.uid, name: saved.name.trim(), seat: 'S', opponents, rand, now: Date.now() })));
+        const t = await ui.sync.change(code, (cur) => (cur ? undefined : withMyCard(newTable({ code, uid: ui.sync.uid, name: saved.name.trim(), seat: 'S', opponents, rand, now: Date.now() }))));
         if (t) {
           saved.code = code;
           save();
@@ -308,7 +313,7 @@ export function tableView(root, store) {
       await ui.sync.change(code, (t) => {
         if (!t || mySeat(t, ui.sync.uid)) return undefined;
         const free = ['N', 'S', 'E', 'W'].find((s) => t.seats[s].kind === 'open');
-        return free ? sit(t, free, ui.sync.uid, saved.name.trim()) : undefined;
+        return free ? withMyCard(sit(t, free, ui.sync.uid, saved.name.trim())) : undefined;
       });
     } catch (err) {
       if (ui.joining === code) settleJoin();
@@ -392,6 +397,59 @@ export function tableView(root, store) {
     return null;
   }
 
+  // ---------- Convention cards at the table ----------
+  // Each side plays a card (js/table/model.js: board.cards). Robots copy the card of the players' side.
+  const SIDE_NAME = { NS: 'North–South', EW: 'East–West' };
+  const cardLabel = (c) => (c === HOUSE_CARD ? 'House convention card (2/1)' : `${c.name || 'Untitled convention card'} (${c.base === 'sayc' ? 'SAYC' : '2/1'})`);
+  const robotsOnly = (t, side) => !SEATS.some((x) => sideOf(x) === side && t.seats[x].kind === 'human');
+
+  // Sitting down (or starting a table) brings the card in use on this phone, when my side has none yet.
+  function withMyCard(t) {
+    if (!t || !ui.sync) return t;
+    const me = mySeat(t, ui.sync.uid);
+    const mine = activeCard(store);
+    if (!me || mine === HOUSE_CARD || t.cards?.[sideOf(me)]) return t;
+    return setCard(t, ui.sync.uid, pack(mine)) ?? t;
+  }
+
+  function changeCard(t, packed) {
+    const started = Boolean(t.board.calls);
+    act((cur) => cur && setCard(cur, ui.sync.uid, packed), 'The convention card could not be changed. Try again.');
+    if (started) toast('Your convention card changes from the next board.');
+  }
+
+  // One side: its card, how it differs from the house card, and (for my side) a choice of the cards on this phone.
+  function sideCard(t, side, card, mine) {
+    const robots = robotsOnly(t, side);
+    const list = mine ? loadCards(store).list : [];
+    const current = JSON.stringify(t.cards?.[side] ?? null);
+    const value = String(list.findIndex((c) => JSON.stringify(pack(c)) === current));
+    return el('div', { class: 'side-card' },
+      el('div', { class: 'label' }, `${SIDE_NAME[side]}${robots ? ' · robots, playing the same convention card as the players' : ''}${mine ? ' · your side' : ''}`),
+      el('div', { class: 'seat-name' }, cardLabel(card)),
+      el('p', { class: 'muted' }, card === HOUSE_CARD ? 'Our own system: 2/1 Game Forcing, as in the notes.' : `${describeCard(card)}.`),
+      unready(card).length ? el('p', { class: 'muted' }, 'Some of this convention card is not in the robots\' rules yet: they bid those parts as on the house convention card.') : null,
+      mine ? el('label', { class: 'card-pick' },
+        el('span', { class: 'label' }, 'Our convention card'),
+        el('select', { class: 'field', 'data-key': 'pick-card', onchange: (e) => changeCard(t, e.target.value === '-1' ? null : pack(list[Number(e.target.value)])) },
+          el('option', { value: '-1', selected: value === '-1' }, 'House convention card (2/1)'),
+          ...list.map((c, i) => el('option', { value: String(i), selected: value === String(i) }, cardLabel(c))))) : null,
+      mine && cardPending(t, side) ? el('p', { class: 'close' }, 'Your new convention card starts with the next board.') : null,
+      mine && !list.length ? el('p', { class: 'muted' }, 'Make your own convention card in the Card tab.') : null);
+  }
+
+  // "Systems": which card each side plays this board. Shown when either side plays something other than the house
+  // card, or a seated player could choose one.
+  function cardsView(t, me) {
+    const cards = sideCards(t.board.cards);
+    const mySide = me ? sideOf(me) : null;
+    const anyOwn = t.board.cards || (me && loadCards(store).list.length);
+    if (!anyOwn) return null;
+    const short = (side) => (cards[side] === HOUSE_CARD ? 'house' : cards[side].name || 'untitled');
+    return section('cards', `Convention cards: N–S ${short('NS')} · E–W ${short('EW')}`,
+      ...['NS', 'EW'].map((side) => sideCard(t, side, cards[side], side === mySide)));
+  }
+
   function seatsView(t, me) {
     const isHost = hostOf(t) === ui.sync.uid;
     const moving = isHost && ui.moving && t.seats[ui.moving]?.kind === 'human' ? ui.moving : null;
@@ -405,7 +463,7 @@ export function tableView(root, store) {
         const who = st.kind === 'human' ? st.name || 'Player' : st.kind === 'robot' ? 'Robot' : st.kind === 'pass' ? 'Always passes' : 'Empty';
         const actions = [];
         if (st.kind === 'open') {
-          if (!removed) actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `sit-${s}`, onclick: () => act((cur) => cur && sit(cur, s, ui.sync.uid, saved.name.trim() || 'Player')) }, me ? 'Move here' : 'Sit here'));
+          if (!removed) actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `sit-${s}`, onclick: () => act((cur) => cur && withMyCard(sit(cur, s, ui.sync.uid, saved.name.trim() || 'Player'))) }, me ? 'Move here' : 'Sit here'));
           actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `robot-${s}`, onclick: () => act((cur) => cur && setSeatKind(cur, s, 'robot')) }, 'Robot'));
         } else if (st.kind === 'robot' && me && sideOf(s) === sideOf(me)) {
           actions.push(el('button', { type: 'button', class: 'pill', 'data-key': `free-${s}`, onclick: () => act((cur) => cur && setSeatKind(cur, s, 'open')) }, 'Free seat'));
@@ -723,7 +781,7 @@ export function tableView(root, store) {
 
   function meanings(t, me) {
     const a = auctionOf(t.board);
-    const rows = explain(a, undefined, { general: true }).filter((r) => r.call !== 'P' || r.entry);
+    const rows = explain(a, bookOfBoard(t.board), { general: true }).filter((r) => r.call !== 'P' || r.entry);
     if (!rows.length) return null;
     return el('div', {},
       el('div', { class: 'label' }, 'What the calls mean'),
@@ -754,12 +812,12 @@ export function tableView(root, store) {
   // The Advisor's bid at once; a judgment call is then checked by simulation and the answer updated.
   function showHint(t, me, a) {
     const hand = handOf(t.board, me);
-    const r = advise(hand, a);
+    const r = advise(hand, a, bookOfBoard(t.board));
     const mine = { ...r, checking: r.fallback === 'judgment' };
     ui.hint = mine;
     render();
     if (!mine.checking) return;
-    simulatedAdvice(hand, a, r).then((better) => {
+    simulatedAdvice(hand, a, r, t.board.cards).then((better) => {
       if (ui.hint !== mine) return;
       ui.hint = better ?? { ...r };
       render();
@@ -807,7 +865,7 @@ export function tableView(root, store) {
     if (!me) return null;
     const a = auctionOf(t.board);
     const hand = handOf(t.board, me);
-    const rows = a.calls.map((c, i) => (seatAt(a, i) === me ? { i, c, r: advise(hand, { ...a, calls: a.calls.slice(0, i) }) } : null)).filter(Boolean);
+    const rows = a.calls.map((c, i) => (seatAt(a, i) === me ? { i, c, r: advise(hand, { ...a, calls: a.calls.slice(0, i) }, bookOfBoard(t.board)) } : null)).filter(Boolean);
     if (!rows.length) return null;
     return section('my-calls', "The Advisor's view of my calls",
       el('div', { class: 'lines' }, ...rows.map(({ c, r }) => {
@@ -1063,6 +1121,7 @@ export function tableView(root, store) {
         el('div', { class: 'big' }, kText(k)),
         k ? el('p', { 'data-key': 'result' }, el('b', {}, 'Result: '), resultText(b, (s) => relative(me, s))) : null,
         el('p', { class: 'muted' }, `The Advisor would reach: ${kText(sysK)} (${sys.calls.map(callLabel).join(' ')}).`),
+        b.cards ? el('p', { class: 'muted', 'data-key': 'played-cards' }, `Bid by the convention cards: N–S ${cardLabel(sideCards(b.cards).NS)}, E–W ${cardLabel(sideCards(b.cards).EW)}.`) : null,
         past ? null : el('div', { class: 'row-buttons' },
           el('button', { type: 'button', class: 'pill on', 'data-key': 'next-board', onclick: () => act((cur) => cur && nextBoard(cur, rand)) }, 'Next board'),
           el('button', { type: 'button', class: 'pill', 'data-key': 'rebid', onclick: () => act((cur) => cur && rebid(cur)) }, 'Bid it again'))),
@@ -1224,6 +1283,7 @@ export function tableView(root, store) {
         el('input', { type: 'checkbox', 'data-key': 'hints', checked: saved.hints, onchange: (e) => { saved.hints = e.target.checked; save(); render(); } }),
         ' Show what each call means') : null,
       ph === 'bidding' && saved.hints ? meanings(t, me) : null,
+      ph === 'play' ? null : cardsView(t, me),
       el('details', { class: 'manage', open: someoneMissing || !me },
         el('summary', {}, 'Seats and opponents'),
         seatsView(t, me),

@@ -45,7 +45,8 @@ test('negative double: accept the jump with 9+', () => {
 
 test('round 3 sweep', () => {
   const rng = mulberry32(61);
-  for (const sit of SITUATIONS) {
+  // The house card's situations (a situation with `opt` belongs to another option of the convention pool).
+  for (const sit of SITUATIONS.filter((s) => !s.opt)) {
     const auction = auctionFor(sit.after, sit.ctx);
     assert.equal(auction.calls.filter((c) => c !== 'P').join(' '), sit.after.join(' '), `auction for ${sit.after}`);
     for (let i = 0; i < 60; i++) {

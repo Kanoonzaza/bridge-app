@@ -1,4 +1,5 @@
 import { SUITS, NAME, SYMBOL, dummyPoints, quality } from '../../cards.js';
+import { plays } from '../../pool/answers.js';
 
 // Responder's first bid after partner's 1♥ / 1♠ (opponents passing): raises (with Jacoby, splinters and Drury),
 // 2/1 game force, forcing 1NT, 1♠ over 1♥, jumps. One decision function, respondToMajor, picks the call.
@@ -38,11 +39,13 @@ const SPLINTER = { H: ['3S', '4C', '4D'], S: ['4C', '4D'] };
 const WJS = { H: { S: '2S', C: '3C', D: '3D' }, S: { C: '3C', D: '3D', H: '3H' } };
 const hasShortness = (e, M) => SUITS.some((s) => s !== M && e.len[s] <= 1);
 
-function weakJump(e, M) {
+// table: the jump calls available (with Bergen raises, 3♣ and 3♦ are raises, not jump shifts).
+function weakJump(e, M, table = WJS[M]) {
   if (e.hcp < 2 || e.hcp > 5) return null;
-  const s = SUITS.find((t) => t !== M && e.len[t] >= 6);
-  return s ? WJS[M][s] : null;
+  const s = SUITS.find((t) => t !== M && e.len[t] >= 6 && table[t]);
+  return s ? table[s] : null;
 }
+const withoutBergen = (table) => Object.fromEntries(Object.entries(table).filter(([, c]) => c !== '3C' && c !== '3D'));
 
 // The whole decision for responder's first bid after partner's 1♥/1♠ (opponents passing).
 // Passed hand, 4+ trumps and a good 5-card side suit: the jump shift is fit-showing (proposed agreement).
@@ -52,38 +55,68 @@ export function fitJump(e, M) {
   return s ? WJS[M][s] : null;
 }
 
-export function respondToMajor(e, M, passed) {
+// A strong jump shift (pool question 'jump-shift', answer 'strong'): 19+ with a good 6-card suit, or 17+ with
+// 4-card support for opener and a good 5-card side suit. table: the jump call in each suit.
+export function strongJump(e, o, table) {
+  const good = (s, n) => e.len[s] >= n && ['A', 'K', 'Q'].filter((r) => e.hand[s].includes(r)).length >= 2;
+  const s = SUITS.filter((t) => t !== o && table[t]).sort((a, b) => e.len[b] - e.len[a])[0];
+  if (!s) return null;
+  if (e.hcp >= 19 && good(s, 6)) return table[s];
+  if (e.hcp >= 17 && e.len[o] >= 4 && good(s, 5)) return table[s];
+  return null;
+}
+
+// sys: the card's answers (js/pool/answers.js); none = the house card.
+export function respondToMajor(e, M, passed, sys = null) {
   const tr = e.len[M];
   const dp = dummyPoints(e, M);
-  if (passed && fitJump(e, M)) return fitJump(e, M);
+  if (!passed && plays(sys, 'jump-shift', 'strong')) {
+    const js = strongJump(e, M, plays(sys, 'major-raise', 'bergen') ? withoutBergen(WJS[M]) : WJS[M]);
+    if (js) return js;
+  }
+  const drury = plays(sys, 'passed-2c', 'drury');
+  // SAYC (pool question 'base'): a 2-over-1 is 10+, forcing one round; the limit raise allows 3 trumps (10–11).
+  const sayc = plays(sys, 'base', 'sayc');
+  if (passed && plays(sys, 'passed-jump', 'fit') && fitJump(e, M)) return fitJump(e, M);
   if (tr >= 4) {
     if (!passed) {
-      const s = splinterSuit(e, M);
+      const s = plays(sys, 'splinters', 'on') ? splinterSuit(e, M) : null;
       const call = s && `${s === 'S' ? 3 : 4}${s}`;
       if (call && SPLINTER[M].includes(call) && e.hcp >= 10 && e.hcp <= 14) return call;
       if (e.hcp >= 10 && dp >= 13) return '2N';
     }
     if (tr >= 5 && hasShortness(e, M) && e.hcp <= 9 && dp >= 6) return `4${M}`;
-    if (passed && dp >= 10 && e.hcp >= 7) return '2C';
+    // Bergen raises (pool question 'major-raise'), unpassed: 3♣ = 7–9, 3♦ = 10–12, 3M = preemptive (0–6).
+    if (!passed && plays(sys, 'major-raise', 'bergen')) {
+      if (dp >= 10 && e.hcp >= 7) return '3D';
+      if (dp >= 7 && e.hcp >= 5) return '3C';
+      if (e.hcp <= 6) return `3${M}`;
+    }
+    if (passed && dp >= 10 && e.hcp >= 7) return drury ? '2C' : `3${M}`;
     if (dp >= 10 && e.hcp >= 7) return `3${M}`;
   }
-  if (tr === 3 && passed && dp >= 10 && e.hcp >= 7) return '2C';
+  if (tr === 3 && passed && dp >= 10 && e.hcp >= 7) return drury ? '2C' : `3${M}`;
+  if (tr === 3 && !passed && sayc && dp >= 10 && dp <= 11 && e.hcp >= 7) return `3${M}`;
   if (tr >= 3 && e.hcp >= 4 && dp >= 6 && (dp <= 9 || e.hcp < 7)) return `2${M}`;
   if (M === 'H' && e.len.S >= 4 && e.hcp >= 6) return '1S';
   if (!passed && tr === 2 && e.balanced && e.hcp >= 15 && e.hcp <= 17) return '3N';
-  if (!passed && gameForce(e, tr >= 3)) return `2${twoOverOneSuit(e, M)}`;
+  if (!passed && sayc && e.hcp >= 10) {
+    const s = twoOverOneSuit(e, M);
+    if (e.len[s] >= (s === 'H' ? 5 : 4) || e.hcp >= 12) return `2${s}`;
+  }
+  if (!passed && !sayc && gameForce(e, tr >= 3)) return `2${twoOverOneSuit(e, M)}`;
   if (passed && e.hcp >= 10) {
-    const s = (M === 'S' ? ['H', 'D'] : ['D']).filter((t) => e.len[t] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
+    const s = [...(M === 'S' ? ['H', 'D'] : ['D']), ...(drury ? [] : ['C'])].filter((t) => e.len[t] >= 5).sort((a, b) => e.len[b] - e.len[a])[0];
     if (s) return `2${s}`;
   }
-  const wj = passed ? null : weakJump(e, M);
+  const wj = passed || !plays(sys, 'jump-shift', 'weak') ? null : weakJump(e, M, plays(sys, 'major-raise', 'bergen') ? withoutBergen(WJS[M]) : WJS[M]);
   if (wj) return wj;
   if (e.hcp >= 6) return '1N';
   return 'P';
 }
 
 const M_OF = (st) => st.key[0][1];
-const pick = (call) => (e, st) => respondToMajor(e, M_OF(st), st.ctx.responderPassed) === call.replace('M', M_OF(st));
+const pick = (call) => (e, st) => respondToMajor(e, M_OF(st), st.ctx.responderPassed, st.sys) === call.replace('M', M_OF(st));
 const dpWhy = (e, M) => `${dummyPoints(e, M)} dummy points with ${e.len[M]} ${NAME[M]}`;
 
 function oneNtPlan(e, M) {

@@ -11,6 +11,10 @@ Live: https://kanoonzaza.github.io/bridge-app/
 - Simulation of judgment calls: where no agreement covers the hand, the Advisor and the table robots deal likely hidden hands, finish the auction each way and score it double dummy (`js/sim-bid.js`); the work runs in parallel on a pool of web workers, one per core. Offline checks: `node tools/ddcheck.mjs` (rule checker), `node tools/simcheck.mjs` (does simulation help?), `node tools/match.mjs <other-checkout>` (duplicate match between two versions of the Advisor, scored double dummy: the test for any rule change), `node tools/ddsituation.mjs "1H P 2H"` (every alternative call at one position, by hand type).
 - For practice and study only; electronic aids are not allowed at the table.
 
+## Shared convention cards (Firebase rules)
+
+Partners share a convention card by code (Card tab → Share with your partner). The cards live in the same Firebase Realtime Database as the tables, under `cards/`. The rules for that path are in `database.rules.cards.json`: in the Firebase console (Realtime Database → Rules), add its `"cards": { … }` block next to the existing `"tables"` block inside `"rules"`, and publish. Do not replace the whole rules document. Until the rules are published, sharing fails with "Could not make a code" and everything else works as before.
+
 ## Release
 
 The service worker names its cache after a hash of the cached files, so installed copies only update when something really changed.

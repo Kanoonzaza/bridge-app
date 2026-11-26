@@ -25,10 +25,12 @@ const above = (a, b) => (Number(a[0]) - Number(b[0])) * 5 + RANK[a[1]] - RANK[b[
 const R = (call, why, extra = {}) => ({ call, why, ...extra });
 
 const SITUATIONS = [];
-// calls: [call, meaning, notes?, shows?][]; decide(e) must return one of them.
-const sit = (after, calls, decide, notes = REBID, ctx) => SITUATIONS.push({
+// calls: [call, meaning, notes?, shows?][]; decide(e, sys) must return one of them (sys: the card's answers).
+// opt: the pool option the whole situation belongs to (js/pool/catalog.js), when it is not the house card's.
+const sit = (after, calls, decide, notes = REBID, ctx, opt) => SITUATIONS.push({
   after,
   ctx,
+  opt,
   calls: Object.fromEntries(calls.map(([c, m, n, sh]) => [c, { meaning: m, shows: sh ?? {}, notes: n ?? notes }])),
   decide,
 });
@@ -216,6 +218,9 @@ const ntSeqs = (pre, min) => {
   for (const sm of ['H', 'S']) {
     const other = sm === 'H' ? 'S' : 'H';
     s([st, d, `3${sm}`], [[`4${other}`, `3 ${nm(other)}: game in the 5-3 fit.`], ['3N', `Only 2 ${nm(other)}.`]], (e) => (e.len[other] >= 3 ? R(`4${other}`, [`${e.len[other]} ${nm(other)}`]) : R('3N', [`${e.len[other]} ${nm(other)}`])), SMOLEN);
+    // Without Smolen (pool question 'smolen'), responder's 3 of a major shows 5 cards in that major.
+    sit([...pre, st, d, `3${sm}`], [[`4${sm}`, `3+ ${nm(sm)}: game in the major.`], ['3N', `Only 2 ${nm(sm)}.`]],
+      (e) => (e.len[sm] >= 3 ? R(`4${sm}`, [`${e.len[sm]} ${nm(sm)}: 8-card fit`]) : R('3N', [`${e.len[sm]} ${nm(sm)}: 3NT`])), NT, undefined, 'smolen:off');
   }
   for (const rep of ['H', 'S']) {
     s([st, `${lv}${rep}`, '3N'], rep === 'H' ? [['P', 'No 4 spades.'], ['4S', '4 spades: partner holds them too.']] : [['P', 'To play.']],
@@ -440,15 +445,16 @@ for (const M of ['H', 'S']) {
 const entries = SITUATIONS.flatMap((s) => Object.entries(s.calls).map(([call, c]) => ({
   after: s.after,
   ...(s.ctx && { ctx: s.ctx }),
+  ...(s.opt && { opt: s.opt }),
   call,
   meaning: c.meaning,
   shows: c.shows,
   notes: c.notes,
   priority: 10,
-  pick: (e) => s.decide(e).call === call,
-  why: (e) => s.decide(e).why,
-  plan: (e) => s.decide(e).plan ?? null,
-  close: (e) => s.decide(e).close ?? null,
+  pick: (e, st) => s.decide(e, st?.sys).call === call,
+  why: (e, st) => s.decide(e, st?.sys).why,
+  plan: (e, st) => s.decide(e, st?.sys).plan ?? null,
+  close: (e, st) => s.decide(e, st?.sys).close ?? null,
 })));
 
 export default entries;

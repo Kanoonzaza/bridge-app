@@ -119,7 +119,7 @@ function answerTakeoutDouble(c) {
   // so pass only with long, strong trumps. (Takeout or penalty: the same general rule the Decoder shows.)
   const lastAct = [...rows].reverse().find((r) => r.call !== 'P');
   if (lastAct && lastAct.seat === pard && lastAct.call === 'X') {
-    const meaning = lastAct.entry ? lastAct.meaning ?? '' : describeCall(auction, lastAct.i, rows)?.meaning ?? '';
+    const meaning = lastAct.entry ? lastAct.meaning ?? '' : describeCall(auction, lastAct.i, rows, c.sys)?.meaning ?? '';
     // A real takeout double leaves at least two suits to choose from; after they bid three suits it shows values.
     if (/takeout/i.test(meaning) && !/penalty/i.test(meaning) && SUITS.filter((x) => !theirSuits.has(x)).length >= 2) {
       const t = lastBid[1];
@@ -187,7 +187,8 @@ function slam(c) {
       const c = combined >= 35 ? `6${T}` : `5${T}`;
       if (legal.has(c)) return { call: c, why: [...why, `${NAME[T]} trumps but only ${keys} key card${keys === 1 ? '' : 's'}: skip 4NT, bid ${c[0] === '6' ? 'the slam' : 'game'}`] };
     }
-    const r = R('4N', [...why, `${trumps} ${NAME[T]} between you: ask for key cards (RKCB)`]);
+    const ask = (c.sys?.get('keycard') ?? 'rkcb-1430') === 'blackwood' ? 'ask for aces (Blackwood)' : 'ask for key cards (RKCB)';
+    const r = R('4N', [...why, `${trumps} ${NAME[T]} between you: ${ask}`]);
     if (r) return r;
   }
   if (!T && combined >= 33) {
@@ -279,6 +280,7 @@ function maximalDouble(c) {
 // raise, so partner can choose between our two suits.
 function responsiveDouble(c) {
   const { e, legal, mRows, pFirst, pLast, opened, theyBidLast, lastBid, theirSuits } = c;
+  if (c.sys && !c.sys.is('responsive', 'on')) return null;
   if (opened !== 'them' || !theyBidLast || !legal.has('X') || pLast !== pFirst || mRows.some((r) => r.call !== 'P')) return null;
   if (!isBid(pFirst.call) || pFirst.call[1] === 'N' || Number(lastBid[0]) > 2 || lastBid[1] === 'N') return null;
   const ps = pFirst.call[1];
@@ -398,9 +400,11 @@ const STEPS = [
   misfitRebid, invite,
 ];
 
-export function judge(e, auction, rows, summary, key) {
+// sys: the card's answers (js/pool/system.js); null reads as the house card.
+export function judge(e, auction, rows, summary, key, sys = null) {
   const c = readSituation(e, auction, rows, summary, key);
   if (!c) return null;
+  c.sys = sys;
   for (const step of STEPS) {
     const r = step(c);
     if (r) return r;

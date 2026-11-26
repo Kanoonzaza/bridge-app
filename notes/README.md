@@ -11,3 +11,5 @@ These pages are the published notes: our partnership agreements, and the univers
 The app's "Read more" links point at the `<h2 id>` anchors of `system-notes.html`. `data/notes-anchors.json` must list exactly those ids (a test checks it). After adding or renaming a section, update that file, then republish.
 
 When an agreement changes, change the rules in `js/system/` and both pages together.
+
+Headings that belong to one convention of the pool carry `data-opt="<slot>:<option>"` (or `base:2/1`) right after their id, for example `<h3 id="splinter-bids" data-opt="splinters:on">`. The in-app copy hides them when the card in use (Card tab) does not play that option. A test checks every mark names a real option.

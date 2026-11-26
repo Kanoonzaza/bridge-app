@@ -1,7 +1,7 @@
 import { el } from './dom.js';
 
 // A button that copies a report; if the phone blocks the clipboard, the text appears in a box to copy by hand.
-export function copyButton(label, getText, key) {
+export function copyButton(label, getText, key, done = 'Copied. Paste it into your chat with Claude and add your question.', boxLabel = 'Board report') {
   const status = el('span', { class: 'muted copy-status', role: 'status' });
   const box = el('div');
   const button = el('button', {
@@ -12,11 +12,11 @@ export function copyButton(label, getText, key) {
       const text = getText();
       try {
         await navigator.clipboard.writeText(text);
-        status.textContent = 'Copied. Paste it into your chat with Claude and add your question.';
+        status.textContent = done;
         box.replaceChildren();
       } catch {
         status.textContent = 'Select the text below and copy it.';
-        const area = el('textarea', { class: 'field copy-area', readonly: true, rows: 12, 'aria-label': 'Board report' });
+        const area = el('textarea', { class: 'field copy-area', readonly: true, rows: 12, 'aria-label': boxLabel });
         area.value = text;
         box.replaceChildren(area);
         area.focus();

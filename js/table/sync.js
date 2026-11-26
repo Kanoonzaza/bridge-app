@@ -9,17 +9,27 @@ import { normalize } from './model.js';
 const FIREBASE = '10.12.2';
 const gstatic = (m) => `https://www.gstatic.com/firebasejs/${FIREBASE}/firebase-${m}.js`;
 
+// One Firebase app per page, shared by tables and shared convention cards (js/pool/sync.js): anonymous sign-in.
+// Loaded only when first needed.
+let opened = null;
+export function firebaseApp(config) {
+  opened ??= (async () => {
+    const [{ initializeApp }, { getAuth, signInAnonymously }, db] = await Promise.all([
+      import(gstatic('app')), import(gstatic('auth')), import(gstatic('database')),
+    ]);
+    const app = initializeApp(config);
+    const cred = await signInAnonymously(getAuth(app));
+    return { db, database: db.getDatabase(app), uid: cred.user.uid };
+  })().catch((err) => { opened = null; throw err; });
+  return opened;
+}
+
 // Firebase Realtime Database, anonymous sign-in. Loaded only when a table is opened.
 export async function firebaseSync(config) {
-  const [{ initializeApp }, { getAuth, signInAnonymously }, db] = await Promise.all([
-    import(gstatic('app')), import(gstatic('auth')), import(gstatic('database')),
-  ]);
-  const app = initializeApp(config);
-  const cred = await signInAnonymously(getAuth(app));
-  const database = db.getDatabase(app);
+  const { db, database, uid } = await firebaseApp(config);
   const at = (code) => db.ref(database, `tables/${code}`);
   return {
-    uid: cred.user.uid,
+    uid,
     watch(code, onTable, onError) {
       return db.onValue(at(code), (snap) => onTable(normalize(snap.val())), (err) => (onError ? onError(err) : onTable(null)));
     },

@@ -3,6 +3,8 @@
 // checked by asking the Advisor whether each hidden player would really have made the calls they made), finish the
 // auction after each candidate call, score the final contract double dummy (DDS) and total the results in IMPs.
 // The Advisor's own call stays unless an alternative is clearly better on average.
+// book: the rules each side plays (js/pool/system.js; default the house card), passed to every engine call, so
+// partner and the opponents are read and bid by their own convention cards.
 import { SUITS, RANKS } from './cards.js';
 import { advise, explain, summarize } from './engine.js';
 import { SEATS, addCall, isComplete, nextSeat, seatAt, legalCalls, sideOf } from './auction.js';
@@ -32,24 +34,24 @@ const toHand = (cards) => Object.fromEntries(SUITS.map((s) => [s, cards.filter((
 const hcpOf = (cards) => cards.reduce((n, c) => n + (HCP[c[1]] ?? 0), 0);
 
 // What each seat has shown, as ranges (from the Decoder's reading of the calls so far).
-function shownRanges(auction) {
-  const rows = explain(auction, undefined, { general: true });
+function shownRanges(auction, book) {
+  const rows = explain(auction, book, { general: true });
   return Object.fromEntries(SEATS.map((s) => [s, summarize(rows, s)]));
 }
 
 // Would this hand have made the calls this seat made, if the Advisor decided? (Not for the player asking.)
-function consistent(auction, hands, seat) {
+function consistent(auction, hands, seat, book) {
   for (let i = 0; i < auction.calls.length; i++) {
     const s = seatAt(auction, i);
     if (s === seat) continue;
-    const r = advise(hands[s], { ...auction, calls: auction.calls.slice(0, i) });
+    const r = advise(hands[s], { ...auction, calls: auction.calls.slice(0, i) }, book);
     if ((r.notCovered ? 'P' : r.call) !== auction.calls[i]) return false;
   }
   return true;
 }
 
 // One layout of the other three hands, or null. strict: also check the calls against the Advisor.
-export function sampleHands(auction, seat, hand, rand, { strict = true, tries = 6000, ranges = shownRanges(auction) } = {}) {
+export function sampleHands(auction, seat, hand, rand, { strict = true, tries = 6000, book, ranges = shownRanges(auction, book) } = {}) {
   const mine = new Set(cardsOf(hand));
   const deck = SUITS.flatMap((s) => [...RANKS].map((r) => s + r)).filter((c) => !mine.has(c));
   const hidden = SEATS.filter((s) => s !== seat);
@@ -74,7 +76,7 @@ export function sampleHands(auction, seat, hand, rand, { strict = true, tries = 
       }
       out[s] = toHand(cards);
     });
-    if (ok && (!strict || consistent(auction, out, seat))) return out;
+    if (ok && (!strict || consistent(auction, out, seat, book))) return out;
   }
   return null;
 }
@@ -88,9 +90,9 @@ export function isSacrifice(a, k) {
 }
 
 // Finish the auction with the Advisor playing every seat (no simulation inside).
-function finish(hands, a) {
+function finish(hands, a, book) {
   for (let g = 0; g < 60 && !isComplete(a); g++) {
-    const r = advise(hands[nextSeat(a)], a);
+    const r = advise(hands[nextSeat(a)], a, book);
     a = addCall(a, r.notCovered ? 'P' : r.call);
   }
   return a;
@@ -136,8 +138,8 @@ export function candidatesFor(hand, auction, advisedCall, shown = null) {
 
 // A call must not claim what the hand lacks: the meaning the Decoder would give it (a stopper in their suits, a
 // balanced hand, a minimum length or strength) has to fit the hand. The Advisor's own call is always kept.
-export function honest(hand, auction, calls, advisedCall) {
-  const rows = (c) => explain({ ...auction, calls: [...auction.calls, c] }, undefined, { general: true })[auction.calls.length];
+export function honest(hand, auction, calls, advisedCall, book) {
+  const rows = (c) => explain({ ...auction, calls: [...auction.calls, c] }, book, { general: true })[auction.calls.length];
   return calls.filter((c) => {
     if (c === advisedCall) return true;
     const row = rows(c);
@@ -181,10 +183,10 @@ export function sensible(hand, auction, calls, advisedCall, shown) {
 // Simulate a share of the samples: for each candidate call, the IMPs it gains against the Advisor's call (baseCall)
 // summed over the sampled deals, and on how many deals it does better. One worker runs one share; shares from
 // several workers are combined with mergeParts and judged with decideBid.
-export function simulateParts({ hand, auction, baseCall, dds, rand = Math.random, samples = 16, minSamples = 0, timeMs = 2500, now = () => Date.now(), candidates }) {
+export function simulateParts({ hand, auction, baseCall, dds, rand = Math.random, samples = 16, minSamples = 0, timeMs = 2500, now = () => Date.now(), candidates, book }) {
   const seat = nextSeat(auction);
-  const ranges = shownRanges(auction);
-  const calls = candidates ?? sensible(hand, auction, honest(hand, auction, candidatesFor(hand, auction, baseCall, ranges), baseCall), baseCall, ranges);
+  const ranges = shownRanges(auction, book);
+  const calls = candidates ?? sensible(hand, auction, honest(hand, auction, candidatesFor(hand, auction, baseCall, ranges), baseCall, book), baseCall, ranges);
   const sums = Object.fromEntries(calls.map((c) => [c, { sum: 0, win: 0 }]));
   if (calls.length < 2) return { n: 0, sums };
   const mySide = sideOf(seat);
@@ -192,11 +194,11 @@ export function simulateParts({ hand, auction, baseCall, dds, rand = Math.random
   let n = 0;
   let misses = 0;
   while (n < samples && (n < minSamples || now() - start < timeMs) && misses < 6) {
-    const hands = sampleHands(auction, seat, hand, rand, { ranges }) ?? sampleHands(auction, seat, hand, rand, { strict: false, ranges, tries: 3000 });
+    const hands = sampleHands(auction, seat, hand, rand, { ranges, book }) ?? sampleHands(auction, seat, hand, rand, { strict: false, ranges, tries: 3000, book });
     if (!hands) { misses++; continue; }
     const cache = new Map();
     const result = (call) => {
-      const a = finish(hands, addCall(auction, call));
+      const a = finish(hands, addCall(auction, call), book);
       const k = contract(a);
       if (!k) return 0;
       const key = `${k.bid}${k.doubled}${k.declarer}`;
